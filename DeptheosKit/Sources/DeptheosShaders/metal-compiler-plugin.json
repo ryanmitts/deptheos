@@ -1,0 +1,4 @@
+{
+    "include-paths": ["include"],
+    "output": "DeptheosShaders.metallib"
+}

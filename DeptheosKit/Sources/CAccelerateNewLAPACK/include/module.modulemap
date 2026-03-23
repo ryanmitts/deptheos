@@ -1,0 +1,4 @@
+module CAccelerateNewLAPACK [system] {
+    header "CAccelerateNewLAPACK.h"
+    export *
+}

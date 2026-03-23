@@ -1,0 +1,33 @@
+---
+const pages = [
+  { href: '/', label: 'Home' },
+  { href: '/about', label: 'About' },
+];
+
+const currentPath = Astro.url.pathname;
+---
+
+<nav>
+  {pages.map(({ href, label }) => (
+    <a href={href} class={currentPath === href ? 'active' : ''}>
+      {label}
+    </a>
+  ))}
+</nav>
+
+<style>
+  nav {
+    display: flex;
+    gap: 1rem;
+    padding: 1rem;
+    border-bottom: 1px solid #eee;
+  }
+  a {
+    text-decoration: none;
+    color: #555;
+  }
+  a.active {
+    font-weight: bold;
+    color: #000;
+  }
+</style>

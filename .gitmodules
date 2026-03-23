@@ -1,0 +1,3 @@
+[submodule "DeptheosKit/Vendor/LibRaw"]
+	path = DeptheosKit/Vendor/LibRaw
+	url = git@github.com:ryanmitts/LibRaw.git

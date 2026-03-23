@@ -1,0 +1,4 @@
+module CJXLShim [system] {
+    header "jxl_shim.h"
+    export *
+}

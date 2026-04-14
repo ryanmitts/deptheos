@@ -83,8 +83,15 @@ Can retouch images after stacking to make corrections.
 These images are stacked with Deptheos.
 
 <img src="https://images.deptheos.com/spider_1_small.jpg" alt="Spider 1" width="800" />
+
+Source images: [JPEG (250MB)](https://images.deptheos.com/spider1-jpeg.zip) | [RAW/CR3 (711MB)](https://images.deptheos.com/spider1-cr3.zip), 46 images
+
+<hr />
+
 <img src="https://images.deptheos.com/spider_3_small.jpg" alt="Spider 2" width="800" />
+<hr />
 <img src="https://images.deptheos.com/pcb_1_small.jpg" alt="PCB 1" width="800" />
+<hr />
 <img src="https://images.deptheos.com/hornet_2_small.jpg" alt="Hornet 1" width="800" />
 
 ### Future

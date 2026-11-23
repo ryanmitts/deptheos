@@ -408,7 +408,8 @@ mod tests {
             &words(),
         );
         assert_eq!(plan.jobs.len(), 2);
-        let (s1, s2) = (s1.canonicalize().unwrap(), s2.canonicalize().unwrap());
+        let canon = |p: &std::path::Path| crate::frames::sources::canonical(p).unwrap();
+        let (s1, s2) = (canon(&s1), canon(&s2));
         assert_eq!(plan.frames_folder_holding(&s2), Some(s2.clone()));
         assert_eq!(plan.frames_folder_holding(&s1.join("out")), Some(s1.clone()), "not made yet");
         assert_eq!(plan.frames_folder_holding(&s1.join("out/deeper")), Some(s1.clone()));

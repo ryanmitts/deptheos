@@ -893,6 +893,7 @@ fn the_list_through_the_bindings() {
 /// A listing through the add plan: new ones added, New Stack Instead
 /// offered once the list had frames, a missing folder said, and nothing
 /// added once another stack is on screen or a stack runs.
+#[cfg(unix)] // locks a folder with Unix permissions
 #[test]
 fn the_add_plan_through_the_bindings() {
     let dir = tempfile::tempdir().unwrap();

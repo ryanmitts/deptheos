@@ -45,6 +45,9 @@ jobs:
         with:
           components: clippy, rustfmt
       - uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2
+        with:
+          cache-on-failure: true # a failing test still keeps the build
+          cache-workspace-crates: true # LibRaw and the DNG SDK build in our crates
       - uses: taiki-e/install-action@cfdb7ed4ccc7c7dce37759eae89dc5674b469b39 # v2
         with:
           tool: cargo-nextest
@@ -69,6 +72,9 @@ jobs:
       - uses: ./.github/actions/fetch-libraw
       - uses: dtolnay/rust-toolchain@b725eda525362e7cf34af9a7243cac1e3f01a7ec # stable
       - uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2
+        with:
+          cache-on-failure: true # a failing test still keeps the build
+          cache-workspace-crates: true # LibRaw and the DNG SDK build in our crates
       - uses: taiki-e/install-action@cfdb7ed4ccc7c7dce37759eae89dc5674b469b39 # v2
         with:
           tool: cargo-nextest
@@ -95,6 +101,9 @@ jobs:
             libssl-dev libzstd-dev mesa-vulkan-drivers
       - uses: dtolnay/rust-toolchain@b725eda525362e7cf34af9a7243cac1e3f01a7ec # stable
       - uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2
+        with:
+          cache-on-failure: true # a failing test still keeps the build
+          cache-workspace-crates: true # LibRaw and the DNG SDK build in our crates
       - uses: taiki-e/install-action@cfdb7ed4ccc7c7dce37759eae89dc5674b469b39 # v2
         with:
           tool: cargo-nextest

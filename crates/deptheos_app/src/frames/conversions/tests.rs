@@ -186,11 +186,15 @@ fn a_stack_follows_its_read_order() {
     let reversed: Vec<PathBuf> = paths.iter().rev().cloned().collect();
     stack.plan(&reversed);
     stack.file(&paths[5]).unwrap();
-    wait_for_calls(&log, 5);
+    // The read-ahead may go on to frame 3 after these; only the first five are pinned.
+    let start = Instant::now();
+    while calls(&log) < 5 && start.elapsed() < std::time::Duration::from_secs(5) {
+        std::thread::sleep(std::time::Duration::from_millis(10));
+    }
     let order = std::fs::read_to_string(&log).unwrap();
     let names: Vec<&str> =
         order.lines().map(|l| Path::new(l).file_name().unwrap().to_str().unwrap()).collect();
-    assert_eq!(names, ["0.cr3", "1.cr3", "2.cr3", "5.cr3", "4.cr3"]);
+    assert_eq!(names[..5], ["0.cr3", "1.cr3", "2.cr3", "5.cr3", "4.cr3"], "{names:?}");
 }
 
 #[test]

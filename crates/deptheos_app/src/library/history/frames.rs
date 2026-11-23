@@ -866,8 +866,18 @@ mod tests {
         // Named again without a read; a missing unread file from its root.
         std::fs::remove_file(&paths[1]).unwrap();
         assert_eq!(again.refs(&[canon.join("2.tif")]).unwrap(), &refs[..1]);
-        let other = again.refs(std::slice::from_ref(&paths[1])).unwrap().remove(0);
-        assert!(other.same_file(&refs[0]) && other.size == 0);
+        // A spelling not named before: through a link on Unix, where the temporary
+        // folder may already be canonical.
+        #[cfg(unix)]
+        let unnamed = {
+            let alias = dir.path().join("alias");
+            std::os::unix::fs::symlink(&canon, &alias).unwrap();
+            alias.join("2.tif")
+        };
+        #[cfg(not(unix))]
+        let unnamed = paths[1].clone();
+        let other = again.refs(std::slice::from_ref(&unnamed)).unwrap().remove(0);
+        assert!(other.same_file(&refs[0]) && other.size == 0, "{other:?}");
     }
 
     #[test]

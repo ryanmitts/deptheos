@@ -1,65 +1,20 @@
-# Xcode
-#
-# gitignore contributors: remember to update Global/Xcode.gitignore, Objective-C.gitignore & Swift.gitignore
+# Rust
+/target/
 
-## User settings
-xcuserdata/
+# Release builds (script/bundle-mac.sh, script/bundle-windows.ps1)
+/dist/
 
-## Obj-C/Swift specific
-*.hmap
+# The iOS app's version and build number, written by ios/build-xcframework.sh
+/ios/Version.xcconfig
 
-## App packaging
-*.ipa
-*.dSYM.zip
-*.dSYM
+# macOS, editors, local tooling
+.DS_Store
+.idea/
+.vscode/
+.mcp.json
 
-## Playgrounds
-timeline.xctimeline
-playground.xcworkspace
-
-# Swift Package Manager
-#
-# Add this line if you want to avoid checking in source code from Swift Package Manager dependencies.
-# Packages/
-# Package.pins
-# Package.resolved
-# *.xcodeproj
-#
-# Xcode automatically generates this directory with a .xcworkspacedata file and xcuserdata
-# hence it is not needed unless you have added a package configuration file to your project
-# .swiftpm
-
-.build/
-
-# CocoaPods
-#
-# We recommend against adding the Pods directory to your .gitignore. However
-# you should judge for yourself, the pros and cons are mentioned at:
-# https://guides.cocoapods.org/using/using-cocoapods.html#should-i-check-the-pods-directory-into-source-control
-#
-# Pods/
-#
-# Add this line if you want to avoid checking in source code from the Xcode workspace
-# *.xcworkspace
-
-# Carthage
-#
-# Add this line if you want to avoid checking in source code from Carthage dependencies.
-# Carthage/Checkouts
-
-Carthage/Build/
-
-# fastlane
-#
-# It is recommended to not store the screenshots in the git repo.
-# Instead, use fastlane to re-generate the screenshots whenever they are needed.
-# For more information about the recommended setup visit:
-# https://docs.fastlane.tools/best-practices/source-control/#source-control
-
-fastlane/report.xml
-fastlane/Preview.html
-fastlane/screenshots/**/*.png
-fastlane/test_output
+# Astro starter from the initial commit; referenced by nothing
+/site/
 
 # Image types
 *.dng
@@ -73,3 +28,30 @@ fastlane/test_output
 # Allow README images
 !images/
 !images/**
+
+# The Linux packages' icons (packaging/linux/README.md)
+!packaging/linux/icons/**
+
+# Allow aligner test fixtures
+!crates/deptheos_aligner/fixtures/**
+# ... and the saved-file fixtures (docs/file-formats.md)
+!crates/deptheos_app/tests/fixtures/**
+# ... and the known images (crates/deptheos_core/tests/integration/known.rs)
+!crates/deptheos_core/tests/fixtures/**
+# ... and the stackers' golden references (crates/deptheos_core/tests/integration/golden.rs)
+!crates/deptheos_core/tests/goldens/**
+
+# The website's media (web/scripts/make-gallery.sh, make-shots.sh, make-lab-assets.ts):
+# all of it, so what a deploy uploads is what is committed
+!web/public/media/**
+# Wrangler's local cache (account id)
+.cloudflare/
+.wrangler/
+
+# The sample stack the apps carry (ADR-151) is JPEG and is kept.
+!samples/**/*.jpg
+
+# Local review folders and agent state, never published
+/.feedback/
+/shots-review/
+/.claude/

@@ -1,0 +1,67 @@
+# The website (web/): typecheck, unit tests and a production build on every
+# push and pull request that touches it or the crates. The pages' engine
+# numbers come from the committed generated/manifest.json, so nothing here
+# compiles Rust; the Tests workflow checks that file is current.
+#
+# It also checks THIRD_PARTY_NOTICES.txt is current (script/notices.sh), which
+# the release build requires, so a dependency added without regenerating it is
+# caught here rather than when a version is tagged. That reads LibRaw's
+# license from the submodule and the crates' through cargo-about.
+
+name: Web
+
+on:
+  push:
+    branches: [main]
+    paths: ["web/**", "crates/**", "Cargo.toml", "Cargo.lock", "licenses/**", "THIRD_PARTY_NOTICES.txt", "script/notices.sh", ".github/workflows/web.yml", ".github/actions/**"]
+  pull_request:
+    paths: ["web/**", "crates/**", "Cargo.toml", "Cargo.lock", "licenses/**", "THIRD_PARTY_NOTICES.txt", "script/notices.sh", ".github/workflows/web.yml", ".github/actions/**"]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  web:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: web
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: ./.github/actions/fetch-libraw
+      - uses: dtolnay/rust-toolchain@b725eda525362e7cf34af9a7243cac1e3f01a7ec # stable
+      - uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2
+      - uses: taiki-e/install-action@cfdb7ed4ccc7c7dce37759eae89dc5674b469b39 # v2
+        with:
+          tool: cargo-about@0.9.3
+      - name: Check the third-party notices are current
+        working-directory: .
+        run: script/notices.sh --check
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: web/package-lock.json
+      - run: npm ci
+      - run: npm run typecheck
+      - run: npm test
+      - run: npm run build
+      - name: Check no page overflows at phone widths
+        run: |
+          npx astro preview --port 4173 &
+          PID=$!
+          trap "kill $PID" EXIT
+          for i in $(seq 1 30); do
+            curl -sf http://localhost:4173/ >/dev/null && break
+            sleep 0.5
+          done
+          npx tsx scripts/overflow-check.ts http://localhost:4173 320 360 390 414 430
+      # The build a deploy makes (scripts/deploy.sh): every media address rewritten for the
+      # bucket, and none left behind. Nothing is uploaded.
+      - run: npm run build
+        env:
+          MEDIA: cdn

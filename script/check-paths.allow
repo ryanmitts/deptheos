@@ -1,0 +1,10 @@
+# Mentions script/check-paths.py lets stand though no tracked file matches.
+
+# Generated, not checked in
+ios/Version.xcconfig
+
+# GitHub's own pages, linked from the README
+../../releases/latest
+
+# A path inside the LibRaw submodule, given as an example
+write/write_ph.cpp

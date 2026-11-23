@@ -1,0 +1,241 @@
+# The end-to-end tests' cases: real frames through the apps as a user
+# drives them, each export checked (crates/deptheos_e2e).
+#
+#   just e2e                 every desktop case
+#   just e2e canon1          one (or several: canon1,canon1-depth)
+#   just e2e-ios canon1      one in the iOS Simulator
+#   just bless canon1        accept its current pictures as the references
+#
+# A case:
+#   name          its name; its reference pictures are kept under it
+#   set           its frames' folder, under `sets`
+#   stack_bits    8 or 16, the bits a channel the stack should have: 8 only
+#                 when every frame is 8-bit and stacks as stored (in the
+#                 first frame's space, not linear), 16 otherwise. Each
+#                 export's bits follow from it: JPEG 8, DNG 16, a 16-bit
+#                 PNG or TIFF the stack's
+#   method        pyramid (default), depth or wavelet
+#   the method's settings, each a key of its own and optional (the app's
+#   default otherwise):
+#                   pyramid: smoothness (1–10, default 4)
+#                   depth:   radius (1–50, 8), smoothing (0–20, 4),
+#                            blend_range (0–10, 3)
+#                   wavelet: denoise (0–10, 1)
+#   exports       in order, of: jpeg, png-8, png-16, tiff-8, tiff-16, dng
+#                 (default ["jpeg"]). 16 bits of an 8-bit stack come out
+#                 as 8, as the apps offer; dng needs RAW or DNG frames.
+#   paint         true: retouch with a stroke across the middle, export a
+#                 TIFF, and check the stroke holds the frame painted from
+#                 (default false)
+#   paint_from    the frame painted from, by file name (desktop only; by
+#                 default the one with least detail where the stroke goes;
+#                 iOS paints from the frame Retouch opens on)
+#   decoder       the desktop's RAW decoder for camera RAW frames: "libraw"
+#                 or "adobe-dng" (Adobe DNG Converter, installed). Named
+#                 so a case runs alike on every Mac, as Automatic picks the
+#                 converter only where it is installed; desktop only
+#   check_set     the set the exports are checked against when not `set`:
+#                 the same frames, one for one by name, as another decoder
+#                 makes them (desktop only)
+#   on            ["desktop", "ios"] (default both)
+#   tier          smoke, full (default), stress or converter: `just e2e`
+#                 runs smoke and full, `just e2e-smoke` and `just e2e-tier`
+#                 the others; a case named runs whatever its tier
+#   ios_set       the set the Simulator stacks, when not `set`: the same
+#                 frames shrunk to what its GPU takes (at most about
+#                 16.7 MP, ADR-110), made by `just e2e-sets` under sim/
+
+# Where the sets are, kept beside the references and never edited, so a
+# reference always matches the frames it was made from: each set has a
+# manifest that every run checks it against. `just e2e-sets` builds them
+# from the sample frames (script/e2e-sets.sh). DEPTHEOS_E2E_SETS
+# overrides it.
+#
+# The cases cover each way frames decode once, with the exports the stack
+# it makes offers (8-bit standard: JPEG, PNG, TIFF; 16-bit standard: and
+# their 16 bits; linear RAW: and DNG), and each method, export and paint
+# on each kind of stack at least once. Every set is a whole scene, every
+# frame of it, so each stack is sharp throughout; sets of one scene differ
+# only in the frames' format, color space or size (script/e2e-sets.sh says
+# how each is made).
+# Color profiles, PNG chunks, alpha and EXIF orientation are the unit
+# tests' (crates/deptheos_core/src/io).
+sets = "~/DeptheosE2E/sets"
+
+# ---------------------------------------------------------------- 8-bit stacks
+
+[[case]]
+name = "canon1"
+set = "jpeg/canon1"
+ios_set = "sim/jpeg/canon1"
+stack_bits = 8
+method = "pyramid"
+exports = ["jpeg", "tiff-8"]
+paint = true
+
+[[case]]
+name = "canon1-depth"
+set = "jpeg/canon1"
+stack_bits = 8
+method = "depth"
+radius = 12
+smoothing = 6
+exports = ["png-8"]
+on = ["desktop"]
+
+# hornet's frames in Display P3 (its master matched to P3 by sips): each
+# export keeps their profile.
+[[case]]
+name = "hornet-p3"
+set = "p3/hornet"
+ios_set = "sim/p3/hornet"
+stack_bits = 8
+method = "wavelet"
+exports = ["jpeg", "tiff-8"]
+
+# One channel, in a gray profile (sips): stacked and exported as stored.
+[[case]]
+name = "gray"
+set = "gray/canon1"
+stack_bits = 8
+exports = ["png-8"]
+on = ["desktop"]
+
+[[case]]
+name = "png8"
+set = "png8/hornet"
+stack_bits = 8
+method = "depth"
+exports = ["png-8"]
+on = ["desktop"]
+tier = "smoke"
+
+# ---------------------------------------------------------------- 16-bit stacks
+
+# 8-bit JPEGs and 16-bit TIFFs in one set: the stack takes the deepest
+# frame's bits.
+[[case]]
+name = "mixed-depth"
+set = "mixed-depth/canon1"
+stack_bits = 16
+exports = ["tiff-16"]
+on = ["desktop"]
+
+[[case]]
+name = "tiff16"
+set = "tiff16/canon1"
+ios_set = "sim/tiff16/canon1"
+stack_bits = 16
+exports = ["tiff-16", "png-16", "jpeg"]
+paint = true
+tier = "smoke"
+
+[[case]]
+name = "png16"
+set = "png16/hornet"
+stack_bits = 16
+method = "wavelet"
+exports = ["png-16"]
+on = ["desktop"]
+
+# ---------------------------------------------------------------- linear RAW stacks
+
+# canon1's camera RAW frames, all 46, through LibRaw to a linear DNG,
+# checked by the SDK's render of it and its color tags against the
+# frames'; and a JPEG.
+[[case]]
+name = "canon1-raw"
+set = "cr3/canon1"
+stack_bits = 16
+decoder = "libraw"
+exports = ["dng", "jpeg"]
+on = ["desktop"]
+
+# Through Adobe DNG Converter, which must be installed: checked against
+# the converter's own DNGs of the frames, whose color and crop the stack
+# has, not LibRaw's.
+[[case]]
+name = "raw-adobe"
+set = "cr3/canon1"
+check_set = "dng-linear/canon1"
+stack_bits = 16
+method = "depth"
+decoder = "adobe-dng"
+exports = ["dng", "tiff-16"]
+paint = true
+on = ["desktop"]
+tier = "converter"
+
+# Linear DNGs (canon1's RAW frames, converted by Adobe DNG Converter), read
+# by the DNG SDK: to every kind of export.
+[[case]]
+name = "canon1-wavelet"
+set = "dng-linear/canon1"
+stack_bits = 16
+method = "wavelet"
+exports = ["png-16", "dng", "tiff-8"]
+on = ["desktop"]
+tier = "smoke"
+
+# hornet's camera RAW through LibRaw, retouched: paint on a linear stack.
+[[case]]
+name = "hornet-raw"
+set = "cr3/hornet"
+stack_bits = 16
+method = "depth"
+decoder = "libraw"
+exports = ["dng", "tiff-16"]
+paint = true
+on = ["desktop"]
+
+# Another maker's camera RAW (OM System OM-1, ORF: a hornet, 63 frames)
+# through LibRaw.
+[[case]]
+name = "orf"
+set = "orf/om-hornet"
+stack_bits = 16
+decoder = "libraw"
+exports = ["dng", "png-16", "tiff-8"]
+on = ["desktop"]
+
+# Mosaic DNGs (orf's frames, converted by Adobe DNG Converter keeping the
+# mosaic): the SDK reads their metadata, LibRaw demosaics them.
+[[case]]
+name = "mosaic-dng"
+set = "dng-mosaic/om-hornet"
+stack_bits = 16
+decoder = "libraw"
+exports = ["dng", "tiff-16"]
+on = ["desktop"]
+
+# ---------------------------------------------------------------- the set itself
+
+# A long sweep of a circuit board: 199 frames of 45 MP.
+[[case]]
+name = "pcb-long"
+set = "jpeg/pcb-s050"
+stack_bits = 8
+method = "wavelet"
+denoise = 10
+exports = ["jpeg", "tiff-8"]
+on = ["desktop"]
+tier = "stress"
+
+# A long stack of camera RAW: a screwdriver, 250 frames of an OM-1.
+[[case]]
+name = "orf-long"
+set = "orf/om-screwdriver"
+stack_bits = 16
+decoder = "libraw"
+exports = ["tiff-16"]
+on = ["desktop"]
+tier = "stress"
+
+# Handheld frames the aligner has to move, Pyramid at its smoothest.
+[[case]]
+name = "unaligned"
+set = "jpeg/unaligned"
+stack_bits = 8
+smoothness = 10
+on = ["desktop"]
+tier = "stress"

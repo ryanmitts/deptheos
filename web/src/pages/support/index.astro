@@ -1,0 +1,94 @@
+---
+import BaseLayout from "../../layouts/BaseLayout.astro";
+---
+
+<BaseLayout
+  navKey="support"
+  title="Support"
+  description="Get help with Deptheos: documentation, GitHub Discussions, public bug reports, and email support for diagnostics and private files."
+>
+  <div class="prose">
+    <h1>Support</h1>
+    <p class="lede">
+      Deptheos is free and open source. Help comes through GitHub for anything that can be
+      public, and by email for anything that can't.
+    </p>
+  </div>
+
+  <section id="where">
+    <div class="prose">
+      <h2>Where to ask</h2>
+      <ul>
+        <li>
+          <strong>How do I…?</strong> The <a href="/docs/">docs</a> cover every part of the app, and
+          <a href="/docs/faq/">Questions and answers</a> and <a href="/docs/troubleshooting/">Troubleshooting</a>
+          handle the most common issues. Questions the docs don't answer go to
+          <a href="https://github.com/ryanmitts/deptheos/discussions">GitHub Discussions</a>.
+        </li>
+        <li>
+          <strong>Something doesn't work, or it crashed.</strong> Open a
+          <a href="https://github.com/ryanmitts/deptheos/issues/new?template=bug.yml">bug report</a> on GitHub
+          (Help ▸ <em>Report a Problem…</em> in the desktop app opens it). Say what you did, what you expected, and
+          what happened. Issues are public—don't attach diagnostics, crash reports, or private photos there. Email
+          them instead (see below).
+        </li>
+        <li>
+          <strong>An idea for the app.</strong> A
+          <a href="https://github.com/ryanmitts/deptheos/issues/new?template=feature.yml">feature request</a>
+          on GitHub.
+        </li>
+        <li>
+          <strong>Diagnostics, and anything private.</strong> Email
+          <a href="mailto:support@deptheos.com">support@deptheos.com</a>.
+        </li>
+        <li>
+          <strong>A security problem.</strong> Report it privately, as the
+          <a href="https://github.com/ryanmitts/deptheos/security/policy">security policy</a> says, not in a
+          public issue.
+        </li>
+      </ul>
+    </div>
+  </section>
+
+  <section id="diagnostics">
+    <div class="prose">
+      <h2>Sending diagnostics</h2>
+      <p>
+        The diagnostics are one zip file of the app's recent logs and, on the desktop, its crash reports. They
+        say what the app was doing when something went wrong, which is usually what it takes to fix it. Your home
+        folder is written as <code>~</code> in the logs, but they name the files and folders the app read, so the
+        file goes by email, never on a public issue. <a href="/privacy/#diagnostics">Privacy</a> says what it
+        holds and what is done with it.
+      </p>
+      <h3 id="desktop">On a Mac, Windows or Linux</h3>
+      <ol class="steps">
+        <li>
+          To capture more detail, turn on Settings ▸ Advanced ▸ <em>Verbose logging</em> (it lasts until Deptheos
+          quits), and do what went wrong again.
+        </li>
+        <li>
+          Choose Help ▸ <em>Save Diagnostics…</em> and pick where to save the zip. On Windows and Linux the Help
+          menu is under the menu (≡) button.
+        </li>
+        <li>
+          Email the zip to <a href="mailto:support@deptheos.com">support@deptheos.com</a>, with what you did and
+          what happened, or a link to the bug report you opened.
+        </li>
+      </ol>
+      <h3 id="ios">On iPhone and iPad</h3>
+      <ol class="steps">
+        <li>In the Library, tap Settings, then Diagnostics.</li>
+        <li>To capture more detail, turn on <em>Verbose logging</em> and do what went wrong again.</li>
+        <li>
+          Tap <em>Send Diagnostics…</em>. The share sheet opens with the zip: choose Mail and send it to
+          <a href="mailto:support@deptheos.com">support@deptheos.com</a>, with what you did and what happened.
+        </li>
+      </ol>
+      <h3 id="cli">The command line tool</h3>
+      <p>
+        <code>deptheos</code> logs to the terminal only. Copy what it printed into the bug report, or set
+        <code>RUST_LOG=debug</code> for more detail.
+      </p>
+    </div>
+  </section>
+</BaseLayout>

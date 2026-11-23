@@ -1,0 +1,24 @@
+---
+// A screenshot from public/media/shots/ (scripts/make-shots.sh): AVIF at full and half width, each
+// rounded down to even, and a half-width JPEG for browsers without AVIF. `width` and `height` are the
+// full-size shot's; a portrait shot is a phone, shown at most 260 px wide.
+import type { HTMLAttributes } from "astro/types";
+
+interface Props extends Omit<HTMLAttributes<"img">, "src" | "srcset" | "sizes"> {
+  name: string;
+  width: number | string;
+  height: number | string;
+  alt: string;
+  sizes?: string;
+}
+
+const { name, width, height, sizes, ...rest } = Astro.props;
+const w = Number(width);
+const base = `/media/shots/${name}`;
+const shownAt = sizes ?? (Number(height) > w ? "260px" : "(min-width: 900px) 860px, 100vw");
+---
+
+<picture>
+  <source type="image/avif" srcset={`${base}-half.avif ${Math.floor(w / 4) * 2}w, ${base}.avif ${Math.floor(w / 2) * 2}w`} sizes={shownAt} />
+  <img src={`${base}.jpg`} width={width} height={height} {...rest} />
+</picture>

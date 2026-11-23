@@ -1,0 +1,33 @@
+{
+  "version": "0.2.0",
+  "date": "2026-11-22",
+  "label": "iPhone Duo",
+  "machine": {
+    "os": "iOS 27.2",
+    "cpu": "Apple Silicon",
+    "gpu": "Apple GPU",
+    "gpu_backend": "Metal"
+  },
+  "stack": {
+    "name": "hornet",
+    "frames": 66,
+    "width": 8192,
+    "height": 5464,
+    "megapixels": 44.761088,
+    "format": "JPEG",
+    "bytes": 263576049
+  },
+  "path": "live",
+  "runs": {
+    "pyramid": {
+      "ecc": {
+        "fastest": 8.06,
+        "left_out": 0,
+        "mpx_per_s": 345.0,
+        "ms_per_frame": 129.9,
+        "seconds": 8.57,
+        "slowest": 8.76
+      }
+    }
+  }
+}

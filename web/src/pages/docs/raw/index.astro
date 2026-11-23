@@ -1,0 +1,407 @@
+---
+import DocsLayout from "../../../layouts/DocsLayout.astro";
+import Measured from "../../../components/Measured.astro";
+---
+
+<DocsLayout
+  docKey="raw"
+  title="RAW, DNG and color"
+  description="The files Deptheos reads, which RAW decoder to choose, what a stacked DNG keeps, and how color is handled for JPEG, PNG and TIFF stacks."
+>
+  <div class="prose">
+    <h1>RAW, DNG and color</h1>
+    <p class="lede">
+      Deptheos stacks camera RAW and DNG files as linear camera data, without turning them into ordinary
+      pictures first, and can save the result as a DNG that you edit like a RAW file. JPEG, PNG and TIFF files
+      are stacked as the pictures they are.
+    </p>
+    <table class="which-table" id="at-a-glance">
+      <thead>
+        <tr><th scope="col">Your frames</th><th scope="col">Save as DNG?</th><th scope="col">How they are stacked</th></tr>
+      </thead>
+      <tbody>
+        <tr><th scope="row">Camera RAW (CR3, NEF, ARW…), desktop</th><td data-label="Save as DNG?">Yes</td><td>Decoded by LibRaw or Adobe DNG Converter, stacked as linear camera RGB</td></tr>
+        <tr><th scope="row">DNG</th><td data-label="Save as DNG?">Yes</td><td>Read with the Adobe DNG SDK, stacked as linear camera RGB</td></tr>
+        <tr><th scope="row">JPEG, PNG or TIFF</th><td data-label="Save as DNG?">No</td><td>Stacked as they are, in their own color space; saved as TIFF, PNG or JPEG</td></tr>
+        <tr><th scope="row">Camera RAW on iPhone and iPad (coming soon)</th><td data-label="Save as DNG?">Yes (LibRaw)</td><td>Linear camera RGB with built-in LibRaw (DNG out), or rendered with Apple's Core Image (<a href="#ios">details</a>)</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <section id="workflow">
+    <div class="prose">
+      <h2>Developing after stacking</h2>
+      <p>
+        Converting a bracket to TIFF or JPEG before stacking bakes white balance, tone curves, and clipped
+        highlights into every frame. Stacking camera RAW or DNG files directly in Deptheos keeps alignment,
+        stacking, and retouching in linear camera RGB, so you can export a 16-bit linear DNG and do your RAW
+        editing once, on the finished stack.
+      </p>
+    </div>
+    <figure class="raw-flow" aria-label="Comparison of developing before stacking versus RAW in, DNG out">
+      <div class="raw-flow-row">
+        <span class="raw-flow-label">Convert first</span>
+        <ol class="raw-flow-steps">
+          <li>RAW frames</li>
+          <li>Develop to TIFF / JPEG</li>
+          <li>Stack &amp; retouch</li>
+        </ol>
+        <p class="raw-flow-note">White balance and highlight recovery are locked in before stacking.</p>
+      </div>
+      <div class="raw-flow-row raw-flow-dng">
+        <span class="raw-flow-label">RAW in, DNG out</span>
+        <ol class="raw-flow-steps">
+          <li>RAW frames</li>
+          <li>Stack &amp; retouch <span>linear RGB</span></li>
+          <li>16-bit linear DNG</li>
+          <li>Develop in RAW editor</li>
+        </ol>
+        <p class="raw-flow-note">White balance, exposure, and highlights stay editable on the finished stack.</p>
+      </div>
+    </figure>
+    <div class="prose">
+      <p>
+        Retouching a RAW stack paints directly from the aligned linear source frames, so painted areas keep the
+        same RAW headroom in the exported DNG.
+      </p>
+    </div>
+  </section>
+
+  <section id="formats">
+    <div class="prose">
+      <h2>What it reads</h2>
+      <p>
+        JPEG, PNG, TIFF (8 or 16 bits per channel), DNG, and the camera RAW formats below, which LibRaw reads.
+        Whether a particular camera's files are supported is in
+        <a href="https://www.libraw.org/supported-cameras">LibRaw's list of cameras</a>. HEIC files open on
+        iPhone and iPad only.
+      </p>
+      <p>
+        Transparency isn't used. A frame whose transparent part is only a border, as an aligned export leaves,
+        is stacked inside that border; any other transparency is flattened onto white as the frame is read,
+        and the stack's notice says so. Results never have an alpha channel.
+      </p>
+    </div>
+    <div class="table-wrap">
+      <table class="choose">
+        <thead>
+          <tr><th>Maker</th><th>Extensions</th></tr>
+        </thead>
+        <tbody>
+          <tr><th>Canon</th><td>.cr3, .cr2, .crw</td></tr>
+          <tr><th>Nikon</th><td>.nef, .nrw</td></tr>
+          <tr><th>Sony</th><td>.arw, .srf, .sr2</td></tr>
+          <tr><th>Fujifilm</th><td>.raf</td></tr>
+          <tr><th>Olympus, OM System</th><td>.orf</td></tr>
+          <tr><th>Panasonic, Leica</th><td>.rw2, .raw, .rwl</td></tr>
+          <tr><th>Pentax</th><td>.pef</td></tr>
+          <tr><th>Samsung</th><td>.srw</td></tr>
+          <tr><th>Sigma</th><td>.x3f</td></tr>
+          <tr><th>Hasselblad, Phase One, Mamiya, Leaf</th><td>.3fr, .iiq, .mef, .mos</td></tr>
+          <tr><th>Kodak, Minolta, Epson</th><td>.dcr, .kdc, .mrw, .erf</td></tr>
+          <tr><th>Any (Leica, Pentax, Ricoh, phones, converted files)</th><td>.dng</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="prose">
+      <p>
+        A stack is either all RAW and DNG files or all JPEG, PNG and TIFF; the app refuses a stack that mixes
+        the two, because linear frames and finished pictures don't match.
+      </p>
+    </div>
+  </section>
+
+  <section id="which">
+    <div class="prose">
+      <h2>Which decoder, when</h2>
+      <p>
+        DNG files are always read with the Adobe DNG SDK, the library Adobe publishes for DNGs, on macOS,
+        Windows and Linux, using the color profile stored in the file. For other camera RAW files there are
+        two decoders:
+      </p>
+      <ul>
+        <li>
+          <strong>LibRaw</strong>, built into the app and the command line. For color it uses an Adobe camera
+          profile for the camera if one is installed: Adobe Standard by default, or Camera Standard, the camera
+          maker's look. Deptheos doesn't include any; Lightroom, Camera Raw and Adobe DNG Converter install
+          them. Without one, LibRaw's own color matrices are used.
+        </li>
+        <li>
+          <strong>Adobe DNG Converter</strong>, a free program from Adobe for macOS and Windows that
+          <a href="https://helpx.adobe.com/camera-raw/using/adobe-dng-converter.html">you install separately</a>.
+          It turns each RAW file into a temporary DNG, which the DNG SDK reads, so the frames get Adobe's own
+          demosaic and color profile, as Lightroom and Camera Raw give the same files.
+        </li>
+      </ul>
+      <p>
+        The app's default is <strong>Automatic</strong>: the converter when it is installed, LibRaw when it is
+        not. The two decoders crop and demosaic differently, so their frames of the same shot don't line up
+        pixel for pixel, and a stack uses one throughout. The command line uses LibRaw unless given
+        <code>--raw-backend adobe-dng</code>.
+      </p>
+      <table class="which-table">
+        <thead>
+          <tr><th scope="col">If you want</th><th scope="col">Use</th><th scope="col">Why</th></tr>
+        </thead>
+        <tbody>
+          <tr>
+            <th scope="row">Frames as Lightroom or Camera Raw would show them</th>
+            <td>Adobe DNG Converter</td>
+            <td>Adobe's demosaic and color profile, the same as those editors give the original files.</td>
+          </tr>
+          <tr>
+            <th scope="row">To start stacking at once, without temporary files</th>
+            <td>LibRaw</td>
+            <td>
+              No conversion step and nothing extra on disk. With an Adobe profile installed, the colors are
+              Adobe's, though the demosaic is LibRaw's.
+            </td>
+          </tr>
+          <tr>
+            <th scope="row">To stack without installing anything else, or on Linux</th>
+            <td>LibRaw</td>
+            <td>It is built in; Automatic uses it when the converter is not installed.</td>
+          </tr>
+        </tbody>
+      </table>
+      <h3 id="settings">The settings</h3>
+      <p>
+        <em>RAW decoder</em>, under <em>Alignment</em> in the inspector, changes the decoder for one stack; it appears when the stack holds
+        camera RAW files and Adobe DNG Converter is installed, since otherwise there is nothing to choose. Settings ▸ RAW holds:
+      </p>
+      <ul>
+        <li><strong>Default RAW decoder</strong>: Automatic, LibRaw or Adobe DNG Converter, for new stacks and for batches.</li>
+        <li><strong>Camera profile</strong>: the installed Adobe profile that colors LibRaw's frames: Adobe Standard, Camera Standard, or None (the colors in the file). DNGs and converted frames always use their own. Each render records the one it used.</li>
+        <li><strong>Camera profile folders</strong>: more places to look for <code>.dcp</code> profiles, searched before Adobe's folders. A profile is used when its file name starts with the camera's make and model.</li>
+      </ul>
+      <p>Settings ▸ RAW, under Adobe DNG Converter, holds:</p>
+      <ul>
+        <li><strong>Converter</strong>: where the converter is, if it isn't in its default location.</li>
+        <li><strong>Parallel conversions</strong>: how many files convert at once.</li>
+        <li>
+          <strong>Uncompressed conversions</strong>: the temporary DNGs are written without compression, so the
+          stack runs about a quarter faster, but each takes twice the disk (about 270 MB for a 45 MP frame
+          instead of 130 MB). They are kept until the stack has read them for the last time, which for
+          Depth is its second pass, so a large stack needs tens of gigabytes free.
+        </li>
+      </ul>
+      <p>
+        Converted files are kept in a cache for a while, so going back to a recent stack, or painting from its
+        frames, doesn't convert them again.
+      </p>
+    </div>
+  </section>
+
+  <section id="keeps">
+    <div class="prose">
+      <h2>What a DNG result keeps, and what it gives up</h2>
+      <p>
+        A RAW or DNG stack can be <a href="/docs/export/">exported</a> as a 16-bit linear DNG, with the color
+        profile, white balance and camera and lens details of the frame the others were aligned to. Lightroom, Camera Raw and
+        other RAW editors open it as a RAW file. It keeps:
+      </p>
+      <ul>
+        <li><strong>Linear values at 16 bits</strong>, so exposure, highlights and shadows can be pulled much further than in a JPEG.</li>
+        <li><strong>White balance as a setting.</strong> None was applied to the pixels, so the editor sets it as it would for an original frame.</li>
+        <li><strong>The camera's color profile</strong>, so colors match the original frames, and the editor can switch to another profile for the camera.</li>
+        <li><strong>The camera and lens details</strong>, which editors use to pick a lens profile for distortion and vignetting. The GPS position is left out.</li>
+      </ul>
+      <p>It differs from the camera's own RAW files in these ways:</p>
+      <ul>
+        <li>
+          <strong>The demosaic is done.</strong> Aligning frames requires shifting, rotating, and scaling RGB
+          pixels, so the sensor's mosaic is demosaiced before stacking. Because the result already has three
+          colors per pixel, an editor can't demosaic it again its own way, and features that need the raw
+          mosaic, such as Lightroom's Raw Details, aren't offered. Lightroom's Denoise does work on it
+          (<a href="https://helpx.adobe.com/lightroom-classic/desktop/process-and-develop-photos/enhance-details.html">Adobe's list</a>).
+        </li>
+        <li>
+          <strong>One frame's settings stand for the stack.</strong> The profile and white balance are those of the
+          frame the others were aligned to, which matters only if the frames weren't shot alike.
+        </li>
+        <li>
+          <strong>Adobe's distortion correction lands slightly off.</strong> Adobe DNG Converter stores the lens's
+          distortion correction as an instruction for the editor, and the result carries it over, but the crop to
+          the aligned area moves the picture's center, so the correction is applied around a slightly different
+          point. Lightroom's own lens profile, chosen from the lens name the result keeps, is unaffected.
+        </li>
+        <li>
+          <strong>Bigger files.</strong> Three values per pixel where a RAW file holds one, so the result is
+          larger than one of the camera's files.
+        </li>
+      </ul>
+      <p>
+        Keep the original RAW files for anything that needs the sensor's mosaic. A RAW stack can also be exported
+        as 16-bit TIFF or PNG, or as JPEG, rendered to sRGB with the same profile and white balance, which is
+        also how the app shows it on screen.
+      </p>
+    </div>
+  </section>
+
+  <section id="color">
+    <div class="prose">
+      <h2>Color for JPEG, PNG and TIFF</h2>
+      <p>
+        JPEG, PNG and TIFF frames are stacked on their stored values, so the result is in the color space the
+        frames were saved in. An embedded RGB ICC profile, such as Display P3 or Adobe RGB, is carried into the
+        exports; an in-camera Adobe RGB JPEG, which names its color space in its EXIF rather than embedding a
+        profile, is tagged Adobe RGB. Frames with neither are taken as sRGB. These stacks have no camera color
+        profile to save, so they export as TIFF, PNG or JPEG, not DNG.
+      </p>
+    </div>
+  </section>
+
+  <section id="ios">
+    <div class="prose">
+      <h2>iPhone and iPad</h2>
+      <p>
+        The iPhone and iPad app has no Adobe DNG Converter, and offers two RAW decoders, chosen for each stack
+        under <em>RAW Decoder</em> in Stack Settings: <strong>Apple</strong>, the default, and
+        <strong>LibRaw</strong>. <strong>LibRaw</strong> (built in) keeps camera RAW files linear so the result can be exported as a 16-bit
+        linear DNG, while <strong>Apple</strong> decodes them with Core Image to 16-bit sRGB with the camera's
+        white balance and Apple's tone curve (exporting as TIFF, PNG, or JPEG). DNG files, including RAW captures
+        from the app's own camera, stay linear and can be saved as DNG.
+      </p>
+    </div>
+  </section>
+
+  <section id="under-the-hood">
+    <div class="prose">
+      <details>
+        <summary>Under the hood</summary>
+        <p>
+          Every RAW or DNG frame becomes 16-bit linear camera RGB: demosaiced, scaled from the sensor's black
+          level to its white level, turned upright, with no white balance, tone curve or gamma applied. A DNG
+          that still holds the sensor's mosaic has its color profile read by the DNG SDK and is demosaiced by
+          LibRaw on the desktop, by the SDK itself on iPhone and iPad.
+        </p>
+        <p>
+          Sharpness is always judged on a gamma-encoded copy of each frame, since on linear values bright areas
+          would count for far more than dark ones. The <a href="/docs/pyramid/">pyramid</a> also mixes its
+          levels of detail on gamma-encoded values and converts the result back to linear;
+          <a href="/docs/depth-map/">Depth</a> mixes the linear values directly; the
+          <a href="/docs/wavelet/">wavelet</a> method picks detail on a gamma-encoded gray copy and takes each
+          pixel's color from one linear frame. All three compute in 32-bit floating point and round to 16 bits
+          once, at the end, so a DNG result of any method is linear.
+        </p>
+        <p>
+          Conversion is the cost of Adobe's demosaic. On an
+          <Measured path="benchmarks.m5-max-pcb1-dng.label" />, converting the
+          <Measured path="benchmarks.m5-max-pcb1-dng.stack.frames" /> CR3 files of a circuit-board stack
+          (<Measured path="benchmarks.m5-max-pcb1-dng.stack.megapixels" digits={0} /> MP each) took
+          <Measured path="benchmarks.m5-max-pcb1-dng.stack.conversion_seconds" digits={0} /> s and
+          <Measured path="benchmarks.m5-max-pcb1-dng.stack.bytes" digits={0} scale={0.000000001} /> GB
+          of disk, uncompressed. Stacking them with the pyramid then took
+          <Measured path="benchmarks.m5-max-pcb1-dng.runs.pyramid.ecc.ms_per_frame" digits={0} /> ms
+          a frame, about as long as the same shots as JPEGs
+          (<Measured path="benchmarks.m5-max-pcb1-jpeg.runs.pyramid.ecc.ms_per_frame" digits={0} /> ms),
+          so nearly all of the cost is the conversion. LibRaw decodes as it stacks: the same CR3 files took
+          <Measured path="benchmarks.m5-max-pcb1-cr3.runs.pyramid.ecc.ms_per_frame" digits={0} /> ms
+          a frame, decoding included, with no files written.
+        </p>
+      </details>
+    </div>
+  </section>
+</DocsLayout>
+
+<style>
+  .raw-flow {
+    max-width: 820px;
+    margin: var(--s5) auto;
+    padding: var(--s5);
+    border: 1px solid var(--line);
+    border-radius: var(--radius-lg);
+    background: var(--panel);
+    display: grid;
+    gap: var(--s5);
+  }
+  .raw-flow-row {
+    display: grid;
+    gap: var(--s2);
+  }
+  .raw-flow-row + .raw-flow-row {
+    padding-top: var(--s5);
+    border-top: 1px solid var(--line);
+  }
+  .raw-flow-label {
+    font-family: var(--font-mono);
+    font-size: var(--t-xs);
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: var(--muted);
+    font-weight: 500;
+  }
+  .raw-flow-dng .raw-flow-label {
+    color: var(--accent);
+  }
+  .raw-flow-steps {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--s2);
+  }
+  .raw-flow-steps li {
+    position: relative;
+    display: inline-flex;
+    align-items: baseline;
+    gap: 6px;
+    padding: 6px 11px;
+    border-radius: var(--radius);
+    border: 1px solid var(--line-strong);
+    background: var(--sunken);
+    color: var(--fg);
+    font-size: var(--t-sm);
+    font-weight: 500;
+    line-height: 1.3;
+  }
+  .raw-flow-steps li span {
+    font-family: var(--font-mono);
+    font-size: var(--t-xs);
+    font-weight: 400;
+    color: var(--muted);
+  }
+  .raw-flow-steps li:not(:last-child)::after {
+    content: "→";
+    position: absolute;
+    right: -18px;
+    color: var(--muted);
+    font-weight: 400;
+    pointer-events: none;
+  }
+  .raw-flow-steps li:not(:last-child) {
+    margin-right: 16px;
+  }
+  .raw-flow-dng .raw-flow-steps li {
+    border-color: color-mix(in srgb, var(--accent) 40%, var(--line-strong));
+    background: var(--accent-tint);
+  }
+  .raw-flow-note {
+    margin: 2px 0 0;
+    font-size: var(--t-sm);
+    color: var(--muted);
+    line-height: 1.45;
+  }
+  @media (max-width: 640px) {
+    .raw-flow {
+      padding: var(--s4);
+    }
+    .raw-flow-steps {
+      flex-direction: column;
+      align-items: stretch;
+      gap: var(--s2);
+    }
+    .raw-flow-steps li:not(:last-child) {
+      margin-right: 0;
+      margin-bottom: 14px;
+    }
+    .raw-flow-steps li:not(:last-child)::after {
+      content: "↓";
+      right: auto;
+      left: 14px;
+      bottom: -20px;
+    }
+  }
+</style>

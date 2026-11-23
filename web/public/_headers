@@ -1,0 +1,15 @@
+# Response headers, read by Cloudflare when the site is deployed (wrangler.jsonc).
+# Vite names everything in /assets/ by its content's hash, so a browser may keep it for good.
+/assets/*
+  Cache-Control: public, max-age=31536000, immutable
+
+/*
+  X-Content-Type-Options: nosniff
+  X-Frame-Options: DENY
+  Referrer-Policy: strict-origin-when-cross-origin
+  Permissions-Policy: camera=(), microphone=(), geolocation=()
+
+# The workers.dev address (and a version's preview address) is for looking at a deploy:
+# search engines must not list it beside deptheos.com.
+https://:name.ryanmitts.workers.dev/*
+  X-Robots-Tag: noindex

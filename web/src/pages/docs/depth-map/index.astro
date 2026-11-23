@@ -1,0 +1,267 @@
+---
+import DocsLayout from "../../../layouts/DocsLayout.astro";
+import Param from "../../../components/Param.astro";
+---
+
+<DocsLayout
+  docKey="depth-map"
+  title="Depth"
+  description="When to choose Depth, one of Deptheos's three methods, and what its Smoothing, Radius and Blend Range settings do to the picture."
+  hasLabs
+>
+  <div class="prose">
+    <h1>Depth</h1>
+    <p class="lede">
+      Depth first decides, for every spot of the picture, which frame has it sharpest: a map of
+      depth. Then it builds the picture from that map, taking each spot from its frame.
+    </p>
+    <p>
+      Choose it for plain out-of-focus backgrounds, smooth surfaces, and something bright beside something dark.
+      Colors stay true to the source frames, and the out-of-focus glow that the pyramid method can let in stays
+      out. Each spot gets one depth, though, so a hair in front of a distant background can come out soft, and
+      so can the line where one part stands in front of another. The method treats frame numbers as depths, so
+      the frames must be in focus order, and it reads every frame twice, which makes it slower than the
+      pyramid. <a href="/docs/methods/">Choosing a method</a> shows the three methods side by side.
+    </p>
+    <details id="depth">
+      <summary>Look through a depth map, frame by frame (66 frames, about 4 MB)</summary>
+      <p>
+        The depth is a frame number, not a distance: early frames for the parts nearest the lens, late frames
+        for the parts farthest away.
+      </p>
+      <figure class="lab" id="depth-map" data-lab="depthmap" data-assets="depthmap" data-frames-from="sharpest" data-map="default-head-map.png" data-center="600,560">
+        <div class="lab-body">
+          <div class="pan"><img src="/media/labs/sharpest/frame-01.jpg" loading="lazy" width="768" height="768" alt="The right side of the hornet's head, with an antenna crossing in front of it, against the green" /></div>
+        </div>
+        <figcaption>
+          Frames the app aligned from the hornet sample stack, beside the depth map it made, at 100%. Move
+          through the frames, or tap the map to jump to the frame it chose there. The map gives each frame a
+          color, from blue for frame 1 to red for the last, and lights the parts that frame has sharpest.
+        </figcaption>
+        <div class="lab-why">
+          <p>
+            The antenna crosses in front of the hornet's head, nearer the lens, so the map gives it an earlier
+            frame: it lights up in the twenties, and the hairy head behind it in the fifties. Whatever lights up
+            is what is sharp in the frame beside it.
+          </p>
+          <p>
+            The plain green lights up at frame 1. Nothing there is sharp in any frame, so its depth is close to
+            a guess, but the scores are pooled over a patch (see Radius, below), so the whole background takes
+            one guess instead of a different frame at every pixel. Which frame it takes barely changes the
+            picture, since there every frame is about equally blurred.
+          </p>
+        </div>
+      </figure>
+    </details>
+  </div>
+
+  <section id="settings">
+    <div class="prose">
+      <h2>Where the settings are</h2>
+      <p>
+        Smoothing is Depth's main slider, with Radius under it. Blend Range sits under <em>Advanced</em>,
+        below them. In the pipeline, <strong>Radius</strong> first scores sharpness over a patch to pick each
+        spot's depth, <strong>Smoothing</strong> fills in unsure areas, and <strong>Blend Range</strong> decides
+        how tightly to snap each spot to whole frames. Start at the defaults and change one setting at a time,
+        comparing the same place. Double-click a slider's name to put it back to its default, or click
+        <em>Reset to Defaults</em> under the sliders to put back all three.
+      </p>
+    </div>
+  </section>
+
+  <section id="smoothing">
+    <div class="prose">
+      <h2>Smoothing</h2>
+      <p>
+        <strong>What it does.</strong> Evens out the depth map where it is unsure. At every spot the method
+        measures how far the sharpest frame's score stands above the average of all frames—high where one
+        frame is clearly in focus, near zero where every frame looks alike, such as a plain background.
+        Smoothing leaves the confident spots alone and lets the unsure ones take their depth from their
+        neighbors. It runs from <Param path="ranges.depth.smoothing.min" />, off, to
+        <Param path="ranges.depth.smoothing.max" />, default
+        <Param path="defaults.depth.smoothing" />; the slider's ends read Narrow outlines and Even
+        backgrounds.
+      </p>
+      <p>
+        <strong>When to change it.</strong> Raise it to even out the map where it is unsure. Lower it, toward
+        off, to keep the outline of a subject against a distant background narrow: raised, Smoothing spreads
+        that outline into a wider band of in-between depths.
+      </p>
+      <p>
+        <strong>What it costs.</strong> The picture changes far less than the map, because the unsure areas are
+        the ones where every frame is about equally blurred. It cannot fix a confident wrong pick, such as a
+        thin hair outvoted by the background around it; that is Radius's job. (Pyramid's <em>Smoothness</em>
+        blends more frames across the whole picture, whereas Depth's <em>Smoothing</em> only fills in uncertain
+        spots of the depth map.)
+      </p>
+      <details class="numbers">
+        <summary>In numbers</summary>
+        <ul>
+          <li>
+            <strong>The confidence</strong> is the best score minus the mean over the frames, rescaled on each
+            stack to run from 0 to 1, with the middle values lifted. It is a rule of thumb, not a probability:
+            two frames sharp at different depths, say a hair and the leg behind it, can make a large gap with no
+            clear winner.
+          </li>
+          <li>
+            <strong>The smoothing</strong> sweeps along each row in both directions, then each column, and the
+            whole runs twice. At a confident spot the running depth moves almost all the way to the spot's own
+            depth; at an unsure one only part of the way, so the depth before it carries on.
+          </li>
+        </ul>
+      </details>
+    </div>
+  </section>
+
+  <section id="scoring">
+    <div class="prose">
+      <h2>Radius</h2>
+      <p>
+        The obvious way to stack is to take each pixel from the frame that scores sharpest there. It is noisy.
+        The figure shows that pick, made for this page with the score the pyramid method uses for its finest
+        detail, and the same pick with the frames compared over squares around each pixel instead.
+      </p>
+    </div>
+    <figure
+      class="lab"
+      id="pick"
+      data-lab="stops"
+      data-assets="pick"
+      data-stops="w1=1 px|w8=8 px|w64=64 px"
+      data-stops-label="Compare frames over squares of"
+      data-panels="{stop}.jpg=The picture"
+      data-center="460,260"
+    >
+      <div class="lab-body">
+        <div class="pan"><img src="/media/labs/pick/w1.jpg" width="768" height="768" alt="The per-pixel pick at the hornet's head: the green background beside the hairs is grainy" /></div>
+      </div>
+      <figcaption>
+        The hornet's head, each pixel copied from the frame that scores best there, with the frames compared
+        over squares of three sizes. The app does not stack this way. Look at the green just above the hairs.
+      </figcaption>
+      <div class="lab-why" data-for="w1">
+        <p>
+          Pixel by pixel, the pick is noisy. In the plain green no frame has any detail, every frame scores about
+          the same, and each pixel takes a different one, so the green turns grainy.
+          The grain is worst just beside the hairs, where their blur lies over the green in some frames and not in
+          others.
+        </p>
+      </div>
+      <div class="lab-why" data-for="w8" hidden>
+        <p>
+          Over a square, neighboring pixels see nearly the same area, so they tend to pick the same frame. The
+          grain grows into blotches, but it does not go.
+        </p>
+      </div>
+      <div class="lab-why" data-for="w64" hidden>
+        <p>
+          Big squares remove the grain: whole patches now come from one frame. But a square that holds two
+          depths, a hair and the green far behind it, can pick only one frame, so the green around the hairs is
+          copied from frames where the hairs lie over it as a blur. And where the pick changes from one frame to
+          another there is a hard seam across the green.
+        </p>
+      </div>
+    </figure>
+    <div class="prose">
+      <p>
+        So Depth decides each spot's depth over a patch around it, and Radius is the size of that
+        patch: the frames' scores are averaged over it before they are compared. The seams of the last picture
+        above do not appear in the app's result, because it blends the frames either side of a change in depth
+        level by level, as the pyramid does. The pyramid method has no Radius: its levels of detail set the
+        area each choice covers, from a few pixels in the finest level to hundreds in the coarsest.
+      </p>
+    </div>
+    <figure
+      class="lab"
+      id="radius"
+      data-lab="stops"
+      data-assets="radius"
+      data-stops="r1=1|r8=8, the default|r50=50"
+      data-stops-label="Radius"
+      data-start="r8"
+      data-panels="{stop}-hairs.jpg=The result|frames:{stop}-hairs-map.png=The depth map"
+      data-layout="column"
+      data-center="560,470"
+    >
+      <div class="lab-body">
+        <div class="pan"><img src="/media/labs/radius/r8-hairs.jpg" width="1024" height="768" alt="Hairs on the top of the hornet's head against the green, at the default Radius" /></div>
+      </div>
+      <figcaption>
+        Results the app made from the hornet sample stack, at 100%: hairs on the top of the head against the
+        green, stacked at three Radius settings, above their depth maps. Watch the thin hairs as it grows.
+      </figcaption>
+      <div class="lab-why" data-for="r1" hidden>
+        <p>
+          At 1 each spot decides almost on its own. The hairs are crisp, and in the depth map each hair has its
+          own depth. The green, where no frame is sharp, is speckled with picks; in the picture it looks the same
+          as at the other settings, since there every frame is about equally blurred.
+        </p>
+      </div>
+      <div class="lab-why" data-for="r8">
+        <p>
+          At the default the hairs are still crisp, and the green's picks have merged into patches.
+        </p>
+      </div>
+      <div class="lab-why" data-for="r50" hidden>
+        <p>
+          At 50 the hairs turn soft and fade into the green. The patch is far wider than a hair, so each hair is
+          outvoted by the background around it and takes the background's depth; the picture then takes the
+          hair from frames where it is out of focus. The depth map is a few smooth bands.
+        </p>
+      </div>
+    </figure>
+    <div class="prose">
+      <p>
+        <strong>What it does.</strong> Sets how large an area decides each spot's depth together, from
+        <Param path="ranges.depth.radius.min" /> to <Param path="ranges.depth.radius.max" />,
+        default <Param path="defaults.depth.radius" />. A larger patch decides more steadily, but
+        anything much thinner than the patch is outvoted by what surrounds it. The slider's ends read Thin
+        detail and Steadier.
+      </p>
+      <p>
+        <strong>When to change it.</strong> Thin hairs and bristles come out soft when Radius is large; lower it
+        if they do. Below the default the picture changes little: at 1 and 8 the figure's hairs are equally
+        crisp, and only the maps differ. Raise it if faint texture, such as a see-through wing, is lost beside a strong edge: with a
+        small patch the edge's blur can outscore the texture, and a larger patch lets the texture's many weak
+        votes win.
+      </p>
+      <p>
+        <strong>What it costs.</strong> Too large, and thin things take the depth of what is behind them, as at
+        50 above. Too small, and the map is speckled where nothing is sharp; the figure shows that this barely
+        changes the picture there.
+      </p>
+      <details class="numbers">
+        <summary>In numbers</summary>
+        <p>
+          The map is made on a gray copy at <Param path="constants.depth.map_scale" scale={100} />%
+          of the frame's width and height. At the default Radius the patch is a Gaussian with σ =
+          <Param path="at.depth.default.post_blur_sigma" digits={1} /> pixels of that copy,
+          reaching <Param path="at.depth.default.post_blur_half_width" /> pixels each side, twice that
+          in the photo: many times the thickness of one of the hornet's hairs. The patch grows in proportion to
+          Radius.
+        </p>
+      </details>
+    </div>
+  </section>
+
+  <section id="snapping">
+    <div class="prose">
+      <h2>Blend Range</h2>
+      <p>
+        <strong>What it does.</strong> After smoothing, many depths fall between two frames: a spot at depth 20.4
+        would mix frames 20 and 21, 60 to 40, and a mix can be softer than either frame. Blend Range sets how hard
+        each depth is pulled toward the nearest whole frame, so that most spots come from one frame and only
+        narrow strips mix two. It runs from <Param path="ranges.depth.blend_range.min" /> to
+        <Param path="ranges.depth.blend_range.max" /> (default
+        <Param path="defaults.depth.blend_range" />); lower values snap harder, and
+        <Param path="ranges.depth.blend_range.max" /> turns snapping off. The slider's ends read One frame per
+        spot and Mixed, softer.
+      </p>
+      <p>
+        <strong>When to change it.</strong> Rarely. It only moves weight between neighboring frames, so its
+        effect on the picture is small. Lower it to take more of the picture whole from single frames; raise it
+        to mix more spots from the two frames either side of their depth.
+      </p>
+    </div>
+  </section>
+</DocsLayout>

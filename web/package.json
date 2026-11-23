@@ -1,0 +1,38 @@
+{
+  "name": "deptheos-explainer",
+  "private": true,
+  "type": "module",
+  "description": "The Deptheos website: the home page, features, the gallery and the docs",
+  "scripts": {
+    "export-params": "cargo run -q -p deptheos_webexport",
+    "dev": "ASTRO_TELEMETRY_DISABLED=1 astro dev",
+    "preview": "ASTRO_TELEMETRY_DISABLED=1 astro preview",
+    "typecheck": "tsc --noEmit",
+    "shot": "tsx scripts/screenshot.ts",
+    "dev:lan": "ASTRO_TELEMETRY_DISABLED=1 LAN=1 astro dev --host",
+    "smoke": "tsx scripts/smoke.ts",
+    "touch-check": "tsx scripts/touch-check.ts",
+    "overflow-check": "tsx scripts/overflow-check.ts",
+    "lab-assets": "tsx scripts/make-lab-assets.ts",
+    "build": "ASTRO_TELEMETRY_DISABLED=1 astro build",
+    "deploy": "scripts/deploy.sh",
+    "test": "tsx --test 'src/**/*.test.ts'"
+  },
+  "devDependencies": {
+    "@fontsource/ibm-plex-mono": "^5.3.0",
+    "@fontsource/ibm-plex-sans": "^5.3.0",
+    "@types/node": "^22.19.0",
+    "@types/react": "^19.3.0",
+    "@types/react-dom": "^19.3.0",
+    "@vitejs/plugin-basic-ssl": "^2.3.0",
+    "agentation": "^3.1.2",
+    "astro": "^7.4.13",
+    "puppeteer-core": "^25.17.0",
+    "react": "^19.3.1",
+    "react-dom": "^19.3.1",
+    "tsx": "4.23.15",
+    "typescript": "5.9.3",
+    "vite": "8.3.5",
+    "wrangler": "4.160.1"
+  }
+}

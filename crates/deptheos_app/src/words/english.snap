@@ -1,0 +1,1152 @@
+sentences
+    <first> <then>
+notices
+    <first>. <then>
+list-comma
+    <items>, <next>
+size-kb
+    <n> KB
+size-mb
+    <n> MB
+size-gb
+    <n> GB
+duration-seconds
+    <seconds> s
+duration-minutes
+    <minutes> min
+duration-minutes-seconds
+    <minutes> min <seconds> s
+fault
+    Deptheos ran into an unexpected problem and stopped.
+canceled
+    Stacking was canceled.
+quoted
+    "<name>"
+names-and
+    <names> and <last>
+names-more
+    <names> and <more> more
+clause-unstackable
+    couldn't be stacked
+clause-unstackable-fault
+    couldn't be stacked, because Deptheos ran into an unexpected problem
+clause-unstacked-stopped
+    wasn't stacked, because the stack stopped
+stack-problem-empty
+    Add frames to stack.
+stack-problem-empty-ios
+    Add frames, or take a burst.
+stack-problem-too-few
+    Include at least 2 frames.
+stack-problem-missing (n=0)
+    0 included frames can't be found.
+stack-problem-missing (n=1)
+    1 included frame can't be found.
+stack-problem-missing (n=2)
+    2 included frames can't be found.
+stack-problem-missing (n=1000)
+    1000 included frames can't be found.
+stack-problem-mixed-linear-dng
+    The included frames mix linear DNGs, such as ProRAW, with other formats. Include only those DNGs, or only the others.
+stack-problem-mixed-raw
+    The included frames mix RAW files with JPEG, HEIC or other formats. Include only RAW files, or only the others.
+no-frames
+    There are no frames to stack.
+no-frames-advice
+    Add frames, or include the excluded ones.
+frame-size
+    <file> is <size>, but the stack's first frame is <first>. Every frame must be the size of the first.
+same-size-advice
+    Check that all come from the same camera and crop mode, that none is already stacked or edited, and that all were converted the same way.
+unnamed-profile
+    an unnamed color profile
+mixed-kinds-raw
+    <file> is a RAW or DNG file, but <first> is a standard image. A stack must be all RAW and DNG files or all standard images, such as JPEG, PNG and TIFF.
+mixed-kinds-standard
+    <file> is a standard image, but <first> is a RAW or DNG file. A stack must be all RAW and DNG files or all standard images, such as JPEG, PNG and TIFF.
+mixed-kinds-advice
+    Exclude the frames of the other kind.
+mixed-renders-compare
+    A render of RAW frames and a render of standard images can't be compared.
+mixed-renders-paint
+    A render of RAW frames can't be painted from a render of standard images, or the other way around.
+no-shared-frame
+    The two renders share no frame, so they can't be lined up for comparing.
+not-raw
+    Only a stack of RAW or DNG frames can be exported as DNG.
+export-as-tiff
+    Export it as TIFF instead.
+needs-pyramid
+    Grow sequences can be made only from Pyramid renders.
+missing-frames (count=0)
+    0 frames can't be found: <names>.
+missing-frames (count=1)
+    1 frame can't be found: <names>.
+missing-frames (count=2)
+    2 frames can't be found: <names>.
+missing-frames (count=1000)
+    1000 frames can't be found: <names>.
+missing-frames-of-stack (count=0)
+    0 frames of <stack> can't be found: <names>.
+missing-frames-of-stack (count=1)
+    1 frame of <stack> can't be found: <names>.
+missing-frames-of-stack (count=2)
+    2 frames of <stack> can't be found: <names>.
+missing-frames-of-stack (count=1000)
+    1000 frames of <stack> can't be found: <names>.
+missing-frames-advice (count=0)
+    Check that the drive they are on is connected, and that they weren't moved or renamed.
+missing-frames-advice (count=1)
+    Check that the drive it is on is connected, and that it wasn't moved or renamed.
+no-stacks
+    There are no stacks to make a turntable sequence from.
+no-common-area
+    The stacks' cropped areas don't overlap, so they can't make one turntable sequence.
+no-space
+    The sequence needs about <needed> of disk space, but <folder> has only <free> free.
+free-space-advice
+    Free some space, or choose another folder.
+sample-no-space
+    The sample stack needs <needed> of space, but only <free> is free.
+sample-no-space-advice
+    Free up some space, then try again.
+no-conversion-space
+    Converting these frames with Adobe DNG Converter needs about <needed> of disk space, but the disk Deptheos keeps the conversions on has only <free> free.
+conversion-space-advice
+    Free some space, or decode RAW files with LibRaw instead.
+left-out-only
+    <first> <reason>.
+left-out-none-stacked (total=0)
+    None of the 0 frames could be stacked.
+left-out-none-stacked (total=1)
+    The frame couldn't be stacked.
+left-out-none-stacked (total=2)
+    None of the 2 frames could be stacked.
+left-out-none-stacked (total=1000)
+    None of the 1000 frames could be stacked.
+left-out-one-stacked
+    Only 1 of the <total> frames could be stacked.
+left-out-some
+    <count> of <total> frames couldn't be stacked.
+left-out-first
+    The first, <first>, <reason>.
+left-out-advice
+    Check that the list holds one focus bracket, shot with the same camera and settings, and exclude any frame that doesn't belong.
+frame-clause
+    <subject> <clause>.
+a-frame
+    A frame
+clause-picture
+    couldn't be read as an image file
+clause-dng-read
+    couldn't be read as a DNG
+clause-dng-damaged
+    couldn't be read as a DNG, because it's damaged or isn't one
+clause-dng-not-supported
+    is a kind of DNG Deptheos can't read
+clause-dng-no-memory
+    couldn't be read, because there isn't enough memory
+clause-dng-too-large
+    is too large to read: a DNG can have at most <max> MP
+clause-truncated
+    is incomplete: the file ends before its image does
+truncated-advice
+    Copy it again from the card or the folder it came from.
+clause-cmyk
+    is a CMYK image, which can't be stacked
+clause-lab
+    is a Lab color image, which can't be stacked
+rgb-advice
+    Export it from your editor in RGB.
+clause-hdr
+    is an HDR image, which can't be stacked
+hdr-advice
+    Export it from your editor as a standard-range image.
+clause-tiff-layout
+    is a TIFF whose pixels are stored in a way that can't be read
+tiff-layout-advice
+    Save it again from your editor as an RGB or grayscale TIFF of 8, 16 or 32 bits.
+clause-no-memory
+    couldn't be read, because there isn't enough memory for a frame of <size>
+close-or-smaller
+    Close other apps, or stack smaller frames.
+clause-too-large
+    is too large to stack (<size>); a frame can have at most <max> MP
+clause-dng-channels
+    is a kind of DNG Deptheos can't stack, because it doesn't decode to a color image
+clause-pixel-layout
+    is in a pixel format Deptheos can't stack
+pixel-layout-advice
+    Save it as an RGB file of 8 or 16 bits per channel.
+clause-empty
+    has no pixels
+clause-too-large-to-read
+    is too large to read
+clause-raw-decode
+    couldn't be read as a RAW file
+setting-smoothness
+    Smoothness
+setting-radius
+    Radius
+setting-smoothing
+    Smoothing
+setting-blend-range
+    Blend Range
+setting-denoise
+    Denoise
+setting-consistency
+    Consistency
+out-of-range
+    <setting> must be from <min> to <max>.
+core-frame-size
+    A frame is <size>, but the stack's first frame is <first>. Every frame must be the size of the first.
+frame-too-small
+    Frames of <size> are too small for Wavelet, which needs at least <min> px a side.
+choose-another-method
+    Choose another method.
+jpeg-too-large
+    The result, <size>, is too large for JPEG, which allows at most 65535 px a side.
+export-as-tiff-or-png
+    Export it as TIFF or PNG instead.
+tiff-too-large
+    The TIFF would be larger than 4 GB, the most a TIFF file can hold.
+tiff-too-large-advice
+    Export it with compression, at 8 bits per channel, or as PNG.
+encode-failed
+    The <format> file couldn't be written.
+symlink-loop
+    <file> couldn't be written, because its path has too many symbolic links.
+choose-another-folder
+    Choose another folder.
+not-a-file
+    <path> isn't a file name.
+not-a-file-advice
+    Choose another file name.
+image-unreadable
+    A file couldn't be read as an image file.
+image-unwritable
+    The file couldn't be written.
+image-too-large
+    An image file is too large to read.
+io-not-found
+    <file> can't be found.
+io-not-found-any
+    A file can't be found.
+not-found-advice
+    Check that the drive it is on is connected, and that it wasn't moved or renamed.
+io-denied
+    Deptheos isn't allowed to open <file>.
+io-denied-any
+    Deptheos isn't allowed to open a file it needs.
+io-full
+    The disk holding <file> is full.
+io-full-any
+    The disk is full.
+io-read-only
+    <file> is on a disk that can't be written to.
+io-read-only-any
+    The disk can't be written to.
+io-other
+    <file> couldn't be read or written.
+io-other-any
+    A file couldn't be read or written.
+io-library-not-found
+    Part of the Library folder can't be found.
+io-library-denied
+    Deptheos isn't allowed to open the Library folder.
+io-library-full
+    The disk holding the Library folder is full.
+io-library-read-only
+    The Library folder is on a disk that can't be written to.
+io-library-other
+    Part of the Library folder couldn't be read or written.
+clause-not-found
+    can't be found
+clause-denied
+    can't be opened, because Deptheos isn't allowed to
+clause-unreadable
+    couldn't be read
+store-damaged
+    A file in the Library folder is damaged and couldn't be read.
+thumbnail-failed
+    The file's thumbnail couldn't be made.
+library-newer
+    This Library was last used by Deptheos <version>, which is newer than this version, so this one can't open it. It's left as it is.
+library-newer-unknown
+    This Library was last used by a newer version of Deptheos, so this one can't open it. It's left as it is.
+library-newer-advice
+    Get the latest version of Deptheos.
+library-in-use-here
+    The Library is open in another Deptheos on this computer.
+library-in-use-here-advice
+    Quit the other Deptheos, then try again.
+library-in-use-on
+    The Library is open in Deptheos <version> on <computer>.
+library-in-use-on-advice
+    Quit Deptheos on <computer>, then try again.
+library-in-use
+    The Library is open in another copy of Deptheos.
+library-in-use-advice
+    Quit the other copy, then try again.
+library-not-connected
+    The Library folder, <folder>, isn't there: the drive it's on isn't connected.
+library-not-connected-advice
+    Connect the drive, then try again.
+library-synced
+    The Library folder, <folder>, is in <service>, which syncs its files while Deptheos writes them and can damage the Library.
+library-synced-advice
+    Choose a folder that isn't synced.
+library-no-locks
+    The Library folder is on a disk that can't keep two apps from changing it at once.
+library-no-locks-advice
+    Choose a Library folder on another disk.
+sources-not-folder
+    <folder> isn't a folder.
+sources-not-file
+    <file> isn't there, or isn't a file.
+sources-not-unicode
+    <file> has a name Deptheos can't keep.
+sources-unknown-root
+    The Library has lost track of the folder some of its frames are in.
+sources-damaged
+    The Library's list of the folders its frames are in, <file>, is damaged. The renders in the Library are untouched.
+sources-damaged-advice
+    Put <file> back from a backup of the Library folder, then open Deptheos again.
+sources-not-copied (count=0)
+    0 frames weren't copied whole: <names>.
+sources-not-copied (count=1)
+    1 frame wasn't copied whole: <names>.
+sources-not-copied (count=2)
+    2 frames weren't copied whole: <names>.
+sources-not-copied (count=1000)
+    1000 frames weren't copied whole: <names>.
+dng-write
+    <file> couldn't be written as a DNG.
+dng-write-advice
+    Check that the folder can be written to and has space.
+dng-metadata
+    The RAW frames' camera data couldn't be turned into a DNG.
+dng-no-memory
+    There wasn't enough memory to finish.
+converter-not-found
+    Adobe DNG Converter isn't at <path>.
+converter-not-found-advice
+    Install it, set where it is, or decode RAW files with LibRaw instead.
+converter-not-here
+    Adobe DNG Converter doesn't run on this system.
+converter-libraw-advice
+    Decode RAW files with LibRaw instead.
+converter-start
+    Adobe DNG Converter couldn't be started.
+converter-start-advice
+    Check that it is installed, or decode RAW files with LibRaw instead.
+converter-timed-out
+    <file> took longer than <time> to convert with Adobe DNG Converter.
+converter-failed
+    <file> couldn't be converted by Adobe DNG Converter.
+converter-no-output
+    <file> was left unconverted by Adobe DNG Converter, which may not know this camera.
+converter-no-output-advice
+    Update Adobe DNG Converter, or decode RAW files with LibRaw instead.
+clause-converter-not-found
+    can't be converted, because Adobe DNG Converter isn't at <path>
+clause-converter-not-here
+    can't be converted, because Adobe DNG Converter doesn't run on this system
+clause-converter-start
+    can't be converted, because Adobe DNG Converter couldn't be started
+clause-converter-stopped
+    wasn't converted, because the stack stopped
+clause-converter-timed-out
+    took longer than <time> to convert with Adobe DNG Converter
+clause-converter-failed
+    couldn't be converted by Adobe DNG Converter
+clause-converter-no-output
+    was left unconverted by Adobe DNG Converter, which may not know this camera
+start-again-app
+    Quit and open Deptheos again.
+start-again-command
+    Run the command again.
+gpu-none
+    Deptheos couldn't find a GPU it can use.
+gpu-start
+    The GPU couldn't be started.
+gpu-start-advice-desktop
+    Quit and open Deptheos again, or choose another GPU in Settings ▸ Advanced.
+gpu-lost
+    The GPU stopped responding or was reset.
+gpu-memory
+    The GPU ran out of memory.
+gpu-budget
+    Frames of <size> need about <needed> of GPU memory, but this GPU has <budget>.
+gpu-budget-ios
+    Frames of <size> need about <needed> of memory, but Deptheos can use only <budget> now.
+gpu-low-memory
+    The stack stopped because Deptheos was running out of memory.
+gpu-side
+    Frames of <size> are too large for this GPU, which takes at most <max> px a side.
+gpu-buffer
+    Frames of <size> are too large for this GPU.
+gpu-too-large-advice-desktop
+    Stack smaller frames, or choose another GPU in Settings ▸ Advanced.
+gpu-too-large-advice
+    Stack smaller frames.
+the-first-frame
+    The first frame
+clause-featureless
+    looks blank or black, with no detail to line the other frames up against
+exclude-it
+    Exclude it.
+clause-low-correlation
+    doesn't look enough like the frame before it to line up
+clause-little-overlap
+    overlaps the frame before it by only <percent>%, too little to line up
+clause-uncorrelated
+    doesn't look like the frame before it, or barely overlaps it
+clause-flips
+    would have to be flipped or squashed flat to line up
+clause-shift
+    would have to move <dx>% across and <dy>% up or down to line up, more than the <max>% allowed
+clause-scale
+    would have to change size by <percent>% to line up, more than the <max>% allowed
+clause-shear
+    would have to stretch or slant by <percent>% to line up, more than the <max>% allowed
+clause-rotation
+    would have to turn <degrees>° to line up, more than the <max>° allowed
+clause-no-overlap
+    doesn't overlap the frame before it enough to line up
+clause-no-match
+    doesn't look like the frame before it, and may be blank, black or of another scene
+clause-unaligned
+    couldn't be lined up with the frame before it
+clause-with-hint
+    <clause>; <hint>
+hint-try-grid
+    try Grid search
+hint-wider-grid
+    wider Grid search limits may line it up
+try-grid-advice
+    Try Grid search, or exclude the frame.
+wider-grid-advice
+    Widen the Grid search limits, or exclude the frame.
+exclude-the-frame
+    Exclude the frame.
+ios-report-fault
+    Send Diagnostics… in the Library's Settings sends the details.
+ios-no-log-file
+    Deptheos has no log file for this launch, so there are no diagnostics to send. Quit and open Deptheos again, then try again.
+ios-device-full
+    This device is full. Free up space, then try again.
+ios-try-again
+    Try again.
+ios-retouched-export-failed
+    The retouched render couldn't be exported.
+ios-save-failed
+    The render couldn't be saved.
+ios-sample-not-copied
+    The sample stack couldn't be copied into Deptheos.
+ios-gpu-didnt-start
+    Deptheos couldn't start its GPU engine.
+ios-library-didnt-open
+    Deptheos can't open its Library.
+batch-progress
+    Batch <n> of <total>
+batch-paused
+    paused
+batch-exporting-stack
+    Exporting <stack>
+batch-saving
+    Saving the renders
+batch-writing-sequence
+    Writing the turntable sequence
+batch-exporting
+    Exporting · <written> of <total>
+batch-made
+    Batch: <made> of <total> made
+batch-canceled-made
+    Batch canceled: <made> of <total> made
+batch-stopped-made
+    Batch stopped: <made> of <total> made
+batch-failed
+    <count> failed
+batch-exported-to
+    <count> exported to <folder>
+batch-exported
+    <count> exported
+batch-not-exported
+    <count> not exported
+batch-sequence-not-written
+    the turntable sequence wasn't written
+batch-left-out-of-sequence
+    <stack> left out of the sequence
+batch-reasons
+    <short>. <why>
+batch-stack-failed
+    <stack> didn't finish.
+batch-export-failed
+    <stack> couldn't be exported.
+batch-render-unsaved
+    The render of <stack> couldn't be saved.
+batch-failure-render-unsaved
+    Its render couldn't be saved.
+batch-no-stack-for-sequence
+    No stack was left for the turntable sequence.
+batch-not-stacked-yet
+    Not stacked yet: the batch ended before it got to this stack.
+gap-restack-unsaved
+    its restack couldn't be saved.
+gap-render-unsaved
+    its render couldn't be saved.
+gap-restack-failed
+    it couldn't be stacked again without its first frame.
+gap-scale-off
+    its scale doesn't match the other stacks, even without its first frame.
+note-restacked
+    <stack> restacked without its first frame
+checking-stacks
+    Checking stacks · restacking <stack> without its first frame
+left-out-frame
+    Left out <frame>
+left-out-frames (count=0)
+    Left out 0 frames: <frames>
+left-out-frames (count=1)
+    Left out 1 frame: <frames>
+left-out-frames (count=2)
+    Left out 2 frames: <frames>
+left-out-frames (count=1000)
+    Left out 1000 frames: <frames>
+left-out-items
+    <items>; <next>
+left-out-item
+    <name> (<reason>)
+left-out-line (count=0)
+    0 frames left out
+left-out-line (count=1)
+    1 frame left out
+left-out-line (count=2)
+    2 frames left out
+left-out-line (count=1000)
+    1000 frames left out
+note-float-clipped (count=0)
+    Floating-point frames had values above white or below black, which were clipped (0 frames)
+note-float-clipped (count=1)
+    Floating-point frames had values above white or below black, which were clipped (1 frame)
+note-float-clipped (count=2)
+    Floating-point frames had values above white or below black, which were clipped (2 frames)
+note-float-clipped (count=1000)
+    Floating-point frames had values above white or below black, which were clipped (1000 frames)
+note-over-white (count=0)
+    Frames with partial transparency were composited over white (0 frames)
+note-over-white (count=1)
+    Frames with partial transparency were composited over white (1 frame)
+note-over-white (count=2)
+    Frames with partial transparency were composited over white (2 frames)
+note-over-white (count=1000)
+    Frames with partial transparency were composited over white (1000 frames)
+note-clipped (count=0)
+    Frames in <from> had colors outside <into>, the stack's color space, which were clipped as they were converted (0 frames)
+note-clipped (count=1)
+    Frames in <from> had colors outside <into>, the stack's color space, which were clipped as they were converted (1 frame)
+note-clipped (count=2)
+    Frames in <from> had colors outside <into>, the stack's color space, which were clipped as they were converted (2 frames)
+note-clipped (count=1000)
+    Frames in <from> had colors outside <into>, the stack's color space, which were clipped as they were converted (1000 frames)
+note-uncropped
+    The frames moved too far to crop to the area they all cover, so the result is uncropped and its edges may show smear
+method-pyramid
+    Pyramid
+method-depth
+    Depth
+method-wavelet
+    Wavelet
+method-pyramid-description
+    Blends the sharpest detail of every frame at each scale. The all-around choice; an edge in front of a far background can get a soft glow.
+method-depth-description
+    Finds the sharpest frame at each spot, then blends neighbors. Smooth on plain backgrounds and clean beside bright edges; hairs and fine texture come out softer than Pyramid.
+method-wavelet-description
+    Takes each pixel's color whole from one frame. For fine crossing detail; a plain background can come out grainy. Denoise keeps noise in plain areas from being picked up as detail.
+method-pyramid-summary
+    Pyramid · S<smoothness>
+method-depth-summary
+    Depth · R<radius> S<smoothing> B<blend>
+method-wavelet-summary
+    Wavelet · D<denoise>
+method-wavelet-consistent-summary
+    Wavelet · D<denoise> C<consistency>
+align-ecc
+    ECC (affine)
+align-grid
+    Grid search (similarity)
+setting-smoothness-help
+    Higher shares each spot among more frames, so noise averages out and fine detail softens.
+setting-smoothing-help
+    Higher evens out plain areas where no frame is clearly the sharpest; lower keeps the outline of a subject against a far background narrow.
+setting-denoise-help
+    Higher removes more noise, and more of the faintest texture with it.
+setting-radius-help
+    Higher decides each spot's frame over a larger area, which is steadier but can soften thin hairs.
+setting-blend-range-help
+    Lower takes most spots from a single frame; higher mixes neighboring frames more, which can look softer.
+setting-aligner-help
+    ECC lines up small shifts, turns and changes in size closely; Grid search finds frames that moved further between shots.
+setting-crop-help
+    On keeps only the area every frame covers; off keeps the whole frame, with softer edges where some frames don't reach.
+setting-decoder-help
+    Changes which decoder reads this stack's camera RAW frames; the two crop and color them differently.
+order-name
+    Name
+order-capture-time
+    Capture time
+order-missing-times (count=0)
+    0 frames have no capture time, so the frames stay in name order
+order-missing-times (count=1)
+    1 frame has no capture time, so the frames stay in name order
+order-missing-times (count=2)
+    2 frames have no capture time, so the frames stay in name order
+order-missing-times (count=1000)
+    1000 frames have no capture time, so the frames stay in name order
+order-mixed-cameras
+    the frames come from more than one camera, so they stay in name order
+order-whole-seconds
+    the capture times are in whole seconds and several frames share a second, so the frames stay in name order
+order-missing-sub-seconds (count=0)
+    0 frames record no fraction of a second and share their second with another, so the frames stay in name order
+order-missing-sub-seconds (count=1)
+    1 frame records no fraction of a second and shares its second with another, so the frames stay in name order
+order-missing-sub-seconds (count=2)
+    2 frames record no fraction of a second and share their second with another, so the frames stay in name order
+order-missing-sub-seconds (count=1000)
+    1000 frames record no fraction of a second and share their second with another, so the frames stay in name order
+order-ties (count=0)
+    0 frames share a capture time, so those are ordered by shot number, then name
+order-ties (count=1)
+    1 frame shares a capture time, so those are ordered by shot number, then name
+order-ties (count=2)
+    2 frames share a capture time, so those are ordered by shot number, then name
+order-ties (count=1000)
+    1000 frames share a capture time, so those are ordered by shot number, then name
+order-differs
+    the frames were shot in a different order than their names
+order-on-stack
+    <stack>: <note>
+order-differs-from-names
+    <stack>: the frames were shot in a different order than their names
+split-per-folder
+    One stack per folder
+split-auto-sort
+    Auto sort
+plan-from-list
+    The list
+plan-from-list-frames (frames=0)
+    The list, 0 frames
+plan-from-list-frames (frames=1)
+    The list, 1 frame
+plan-from-list-frames (frames=2)
+    The list, 2 frames
+plan-from-list-frames (frames=1000)
+    The list, 1000 frames
+plan-from-list-and-folders (folders=0)
+    The list and 0 folders
+plan-from-list-and-folders (folders=1)
+    The list and 1 folder
+plan-from-list-and-folders (folders=2)
+    The list and 2 folders
+plan-from-list-and-folders (folders=1000)
+    The list and 1000 folders
+plan-from-list-and-folders-frames (folders=0, frames=0)
+    The list and 0 folders, 0 frames
+plan-from-list-and-folders-frames (folders=1, frames=1)
+    The list and 1 folder, 1 frame
+plan-from-list-and-folders-frames (folders=2, frames=2)
+    The list and 2 folders, 2 frames
+plan-from-list-and-folders-frames (folders=1000, frames=1000)
+    The list and 1000 folders, 1000 frames
+plan-from-folders (folders=0)
+    0 folders
+plan-from-folders (folders=1)
+    1 folder
+plan-from-folders (folders=2)
+    2 folders
+plan-from-folders (folders=1000)
+    1000 folders
+plan-from-folders-frames (folders=0, frames=0)
+    0 folders, 0 frames
+plan-from-folders-frames (folders=1, frames=1)
+    1 folder, 1 frame
+plan-from-folders-frames (folders=2, frames=2)
+    2 folders, 2 frames
+plan-from-folders-frames (folders=1000, frames=1000)
+    1000 folders, 1000 frames
+plan-to-renders (renders=0)
+    <from> → 0 renders
+plan-to-renders (renders=1)
+    <from> → 1 render
+plan-to-renders (renders=2)
+    <from> → 2 renders
+plan-to-renders (renders=1000)
+    <from> → 1000 renders
+plan-to-stacks (stacks=0)
+    <from> → 0 stacks
+plan-to-stacks (stacks=1)
+    <from> → 1 stack
+plan-to-stacks (stacks=2)
+    <from> → 2 stacks
+plan-to-stacks (stacks=1000)
+    <from> → 1000 stacks
+plan-skipped (count=0)
+    0 frames skipped
+plan-skipped (count=1)
+    1 frame skipped
+plan-skipped (count=2)
+    2 frames skipped
+plan-skipped (count=1000)
+    1000 frames skipped
+plan-too-few (count=0)
+    0 folders with too few frames
+plan-too-few (count=1)
+    1 folder with too few frames
+plan-too-few (count=2)
+    2 folders with too few frames
+plan-too-few (count=1000)
+    1000 folders with too few frames
+plan-unreadable (count=0)
+    0 folders unreadable
+plan-unreadable (count=1)
+    1 folder unreadable
+plan-unreadable (count=2)
+    2 folders unreadable
+plan-unreadable (count=1000)
+    1000 folders unreadable
+plan-and
+    <line>, <part>
+batch-export-in-frames
+    The exports can't go into <folder>, which holds frames this batch stacks. Choose a folder outside the folders being stacked.
+plan-label-skipped (count=0)
+    <split> · 0 frames skipped
+plan-label-skipped (count=1)
+    <split> · 1 frame skipped
+plan-label-skipped (count=2)
+    <split> · 2 frames skipped
+plan-label-skipped (count=1000)
+    <split> · 1000 frames skipped
+sequence-grow
+    Grow sequence
+sequence-turntable-full
+    Turntable sequence · Full
+sequence-turntable-grow
+    Turntable sequence · Grow across stacks
+sequence-progress
+    <phase> · frame <written> of <total> written
+sequence-progress-stack
+    <phase> · stack <stack> of <stacks> · frame <written> of <total> written
+sequence-made (count=0)
+    0 frames in "<folder>"
+sequence-made (count=1)
+    1 frame in "<folder>"
+sequence-made (count=2)
+    2 frames in "<folder>"
+sequence-made (count=1000)
+    1000 frames in "<folder>"
+turntable-grow
+    Grow across stacks
+turntable-full
+    Full
+turntable-both
+    Both
+paint-not-shown
+    The retouching couldn't be shown.
+paint-not-saved
+    The retouching couldn't be saved.
+paint-not-opened
+    The render couldn't be opened for retouching.
+paint-undo-unread
+    The retouching's undo history couldn't be read.
+paint-shown-without
+    This render is shown without its retouching.
+paint-unread-damaged
+    Its saved retouching is damaged.
+paint-unread-unreachable
+    Its saved retouching couldn't be read just now.
+paint-unread-unreachable-advice
+    Try again in a moment.
+paint-unsaveable
+    What you paint on this render can't be saved.
+paint-unsaveable-no-render
+    It isn't in the Library any more.
+paint-unsaveable-unreachable
+    Its saved retouching couldn't be read just now, and saving over it would lose it. To try again, leave Retouch before painting anything and open it again.
+paint-unsaveable-unwritable
+    Its folder in the Library couldn't be written to.
+details-in-log
+    The details are in the log.
+paint-fault
+    Deptheos ran into an unexpected problem while retouching. The details are in the log.
+paint-no-detail-record
+    This render doesn't record where its detail came from. Pick a frame to paint from instead.
+paint-source-failed
+    The frame or render to paint from couldn't be loaded.
+paint-pick-again
+    Pick it again.
+paint-pick-again-or-another
+    Pick it again, or pick another frame or render.
+paint-no-shared-frame
+    The two renders share no frame, so they can't be lined up.
+paint-frame-not-lined-up
+    That frame isn't in this render, and no other render links it to this one, so it can't be lined up. Paint from a frame this render used.
+paint-cannot-paint-from
+    This frame or render couldn't be loaded to paint from. Pick it again, or pick another frame or render.
+paint-does-not-line-up
+    That frame or render doesn't line up with this render, so it can't be painted from.
+paint-too-many-sources
+    A render can be painted from at most 255 frames and renders. Paint from one already used.
+paint-undo-erase
+    Erase
+paint-undo-paint
+    Paint
+render-number
+    #<number>
+render-number-starred
+    #<number> ★
+render-number-named
+    #<number> · <name>
+render-number-named-starred
+    #<number> ★ · <name>
+render-with-summary
+    <render> · <summary>
+render-spoken
+    Render <number>
+render-spoken-method
+    Render <number>, <method>
+render-spoken-method-starred
+    Render <number>, <method>, starred
+render-spoken-named-method
+    Render <number>, <name>, <method>
+render-spoken-named-method-starred
+    Render <number>, <name>, <method>, starred
+add-folder-unreadable
+    "<folder>" couldn't be read.
+add-folder-not-allowed
+    Deptheos isn't allowed to read "<folder>".
+add-refused-other-stack
+    The frames weren't added, because another stack was opened while they were read.
+add-refused-stacking
+    The frames weren't added, because a stack started while they were read.
+add-nothing
+    No frames were added. The files are already in the list, or aren't files Deptheos reads.
+add-added (n=0)
+    Added 0 frames to <name>.
+add-added (n=1)
+    Added 1 frame to <name>.
+add-added (n=2)
+    Added 2 frames to <name>.
+add-added (n=1000)
+    Added 1000 frames to <name>.
+library-count (renders=0, stacks=0)
+    No stacks · No renders
+library-count (renders=1, stacks=1)
+    1 stack · 1 render
+library-count (renders=2, stacks=2)
+    2 stacks · 2 renders
+library-count (renders=1000, stacks=1000)
+    1000 stacks · 1000 renders
+library-count-size (renders=0, stacks=0)
+    No stacks · No renders · <size>
+library-count-size (renders=1, stacks=1)
+    1 stack · 1 render · <size>
+library-count-size (renders=2, stacks=2)
+    2 stacks · 2 renders · <size>
+library-count-size (renders=1000, stacks=1000)
+    1000 stacks · 1000 renders · <size>
+library-count-starred (renders=0, stacks=0)
+    No starred renders
+library-count-starred (renders=1, stacks=1)
+    1 starred render in 1 stack
+library-count-starred (renders=2, stacks=2)
+    2 starred renders in 2 stacks
+library-count-starred (renders=1000, stacks=1000)
+    1000 starred renders in 1000 stacks
+library-count-failed (stacks=0)
+    No failed stacks
+library-count-failed (stacks=1)
+    1 failed stack
+library-count-failed (stacks=2)
+    2 failed stacks
+library-count-failed (stacks=1000)
+    1000 failed stacks
+library-span-today
+    Today
+library-span-yesterday
+    Yesterday
+library-span-last-week
+    Previous 7 days
+library-span-earlier
+    Earlier
+library-badge-of
+    <shown> of <total>
+deleted-stack
+    <stack>
+deleted-render
+    <stack> #<number>
+deleted-renders (renders=0)
+    0 renders of <stack>
+deleted-renders (renders=1)
+    1 render of <stack>
+deleted-renders (renders=2)
+    2 renders of <stack>
+deleted-renders (renders=1000)
+    1000 renders of <stack>
+deleted-failed (failed=0)
+    0 failed runs of <stack>
+deleted-failed (failed=1)
+    Failed stack <stack>
+deleted-failed (failed=2)
+    2 failed runs of <stack>
+deleted-failed (failed=1000)
+    1000 failed runs of <stack>
+deleted-renders-and-failed (failed=0, renders=0)
+    0 renders and 0 failed runs of <stack>
+deleted-renders-and-failed (failed=1, renders=1)
+    1 render and 1 failed run of <stack>
+deleted-renders-and-failed (failed=2, renders=2)
+    2 renders and 2 failed runs of <stack>
+deleted-renders-and-failed (failed=1000, renders=1000)
+    1000 renders and 1000 failed runs of <stack>
+deleted-notice-one
+    <what> moved to Recently Deleted.
+deleted-notice-stacks (stacks=0)
+    0 stacks moved to Recently Deleted.
+deleted-notice-stacks (stacks=1)
+    1 stack moved to Recently Deleted.
+deleted-notice-stacks (stacks=2)
+    2 stacks moved to Recently Deleted.
+deleted-notice-stacks (stacks=1000)
+    1000 stacks moved to Recently Deleted.
+deleted-notice-renders (renders=0)
+    0 renders moved to Recently Deleted.
+deleted-notice-renders (renders=1)
+    1 render moved to Recently Deleted.
+deleted-notice-renders (renders=2)
+    2 renders moved to Recently Deleted.
+deleted-notice-renders (renders=1000)
+    1000 renders moved to Recently Deleted.
+deleted-days-left (days=0)
+    0 days left
+deleted-days-left (days=1)
+    1 day left
+deleted-days-left (days=2)
+    2 days left
+deleted-days-left (days=1000)
+    1000 days left
+deleted-none
+    Nothing was deleted in the last 30 days.
+deleted-summary (items=0)
+    0 items · <size>
+deleted-summary (items=1)
+    1 item · <size>
+deleted-summary (items=2)
+    2 items · <size>
+deleted-summary (items=1000)
+    1000 items · <size>
+empty-deleted-title
+    Empty Recently Deleted?
+empty-deleted-message (items=0)
+    The 0 items in Recently Deleted are deleted for good, freeing <size>. Your frames and exported files are left alone. This can't be undone.
+empty-deleted-message (items=1)
+    The item in Recently Deleted is deleted for good, freeing <size>. Your frames and exported files are left alone. This can't be undone.
+empty-deleted-message (items=2)
+    The 2 items in Recently Deleted are deleted for good, freeing <size>. Your frames and exported files are left alone. This can't be undone.
+empty-deleted-message (items=1000)
+    The 1000 items in Recently Deleted are deleted for good, freeing <size>. Your frames and exported files are left alone. This can't be undone.
+empty-deleted-button
+    Empty
+restore-failed
+    Not everything could be restored.
+empty-deleted-failed
+    Not all of Recently Deleted could be emptied.
+delete-library-title
+    Delete the Library?
+delete-library-message (renders=0, stacks=0)
+    0 stacks and no renders are deleted, with their retouching, any failed stacks, the working version and everything in Recently Deleted. Your frames and exported files are left alone. This can't be undone.
+delete-library-message (renders=1, stacks=1)
+    1 stack and 1 render are deleted, with their retouching, any failed stacks, the working version and everything in Recently Deleted. Your frames and exported files are left alone. This can't be undone.
+delete-library-message (renders=2, stacks=2)
+    2 stacks and 2 renders are deleted, with their retouching, any failed stacks, the working version and everything in Recently Deleted. Your frames and exported files are left alone. This can't be undone.
+delete-library-message (renders=1000, stacks=1000)
+    1000 stacks and 1000 renders are deleted, with their retouching, any failed stacks, the working version and everything in Recently Deleted. Your frames and exported files are left alone. This can't be undone.
+delete-library-message-in (renders=0, stacks=0)
+    0 stacks and no renders in "<folder>" are deleted, with their retouching, any failed stacks, the working version and everything in Recently Deleted. Your frames and exported files are left alone. This can't be undone.
+delete-library-message-in (renders=1, stacks=1)
+    1 stack and 1 render in "<folder>" are deleted, with their retouching, any failed stacks, the working version and everything in Recently Deleted. Your frames and exported files are left alone. This can't be undone.
+delete-library-message-in (renders=2, stacks=2)
+    2 stacks and 2 renders in "<folder>" are deleted, with their retouching, any failed stacks, the working version and everything in Recently Deleted. Your frames and exported files are left alone. This can't be undone.
+delete-library-message-in (renders=1000, stacks=1000)
+    1000 stacks and 1000 renders in "<folder>" are deleted, with their retouching, any failed stacks, the working version and everything in Recently Deleted. Your frames and exported files are left alone. This can't be undone.
+delete-library-button
+    Delete Library
+delete-frees
+    This frees <size>.
+library-deleted
+    The Library was deleted.
+library-delete-failed
+    Not all of the Library could be deleted.
+changes-since (count=0)
+    0 changes since #<number>
+changes-since (count=1)
+    1 change since #<number>
+changes-since (count=2)
+    2 changes since #<number>
+changes-since (count=1000)
+    1000 changes since #<number>
+changes-since-frames (frames=0)
+    0 changes to the frames since #<number>
+changes-since-frames (frames=1)
+    1 change to the frames since #<number>
+changes-since-frames (frames=2)
+    2 changes to the frames since #<number>
+changes-since-frames (frames=1000)
+    1000 changes to the frames since #<number>
+changes-since-settings (settings=0)
+    0 changes to the settings since #<number>
+changes-since-settings (settings=1)
+    1 change to the settings since #<number>
+changes-since-settings (settings=2)
+    2 changes to the settings since #<number>
+changes-since-settings (settings=1000)
+    1000 changes to the settings since #<number>
+changes-since-both (settings=0)
+    0 changes to the settings and <frames> to the frames since #<number>
+changes-since-both (settings=1)
+    1 change to the settings and <frames> to the frames since #<number>
+changes-since-both (settings=2)
+    2 changes to the settings and <frames> to the frames since #<number>
+changes-since-both (settings=1000)
+    1000 changes to the settings and <frames> to the frames since #<number>
+changes (count=0)
+    0 changes
+changes (count=1)
+    1 change
+changes (count=2)
+    2 changes
+changes (count=1000)
+    1000 changes
+differences-from-frames (frames=0)
+    0 differences from #<number> in the frames
+differences-from-frames (frames=1)
+    1 difference from #<number> in the frames
+differences-from-frames (frames=2)
+    2 differences from #<number> in the frames
+differences-from-frames (frames=1000)
+    1000 differences from #<number> in the frames
+differences-from-settings (settings=0)
+    0 differences from #<number> in the settings
+differences-from-settings (settings=1)
+    1 difference from #<number> in the settings
+differences-from-settings (settings=2)
+    2 differences from #<number> in the settings
+differences-from-settings (settings=1000)
+    1000 differences from #<number> in the settings
+differences-from-both (settings=0)
+    0 differences from #<number> in the settings and <frames> in the frames
+differences-from-both (settings=1)
+    1 difference from #<number> in the settings and <frames> in the frames
+differences-from-both (settings=2)
+    2 differences from #<number> in the settings and <frames> in the frames
+differences-from-both (settings=1000)
+    1000 differences from #<number> in the settings and <frames> in the frames
+same-as-render
+    Same frames and settings as #<number>
+revert-title
+    Revert to #<number>?
+revert-loses-changes (count=0)
+    Your 0 changes since #<base> haven't been stacked, and will be lost. Every render is kept.
+revert-loses-changes (count=1)
+    Your 1 change since #<base> hasn't been stacked, and will be lost. Every render is kept.
+revert-loses-changes (count=2)
+    Your 2 changes since #<base> haven't been stacked, and will be lost. Every render is kept.
+revert-loses-changes (count=1000)
+    Your 1000 changes since #<base> haven't been stacked, and will be lost. Every render is kept.
+revert-loses-unstacked
+    Your frames and settings haven't been stacked, and will be lost. Every render is kept.
+revert-loses-uncounted
+    Any changes you haven't stacked will be lost. Every render is kept.
+render-stacked-at
+    Stacked <date>
+render-setup-working
+    Working version: <value>
+render-setup-not-in-working
+    Not in the working version
+setup-method
+    Method
+setup-alignment
+    Alignment
+setup-align-frames
+    Align frames
+setup-aligner
+    Aligner
+setup-crop
+    Crop to the area every frame covers
+setup-raw
+    RAW
+setup-decoder
+    RAW decoder
+setup-frames
+    Frames
+setup-left-out
+    Left out
+setup-on
+    On
+setup-off
+    Off
+setup-included
+    Included
+setup-included-of
+    <included> of <total>
+setup-order
+    Order
+setup-excluded
+    Excluded
+setup-frame-included
+    Included
+setup-pair-raw
+    RAW
+setup-pair-jpeg
+    JPEG
+pref-jpeg-quality
+    JPEG quality
+pref-jpeg-quality-help
+    1–100. Below about 90, JPEG adds ringing around fine edges.
+pref-tiff-compression
+    TIFF compression
+pref-tiff-none
+    None
+pref-tiff-compression-help
+    All three are lossless. ZIP makes the smallest files; LZW is read by the oldest software; None is the fastest to write and open, and the largest.
+pref-file-name
+    File name
+pref-file-name-help
+    {stack} becomes the stack's name, {render} the render's number, {method} the method and {date} the day; the rest stays as typed.
+pref-file-name-example
+    For example: <name>
+pref-file-name-sample-stack
+    bee
+pref-grid-limits
+    Grid search limits
+pref-grid-limits-help
+    How far Grid search looks from one frame to the next. Wider limits handle more movement but take longer and risk a wrong match. Recorded with each render.
+pref-grid-horizontal
+    Horizontal shift (%)
+pref-grid-vertical
+    Vertical shift (%)
+pref-grid-shift-help
+    Of the frame's longer side.
+pref-grid-rotation
+    Rotation (°)
+pref-grid-rotation-help
+    0 turns the rotation search off.
+pref-grid-magnification
+    Magnification (%)
+pref-grid-magnification-help
+    0 turns the magnification search off.
+pref-exposure-compensation
+    Exposure compensation
+pref-exposure-compensation-help
+    Scale each frame to the first frame's brightness. For stacks shot at varying exposure only: on a normal rail stack it measures vignetting, not exposure, and darkens the result.

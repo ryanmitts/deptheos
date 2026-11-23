@@ -1,0 +1,144 @@
+---
+import Shot from "../../../components/Shot.astro";
+import DocsLayout from "../../../layouts/DocsLayout.astro";
+---
+
+<DocsLayout
+  docKey="compare"
+  title="Viewing and comparing"
+  description="Inspect a stacked result in Deptheos: the focus rail, Split and other compare views, zoom, the depth map and Contribution."
+>
+  <div class="prose">
+    <h1>Viewing and comparing</h1>
+    <p class="lede">
+      A result is judged at 100%, next to something: a source frame, to see whether it kept the frame's detail,
+      or another render, to see which method did better. The best tool for that is Split, a divider you drag
+      across the picture with one image on each side.
+    </p>
+  </div>
+
+  <section id="split">
+    <div class="prose">
+      <h2>Split</h2>
+      <p>
+        With a result on screen, click a frame in the Frames list. The frame is shown alone, brought into the
+        result's alignment and color, so the two line up pixel for pixel. Press
+        <em>2</em> (or View ▸ Split) and drag the divider: the frame is on the left of it, the result on the
+        right, each labeled. Sweep it slowly over an edge and anything the stack lost, doubled or softened
+        shows as a jump at the line.
+      </p>
+      <p>
+        Both sides share one pan and zoom. Drag to move around (a right-drag always pans); a mouse wheel zooms
+        at the pointer, and on a touchpad two fingers pan and a pinch zooms. Scrolling with ⌘ held (Ctrl on
+        Windows and Linux) zooms at the pointer too, and a double-click switches between Zoom to Fit and
+        Actual Size there.
+      </p>
+    </div>
+    <figure class="shot"><Shot name="split-frame" width="2880" height="1800" loading="lazy" alt="Split at 100%: a source frame on the left of the divider and the stacked result on the right." /><figcaption>Split: a source frame on the left, the result on the right.</figcaption></figure>
+  </section>
+
+  <section id="views">
+    <div class="prose">
+      <h2>The other views</h2>
+      <p>
+        <em>Compare</em> in the view bar turns comparing on in the layout you used last, and off again; the
+        menu beside it lists Result and the four layouts. The number keys and the View menu do the same.
+      </p>
+      <div class="table-wrap">
+        <table class="choose">
+          <thead><tr><th scope="col">View</th><th scope="col">Key</th><th scope="col">What it shows</th></tr></thead>
+          <tbody>
+            <tr><th scope="row">Result</th><td>1</td><td>The result alone.</td></tr>
+            <tr><th scope="row">Split</th><td>2</td><td>One picture, divided by a line you drag.</td></tr>
+            <tr><th scope="row">Side by Side</th><td>3</td><td>The two next to each other, panning and zooming together.</td></tr>
+            <tr><th scope="row">Top and Bottom</th><td>4</td><td>The same, one above the other, for wide pictures.</td></tr>
+            <tr><th scope="row">Flicker</th><td>\</td><td>One at a time, full size; each press flips to the other, so a difference jumps out.</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p>
+        While comparing, clicking a frame in the list puts it on the other side, in the layout on screen. Swap
+        Sides (<em>S</em>) puts each image on the other side. Esc stops comparing.
+      </p>
+    </div>
+  </section>
+
+  <section id="other-side">
+    <div class="prose">
+      <h2>What goes on the other side</h2>
+      <p>
+        The view bar starts with the render shown, "#4 ★". Clicking it goes back to the result alone; the menu
+        beside it lists the stack's renders. Next to it is the focus rail, one tick per frame of the stack in
+        its order, each as tall as that frame's share of the result, so you can see where along the sweep the
+        subject is sharp. Frames the stack left out are amber. Pointing at a tick names the frame and its
+        share ("Frame 18 · IMG_0418.DNG · 14%"), and the number beside the rail says which frame is on screen
+        ("18/46"). A short tick only means that frame supplied little of the picture: it may still be the only
+        sharp one for a small detail.
+      </p>
+      <ul>
+        <li>
+          <strong>A source frame.</strong> Press on the rail and drag along it, scroll over it, or press ← and →
+          (or PgUp and PgDn; Stack ▸ Previous Frame and Next Frame) to move through the frames while you watch
+          one spot, to find the frame that is sharp there. With the result alone on screen the frame is shown
+          alone, lined up with the result; while comparing, it takes the other side, in the layout on screen.
+          Clicking a frame in the list does the same.
+        </li>
+        <li>
+          <strong>Another render.</strong> Pick it in the menu beside "#4 ★" while comparing, ⌘-click it in the
+          Renders strip, or right-click it and choose <em>Compare with Result</em>. The panes are labeled A (that
+          render) and B (the one shown). The swap button in the view bar shows the compared render and compares
+          it with the one you had on screen.
+          A click on another render while comparing shows that one and keeps comparing; a click on the compared
+          render swaps the sides. Your frames and settings stay as they are either way.
+        </li>
+      </ul>
+      <p>
+        A RAW stack's render and a JPEG stack's render can't be compared with each other.
+      </p>
+    </div>
+  </section>
+
+  <section id="zoom">
+    <div class="prose">
+      <h2>Zoom, and Focus Mode</h2>
+      <p>
+        <em>0</em> or <em>F</em> is Zoom to Fit and <em>⌘1</em> is Actual Size, 100%, where one pixel of the
+        picture is one pixel of the screen; Space, or a double-click on the picture, switches between them. + and −
+        zoom in and out a step at a time (25%, 33%, 50%, 67%, 100%, 150%, 200% and so on). With the pointer over
+        the picture, Space and the zoom keys keep the spot under it in place. The zoom field in the view bar takes
+        a percentage typed in. On iPhone and iPad, a double-tap on the picture goes to 100% at the point tapped,
+        and another goes back to fit; pinch to zoom up to 800%, or out past fit to see the picture whole with room around it. Every view, comparison and the depth map shows
+        the picture's own pixels at any zoom, the detail coming in as you zoom. Focus Mode (Tab, or View ▸ Focus Mode) hides everything but the
+        title bar, the picture and the view bar; Tab again brings the panels back.
+      </p>
+    </div>
+  </section>
+
+  <section id="maps">
+    <div class="prose">
+      <h2>The depth map and Contribution</h2>
+      <p>
+        <em>Depth Map</em> in the view bar (<em>M</em>, or View ▸ Show Depth Map) shows, in place of the picture, which frame each part of the result came from. Each area is colored
+        by its frame, from the first frame to the last, and the focus rail's ticks take the same colors, so
+        the rail is the map's key. Press or drag along the rail to light the parts one frame supplied, with
+        the rest dimmed; press that frame again for the whole map. On the desktop, pointing at the map marks
+        its frame on the rail, and a click lights it. The map is exact for Depth and Wavelet; for Pyramid it
+        shows the frame that was sharpest there. <em>M</em> again goes back to what was on screen before; with
+        a frame lit, it shows that frame with Contribution on.
+      </p>
+      <p>
+        Contribution (<em>C</em>, or the highlighter button in the view bar) works while a source frame is on
+        screen, alone or beside the result. It shows the parts of that frame the result took as they are and
+        turns the rest gray and dim, so you can judge whether the frame was sharp where it was used. It
+        stays on as you move to the next frame, so dragging along the rail walks the lit part through the
+        subject from near to far. It is the same light as a frame lit on the depth map: <em>M</em> from a
+        frame with Contribution on opens the map lit for that frame. It needs a render saved with a record of
+        which frame each pixel came from. For Depth and Wavelet that record is exact. A Pyramid result blends
+        many frames at every pixel, so the lit part shows where the frame was sharpest, a close guide rather
+        than an exact account.
+      </p>
+    </div>
+    <figure class="shot"><Shot name="depth-map" width="2880" height="1800" loading="lazy" alt="The depth map lit for one frame, with the focus rail colored to match." /><figcaption>Depth Map: colored by frame, with one frame lit along the focus rail.</figcaption></figure>
+    <figure class="shot"><Shot name="compare-contribution" width="2880" height="1800" loading="lazy" alt="Contribution in Side by Side view: the parts supplied by the selected frame stay bright while the rest is dimmed." /><figcaption>Contribution: where the result took its pixels from the frame shown.</figcaption></figure>
+  </section>
+</DocsLayout>

@@ -1,0 +1,20 @@
+// deptheos.com on Cloudflare: the built pages (dist/) served as a Worker's static
+// assets, with no Worker code. The pictures and videos are not here: they are in
+// the bucket behind images.deptheos.com (src/media.ts). `npm run deploy` (scripts/deploy.sh) builds and
+// uploads it; nothing deploys on a push. See "Deploying" in README.md and
+// docs/decisions/168-website-hosting.md.
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "deptheos-web",
+  "compatibility_date": "2026-11-01",
+  "assets": {
+    "directory": "./dist",
+    // Each page is a folder with an index.html: /docs/ serves it, /docs redirects to /docs/.
+    "html_handling": "auto-trailing-slash",
+    // An address with no file gets 404.html and a 404 status.
+    "not_found_handling": "404-page"
+  },
+  // The site is also at deptheos-web.<account>.workers.dev, to look at a deploy
+  // before the domain serves it.
+  "workers_dev": true
+}

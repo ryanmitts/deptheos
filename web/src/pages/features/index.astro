@@ -1,0 +1,371 @@
+---
+import Shot from "../../components/Shot.astro";
+import "../../site/home.css";
+import BaseLayout from "../../layouts/BaseLayout.astro";
+import Param from "../../components/Param.astro";
+import Measured from "../../components/Measured.astro";
+---
+
+<BaseLayout
+  navKey="features"
+  title="Features: GPU focus stacking, RAW & retouching"
+  description="Pyramid, Depth, and Wavelet GPU focus stacking, automatic alignment, linear RAW to 16-bit DNG, non-destructive retouching, batch processing, and CLI."
+  bodyClass="features-page"
+>
+  <header class="page-head">
+    <div>
+      <p class="eyebrow">macOS (Apple silicon) · Windows · Linux preview · iPhone &amp; iPad soon</p>
+      <h1>Features</h1>
+    </div>
+    <p class="lede">
+      GPU-accelerated focus stacking with three algorithms, precision alignment, linear RAW and DNG support,
+      non-destructive retouching, batch processing, and a full command-line tool.
+    </p>
+  </header>
+
+  <section class="glance-strip" id="spec" aria-label="At a glance">
+    <dl>
+      <div>
+        <dt>Stacking &amp; Alignment</dt>
+        <dd><strong>Pyramid, Depth, Wavelet</strong> with automatic ECC affine or Grid search alignment.</dd>
+      </div>
+      <div>
+        <dt>RAW &amp; Color Pipeline</dt>
+        <dd><strong>32-bit float</strong> in linear camera RGB. Camera RAW in, <strong>16-bit linear DNG</strong>, TIFF, PNG, or JPEG out.</dd>
+      </div>
+      <div>
+        <dt>Workflow &amp; Automation</dt>
+        <dd><strong>Non-destructive retouching</strong>, 100% split comparison, Library history, Batch, sequences, and CLI.</dd>
+      </div>
+      <div>
+        <dt>Native GPU Engine</dt>
+        <dd><strong>Metal, DirectX 12, Vulkan</strong> on macOS, Windows, and Linux—plus iPhone &amp; iPad soon. Free under GPL-3.0.</dd>
+      </div>
+    </dl>
+  </section>
+
+  <section class="features-highlights" aria-label="Highlights">
+    <section class="feature-row" id="highlight-methods">
+      <div class="feature-text">
+        <h2>Three stacking methods</h2>
+        <p>
+          Different subjects respond best to different algorithms. Deptheos includes Pyramid, Depth, and Wavelet so
+          you can pick the right method for each bracket—or stack with two and blend the best parts of each during
+          retouching.
+        </p>
+        <p>All three compute in 32-bit floating point with no artificial sharpening or contrast added afterward.</p>
+        <p class="more"><a href="/docs/methods/">Choosing a method</a></p>
+      </div>
+      <div class="method-cards">
+        <a class="method-card" href="/docs/pyramid/">
+          <strong>Pyramid <span class="tag">default</span></strong>
+          <p>Blends detail across multiple scales to keep crossing hairs, bristles, and antennae crisp and separate. The best all-around starting point.</p>
+        </a>
+        <a class="method-card" href="/docs/depth-map/">
+          <strong>Depth</strong>
+          <p>Builds a depth map to preserve smooth gradients, plain out-of-focus backgrounds, and natural color with minimal halos on high-contrast edges.</p>
+        </a>
+        <a class="method-card" href="/docs/wavelet/">
+          <strong>Wavelet</strong>
+          <p>Selects the strongest detail at each scale while taking each pixel's color whole from a single frame. Ideal for fine repeating textures and micro-detail.</p>
+        </a>
+      </div>
+    </section>
+
+    <section class="feature-row" id="highlight-align">
+      <div class="feature-text">
+        <h2>Automatic alignment</h2>
+        <p>
+          Focus breathing changes magnification between shots, and handheld brackets shift and rotate. ECC, the
+          default aligner, aligns each frame to the previous one for shift, rotation, scale, stretch, and slant to a
+          fraction of a pixel—with no settings required.
+        </p>
+        <p>
+          For brackets with larger jumps between shots, Grid search lets you set explicit shift, scale, and rotation
+          limits plus exposure compensation. Shoot near to far or far to near; frames that cannot be aligned are
+          skipped and reported so the stack completes cleanly.
+        </p>
+        <p class="more"><a href="/docs/alignment/">Alignment</a></p>
+      </div>
+      <figure class="shot"><Shot name="stacking-frames" width="2880" height="1800" loading="lazy" alt="The Stacking workspace with 66 frames loaded and ECC affine alignment configured in the inspector." /><figcaption>Automatic ECC affine alignment in the Stacking workspace.</figcaption></figure>
+    </section>
+
+    <section class="feature-row" id="highlight-raw">
+      <div class="feature-text">
+        <h2>RAW in, linear DNG out</h2>
+        <p>
+          RAW frames are stacked in linear camera RGB, before any tone curve, in 32-bit floating point. The result
+          exports as a 16-bit linear DNG that Lightroom, Camera Raw, and other RAW editors open like a RAW file,
+          with white balance, highlights, and shadows intact.
+        </p>
+        <p>
+          Deptheos decodes camera RAW files with built-in LibRaw and writes linear DNGs natively on all desktop
+          platforms. Adobe DNG Converter is also supported as an optional second decoder on macOS and Windows.
+        </p>
+        <p class="more"><a href="/docs/raw/">RAW, DNG and color</a></p>
+      </div>
+      <figure class="shot"><Shot name="export-dng" width="2880" height="1800" loading="lazy" alt="The Export sheet over a RAW stack with 16-bit linear DNG chosen." /><figcaption>Exporting a RAW stack as a 16-bit linear DNG.</figcaption></figure>
+    </section>
+
+    <section class="feature-row" id="highlight-retouch">
+      <div class="feature-text">
+        <h2>Retouching</h2>
+        <p>
+          Paint clean detail onto the stacked result from any source frame, or from another render of the same
+          stack—for example, painting a Depth render's smooth background onto a Pyramid render. Option-click
+          (Alt-click) any spot to jump to the sharpest frame there, with a live preview inside the brush.
+        </p>
+        <p>
+          Adjust Size, Hardness, Opacity, and Flow, or enable <em>Only where colors match</em> to protect
+          neighboring edges. The Eraser paints the original stacked result back, and all retouching is saved
+          non-destructively with the render.
+        </p>
+        <p class="more"><a href="/docs/retouching/">Retouching</a></p>
+      </div>
+      <figure class="shot"><Shot name="paint-edge" width="2880" height="1800" loading="lazy" alt="Retouch at 100% on the hornet with brush settings in the inspector." /><figcaption>Retouching from a source frame at 100%.</figcaption></figure>
+    </section>
+
+    <section class="feature-row" id="highlight-compare">
+      <div class="feature-text">
+        <h2>Viewing and comparison</h2>
+        <p>
+          Inspect results at 100% with Split view, dragging the divider between two renders or between a render and
+          any aligned source frame, locked to one pan and zoom. Switch to Side by Side, Top and Bottom, or Flicker
+          at any time.
+        </p>
+        <p>
+          Optional Depth Map and Contribution views show which frame supplied each area of the image when you need
+          to diagnose a tricky region.
+        </p>
+        <p class="more"><a href="/docs/compare/">Viewing and comparing</a></p>
+      </div>
+      <figure class="shot"><Shot name="compare-contribution" width="2880" height="1800" loading="lazy" alt="Side by Side view with Contribution showing the pixels supplied by one frame." /><figcaption>Side by Side comparison with Contribution view.</figcaption></figure>
+    </section>
+
+    <section class="feature-row" id="highlight-batch">
+      <div class="feature-text">
+        <h2>Batch processing, sequences, and CLI</h2>
+        <p>
+          Batch stacks one bracket per folder—or automatically splits a folder of mixed shots into separate stacks by
+          capture time—and exports each as it finishes. Any stack that fails is kept with its error so you can open
+          and retry it.
+        </p>
+        <p>
+          Export numbered frames for turntable sequences (one stack per angle) or grow sequences (the subject coming
+          into focus across the bracket).
+        </p>
+        <p>
+          The <code>deptheos</code> command-line tool runs stacking, batch, and sequence workflows from a terminal,
+          exports aligned frames with <code>deptheos align</code>, and benchmarks your hardware with
+          <code>deptheos bench</code>.
+        </p>
+        <p class="more"><a href="/docs/batch/">Batch</a> · <a href="/docs/cli/">Command line</a></p>
+      </div>
+      <figure class="shot">
+        <video class="turntable-video" controls muted loop playsinline preload="none" poster="/media/turntable/pcb-poster.jpg" width="1920" height="1080" aria-label="A circuit board turning in full focus: a turntable sequence stacked in Deptheos">
+          <source src="/media/turntable/pcb.av1.mp4" type='video/mp4; codecs="av01.0.08M.08"' />
+          <source src="/media/turntable/pcb.h264.mp4" type="video/mp4" />
+        </video>
+        <figcaption>A turntable sequence: one focus stack per angle, exported as numbered frames.</figcaption>
+      </figure>
+    </section>
+  </section>
+
+  <header class="features-full-head" id="all">
+    <p class="eyebrow">Reference</p>
+    <h2>Everything, by area</h2>
+  </header>
+  <nav class="toc" aria-labelledby="toc-h">
+    <h2 id="toc-h">On this page</h2>
+    <ol>
+      <li><a href="#stacking">Stacking methods</a></li>
+      <li><a href="#alignment">Alignment</a></li>
+      <li><a href="#raw">RAW, DNG and color</a></li>
+      <li><a href="#precision">Precision</a></li>
+      <li><a href="#export">Export</a></li>
+      <li><a href="#compare">Viewing and comparing</a></li>
+      <li><a href="#paint">Retouching</a></li>
+      <li><a href="#batch">Batch</a></li>
+      <li><a href="#sequences">Grow and turntable sequences</a></li>
+      <li><a href="#history">Frames and renders</a></li>
+      <li><a href="#performance">Speed and hardware</a></li>
+      <li><a href="#cli">Command line</a></li>
+      <li><a href="#the-app">The app</a></li>
+      <li><a href="#not-in-version">Not in this version</a></li>
+      <li><a href="#ios">iPhone and iPad</a></li>
+    </ol>
+  </nav>
+
+  <div class="feature-list">
+    <section id="stacking">
+      <h2>Stacking methods</h2>
+      <dl>
+        <div><dt>Pyramid <span class="tag">default</span></dt><dd>Blends the frames separately at each scale of detail, from fine texture to broad shading, weighting the sharpest. Use it for fine detail at many depths, such as hairs, bristles and antennae, and for jumps in depth. It reads each frame once. <a href="/docs/pyramid/">Pyramid</a></dd></div>
+        <div><dt>Depth</dt><dd>Finds the sharpest frame at each spot and builds the picture from that map, with colors close to the frames'. Use it for plain out-of-focus backgrounds, smooth surfaces and something bright beside something dark. The frames must be in focus order, and it reads each one twice. <a href="/docs/depth-map/">Depth</a></dd></div>
+        <div><dt>Wavelet</dt><dd>Keeps the frame with the strongest detail at each scale and place, and takes each pixel's color whole from one frame. Use it for fine crossing detail; a plain background can come out grainy. After Forster and colleagues (2004) and Petteri Aimonen's <a class="cite" href="https://github.com/PetteriAimonen/focus-stack">focus-stack</a>. <a href="/docs/wavelet/">Wavelet</a></dd></div>
+        <div><dt>Which one</dt><dd>Start with Pyramid. The methods page shows the three on the same subjects. <a href="/docs/methods/">Which method, when</a></dd></div>
+        <div><dt>Nothing added afterward</dt><dd>No sharpening or contrast is applied after stacking. <a href="/docs/faq/#sharpen">Does it sharpen the result?</a></dd></div>
+        <div><dt>The map, while it runs</dt><dd>While a stack runs, the viewer builds up its map of which frame each part is coming from, colored by frame, for every method. <a href="/docs/getting-started/#steps">Your first stack</a></dd></div>
+      </dl>
+    </section>
+
+    <section id="alignment">
+      <h2>Alignment</h2>
+      <dl>
+        <div><dt>ECC <span class="tag">default</span></dt><dd>Lines each frame up with the one before it, fitting shift, rotation, size (which focus breathing changes), stretch and slant to a fraction of a pixel. It has no settings, and a frame that moves more than <Param path="constants.ecc.max_shift_pct" />% in shift, <Param path="constants.ecc.max_scale_pct" />% in size or <Param path="constants.ecc.max_rotation_deg" />° from the one before is left out. <a href="/docs/alignment/#which">Which one to use</a></dd></div>
+        <div><dt>Grid search</dt><dd>Fits shift, rotation and size, within limits set in Settings ▸ Alignment of up to <Param path="ranges.grid.shift_pct.max" />% shift, <Param path="ranges.grid.magnification_pct.max" />% magnification and <Param path="ranges.grid.rotation_deg.max" />° rotation. Use it for frames that jump between shots; its <em>Exposure compensation</em> evens out exposure that changes through the stack. <a href="/docs/alignment/#compare">The two compared</a></dd></div>
+        <div><dt>Frames left out</dt><dd>A frame that can't be read or aligned is left out, and the stack goes on without it. The notice after the stack names each one and why. <a href="/docs/alignment/#settings">Frames left out</a></dd></div>
+        <div><dt>Either direction</dt><dd>Shoot near to far or far to near: when the second frame is more magnified than the first, the frames are aligned in reverse order, so the most magnified one leads. This is always on. <a href="/docs/alignment/#settings">Which end leads</a></dd></div>
+        <div><dt>Crop to the area every frame covers</dt><dd>On by default, it keeps only the area every frame covers. Off, it keeps the full frame, with edges that can be less sharp. <a href="/docs/alignment/#settings">The crop</a></dd></div>
+      </dl>
+    </section>
+
+    <section id="raw">
+      <h2>RAW, DNG and color</h2>
+      <dl>
+        <div><dt>Supported formats</dt><dd>Camera RAW (CR3, CR2, NEF, ARW, RAF, ORF, RW2, PEF, DNG, and other formats supported by <a class="cite" href="https://www.libraw.org/supported-cameras">LibRaw</a>), plus JPEG, PNG, and TIFF at 8 or 16 bits. Each stack uses either RAW/DNG or standard image formats, not a mix. <a href="/docs/raw/#formats">What it reads</a></dd></div>
+        <div><dt>Native DNG handling</dt><dd>DNG files are read directly on every platform with their embedded color profiles and camera metadata preserved. <a href="/docs/raw/#which">Which decoder, when</a></dd></div>
+        <div><dt>LibRaw with camera profiles</dt><dd>LibRaw is built in on both desktop and iOS. On desktop, it uses your camera's Adobe profile when one is installed: Adobe Standard by default, Camera Standard, or none, set in Settings ▸ RAW ▸ Camera profile. <a href="/docs/raw/#settings">The settings</a></dd></div>
+        <div><dt>Adobe DNG Converter <span class="tag">Mac, Windows</span></dt><dd>Optional, and installed separately. When <a class="cite" href="https://helpx.adobe.com/camera-raw/using/adobe-dng-converter.html">Adobe DNG Converter</a> is present, the app can decode RAW files through it, for Adobe's own demosaic and color profile. <a href="/docs/raw/#which">Which decoder, when</a></dd></div>
+        <div><dt>Stacked in linear camera RGB</dt><dd>RAW and DNG frames are stacked as linear camera RGB, before any tone curve. The result takes the color profile and white balance of the frame the others were aligned to, usually the first. <a href="/docs/raw/">RAW, DNG and color</a></dd></div>
+        <div><dt>On iPhone and iPad <span class="tag">iOS</span></dt><dd>Choose built-in LibRaw to keep camera RAW files linear and export 16-bit linear DNGs, or Apple's Core Image for rendered 16-bit TIFF, PNG, or JPEG. <a href="/iphone/">iPhone and iPad</a></dd></div>
+      </dl>
+    </section>
+
+    <section id="precision">
+      <h2>Precision</h2>
+      <dl>
+        <div><dt>32-bit float pipeline</dt><dd>All three methods compute in 32-bit floating point from start to finish and round to 16 bits once on export.</dd></div>
+        <div><dt>Single-pass resampling</dt><dd>Each frame is resampled once during alignment using a Lanczos filter (Pyramid, Wavelet) or Keys bicubic filter (Depth) to avoid generational softening.</dd></div>
+        <div><dt>Shadow-aware sharpness</dt><dd>Pyramid and Depth evaluate focus relative to local brightness so out-of-focus highlights don't override sharp detail in shadows.</dd></div>
+      </dl>
+    </section>
+
+    <section id="export">
+      <h2>Export</h2>
+      <dl>
+        <div><dt>Linear DNG</dt><dd>A RAW or DNG stack saves as a 16-bit linear DNG on macOS, Windows and Linux, written by the built-in DNG SDK, without Adobe DNG Converter. Lightroom, Camera Raw and other RAW editors develop it like a RAW file. A JPEG, PNG or TIFF stack can't be saved as DNG. <a href="/docs/raw/#keeps">What a DNG keeps</a></dd></div>
+        <div><dt>TIFF, PNG and JPEG</dt><dd>TIFF and PNG keep 16 bits where the result has them. JPEG quality is set in Settings ▸ Export, 92 at first. An embedded color profile, such as Display P3, is carried into the file. <a href="/docs/export/#formats">Format and bit depth</a></dd></div>
+        <div><dt>Metadata kept</dt><dd>The camera, lens, exposure and capture time of the frame the others were aligned to, with the artist and copyright when the camera recorded them, and the names of the stacked files. GPS position, the owner's name, serial numbers, maker notes and focus distance are left out. <a href="/docs/export/#metadata">Metadata</a></dd></div>
+      </dl>
+    </section>
+
+    <section id="compare">
+      <h2>Viewing and comparing</h2>
+      <dl>
+        <div><dt>Split view</dt><dd>A line you drag between two renders, or between a render and a source frame, which is lined up with the result pixel for pixel. Both sides share one pan and zoom. <a href="/docs/compare/#split">Split</a></dd></div>
+        <div><dt>Side by Side, Top and Bottom, Flicker</dt><dd>The same comparison in other layouts, or one picture at a time, flipping between the two. Swap Sides switches them. <a href="/docs/compare/#views">The other views</a></dd></div>
+        <div><dt>Focus rail</dt><dd>One tick per frame along the bottom of the picture, each as tall as that frame's share of the result. Drag along it, scroll over it or press ← and → to move through the frames, shown alone or compared with the result. <a href="/docs/compare/#other-side">What goes on the other side</a></dd></div>
+        <div><dt>Contribution</dt><dd>Shows the parts of the frame on screen that the result took as they are, and dims the rest. It is exact for Depth and Wavelet; for Pyramid it shows the frame that was sharpest there. <a href="/docs/compare/#maps">The depth map and Contribution</a></dd></div>
+        <div><dt>Depth map</dt><dd>Shows which frame each part of a render came from, colored from the first frame to the last. The focus rail's ticks take the same colors, and a drag along it lights what one frame supplied. <a href="/docs/compare/#maps">The depth map and Contribution</a></dd></div>
+        <div><dt>Actual size</dt><dd>Zoom to 100%, one pixel of the picture to one pixel of the screen, or fit to the window. <a href="/docs/compare/#zoom">Zoom</a></dd></div>
+      </dl>
+    </section>
+
+    <section id="paint">
+      <h2>Retouching</h2>
+      <dl>
+        <div><dt>Paint from a frame or another render</dt><dd>Paint onto the result from any source frame or another render of the same stack, or paint the stacked result back with the Eraser. <a href="/docs/retouching/">Retouching</a></dd></div>
+        <div><dt>Pick the frame from the picture</dt><dd>⌥-click (Alt-click) picks the frame the result took that spot from. Inside the brush ring you see the source before you paint. <a href="/docs/retouching/#sources">What you can paint from</a></dd></div>
+        <div><dt>The brush</dt><dd>Size, Hardness, Opacity and Flow. <em>Only where colors match</em> skips pixels where the source differs from the result. <a href="/docs/retouching/#brush">The brush</a></dd></div>
+        <div><dt>Saved with the render</dt><dd>The painting is saved with the render from the first stroke, and its exports include it. Undo and redo go back through the strokes made since Deptheos started. <a href="/docs/retouching/#undo">Undo and what is saved</a></dd></div>
+      </dl>
+    </section>
+
+    <section id="batch">
+      <h2>Batch</h2>
+      <dl>
+        <div><dt>Many stacks at once</dt><dd>One render per folder, or auto sort, which splits each folder into stacks by capture time. It cuts where the pause is longer than 2 seconds and four times the shots' typical pause, or where the camera changes. <a href="/docs/batch/#split">How to split</a></dd></div>
+        <div><dt>Export as it goes</dt><dd>Each render can be written to a folder as soon as it is made, as TIFF, JPEG, PNG or DNG. DNG applies to RAW stacks; the others in the run are written as TIFF. <a href="/docs/batch/#export">Export each render</a></dd></div>
+        <div><dt>Failures kept</dt><dd>A stack that fails doesn't stop the run. It is kept with its error; <em>Open to Retry</em> loads it to fix and stack again. <a href="/docs/batch/#failed">Stacks that failed</a></dd></div>
+        <div><dt>Progress and cancel</dt><dd>The Library shows where the run is. Cancel stops the stack in progress and keeps every render already made. <a href="/docs/batch/#running">While it runs</a></dd></div>
+      </dl>
+    </section>
+
+    <section id="sequences">
+      <h2>Grow and turntable sequences <span class="tag">desktop</span></h2>
+      <dl>
+        <div><dt>Grow sequence</dt><dd>Numbered frames in which frame <em>k</em> is the stack of <em>k</em> of the bracket's frames, so the subject comes into focus as it plays, from the back or the front. It is made from a Pyramid render with File ▸ Export Grow Sequence…; retouching is not included. <a href="/docs/batch/#sequences">Sequences</a></dd></div>
+        <div><dt>Turntable sequence</dt><dd>One stack per angle of a subject on a turntable, each in its own folder, turned into numbered frames from the Batch dialog. <em>Grow across stacks</em> turns and comes into focus at once (Pyramid only). <a href="/docs/batch/#sequences">Sequences</a></dd></div>
+        <div><dt>On the command line</dt><dd>The command line makes both sequences too. <a href="/docs/cli/#sequence">sequence grow, sequence turntable</a></dd></div>
+      </dl>
+    </section>
+
+    <section id="history">
+      <h2>Frames and renders</h2>
+      <dl>
+        <div><dt>Add files or folders</dt><dd>Drop them on the window or use Add, then include or exclude frames by selecting rows. Sort by name or by capture time. <a href="/docs/getting-started/#steps">Your first stack</a></dd></div>
+        <div><dt>RAW + JPEG pairs</dt><dd>A shot saved as both RAW and JPEG is one row, and a switch above the list chooses which is stacked. <a href="/docs/getting-started/#steps">Your first stack</a></dd></div>
+        <div><dt>Every render kept</dt><dd>Each render keeps its frames and settings: revert to an old one, change something and stack again. Your frames are only read, never changed, moved or deleted. <a href="/docs/concepts/#render">Renders</a></dd></div>
+        <div><dt>Find and keep track</dt><dd>Search by stack, render or batch name; rename renders and star the keepers. <a href="/docs/concepts/#library">The Library</a></dd></div>
+        <div><dt>Moved folders</dt><dd>If the frames' folder moves, Locate… points the list and every render that uses it at the new place. <a href="/docs/concepts/#locate">Moved frames and Locate</a></dd></div>
+      </dl>
+    </section>
+
+    <section id="performance">
+      <h2>Speed and hardware</h2>
+      <dl>
+        <div><dt>Where it runs</dt><dd>macOS 27 or later on Apple silicon; Windows 10 or later, 64-bit; Linux, as a preview, with glibc 2.35 or newer and a Vulkan driver, on x86-64 or ARM64, each as a .deb, .rpm or tarball. <a href="/docs/install/#requirements">What it needs</a></dd></div>
+        <div><dt>On the GPU</dt><dd>Stacking runs on the GPU: Metal on Apple devices, DirectX 12 or Vulkan on Windows, Vulkan on Linux. Integrated graphics will do. A Windows or Linux computer with no GPU stacks on the CPU instead, much more slowly. Where a GPU is there but doesn't work, choose software rendering in Settings ▸ Advanced. <a href="/docs/troubleshooting/#gpu">Memory and the GPU</a></dd></div>
+        <div><dt>Choose the GPU</dt><dd>When a computer has more than one GPU, Settings ▸ Advanced ▸ <em>GPU</em> picks which one to use. <a href="/docs/troubleshooting/#gpu">Memory and the GPU</a></dd></div>
+        <div><dt>Frames stream through</dt><dd>Only a few frames are in memory at once, so memory use grows with the size of the photos, not with the number of frames. 16 GB is recommended. <a href="/docs/install/#requirements">What it needs</a></dd></div>
+        <div><dt>How fast</dt><dd><Measured path="benchmarks.m5-max-pcb1-jpeg.stack.frames" /> JPEG frames of <Measured path="benchmarks.m5-max-pcb1-jpeg.stack.megapixels" digits={0} /> MP, read from disk, aligned with ECC and stacked with Pyramid in <Measured path="benchmarks.m5-max-pcb1-jpeg.runs.pyramid.ecc.seconds" digits={1} /> s on an <Measured path="benchmarks.m5-max-pcb1-jpeg.label" />. <a href="/#speed">All the timings</a></dd></div>
+      </dl>
+    </section>
+
+    <section id="cli">
+      <h2>Command line</h2>
+      <dl>
+        <div><dt>Stack, batch and sequence <span class="tag">desktop</span></dt><dd>The <code>deptheos</code> command stacks with all three methods (<code>pyramid</code>, <code>depth</code>, <code>wavelet</code>), runs <code>batch</code> and <code>sequence</code>, and writes the app's export formats. It comes with the app on each desktop system. <a href="/docs/cli/">The command line</a></dd></div>
+        <div><dt><code>deptheos align</code></dt><dd>Lines up a bracket's frames and writes each aligned frame to a folder, ready to stack or retouch in another program. <a href="/docs/cli/#align">align</a></dd></div>
+        <div><dt><code>deptheos bench</code></dt><dd>Times whole stacks on your own frames and machine, printing a table or saving JSON. <a href="/docs/cli/#bench">bench</a></dd></div>
+      </dl>
+    </section>
+
+    <section id="the-app">
+      <h2>The app</h2>
+      <dl>
+        <div><dt>Light and dark, Focus Mode</dt><dd>Follows your system appearance, with full screen and Focus Mode (Tab) to clear the panels and leave only the picture and view bar.</dd></div>
+        <div><dt>Open With and drag and drop</dt><dd>Drop folders or frames on the window, or open them with Deptheos from your file manager.</dd></div>
+        <div><dt>Update check and diagnostics</dt><dd>Checks GitHub for updates at startup (can be turned off in Settings ▸ General), with Help ▸ Report a Problem… and Help ▸ Save Diagnostics…. <a href="/privacy/">Privacy</a></dd></div>
+      </dl>
+    </section>
+  </div>
+
+  <section class="not-in-version" id="not-in-version" aria-labelledby="not-in-version-h">
+    <h2 id="not-in-version-h">Not in this version</h2>
+    <ul>
+      <li><strong>A Lightroom plug-in.</strong> Add the RAW files or export TIFFs to Deptheos, and bring the linear DNG or TIFF back. <a href="/docs/faq/#lightroom">With Lightroom</a></li>
+      <li><strong>Slabs.</strong> Stacking a deep bracket in overlapping groups, to retouch from the groups.</li>
+      <li><strong>Camera or rail control.</strong> Shoot with your camera's own focus bracketing or your rail's controller.</li>
+      <li><strong>Tone, color and crop tools.</strong> Deptheos stacks and retouches. Develop the result in your editor.</li>
+      <li><strong>Dust maps, scale bars and text on the picture.</strong></li>
+      <li><strong>Stereo pairs and 3D models.</strong></li>
+      <li><strong>Languages other than English.</strong></li>
+      <li><strong>Intel Macs.</strong></li>
+    </ul>
+    <p>What is planned is on the <a href="/about/#roadmap">roadmap</a>.</p>
+  </section>
+
+  <section class="chapter ios-band" id="ios" aria-labelledby="ios-h">
+    <div class="ios-band-grid">
+      <div class="ios-band-text">
+        <p class="eyebrow">iPhone and iPad · coming soon</p>
+        <h2 id="ios-h">iPhone and iPad</h2>
+        <p>
+          The desktop app's stacking engine on iPhone and iPad, with everything on the device. Import brackets
+          from Photos, Files, or an external drive, stack with Pyramid, Depth, or Wavelet,
+          and retouch with Apple Pencil on iPad.
+        </p>
+        <p>
+          Requires iPhone 15 Pro or newer, or an iPad with an M-series or A17 Pro chip or newer, on iOS 26 or
+          iPadOS 26.
+        </p>
+        <p class="more"><a href="/iphone/">Deptheos for iPhone and iPad</a></p>
+      </div>
+      <figure class="device-shot ipad-frame">
+        <Shot name="iphone-duo-open" width="2853" height="2007" loading="lazy" alt="Deptheos on iPhone Duo in open mode showing the stacked 66-frame hornet render with its focus rail." />
+      </figure>
+    </div>
+  </section>
+</BaseLayout>

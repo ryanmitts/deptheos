@@ -1,0 +1,113 @@
+---
+import BaseLayout from "../../layouts/BaseLayout.astro";
+---
+
+<BaseLayout
+  navKey="about"
+  title="About"
+  description="Who makes Deptheos, why it is free and open source, how to get in touch, what is planned next, and the native Rust and GPU stack it is built on."
+>
+  <div class="prose">
+    <h1>About Deptheos</h1>
+    <p class="lede">
+      Deptheos is a free, open-source focus stacker built by Ryan Mitts for macOS, Windows, Linux, and coming soon
+      to iPhone and iPad.
+    </p>
+  </div>
+
+  <section id="why">
+    <div class="prose">
+      <h2>Why it is free</h2>
+      <p>
+        I built Deptheos because I wanted a fast, modern GPU focus stacker that handles camera RAW directly and
+        keeps every render non-destructively.
+      </p>
+      <p>
+        Releasing it under the
+        <a href="https://github.com/ryanmitts/deptheos/blob/main/LICENSE.md">GNU General Public License version 3</a>
+        (with added permissions for the Adobe DNG SDK and App Store distribution) means every feature is in one
+        download, with no trial, no watermark, and no paid desktop tier.
+      </p>
+    </div>
+  </section>
+
+  <section id="contact">
+    <div class="prose">
+      <h2>Contact and support</h2>
+      <ul>
+        <li>
+          <strong>Questions and discussion:</strong>
+          <a href="https://github.com/ryanmitts/deptheos/discussions">GitHub Discussions</a>.
+        </li>
+        <li>
+          <strong>Bug reports and feature requests:</strong>
+          <a href="https://github.com/ryanmitts/deptheos/issues">GitHub Issues</a>, or choose
+          Help ▸ <em>Report a Problem…</em> in the desktop app.
+        </li>
+        <li>
+          <strong>Email (no GitHub account needed):</strong>
+          <a href="mailto:support@deptheos.com">support@deptheos.com</a> for diagnostics, private files, or general
+          questions. See <a href="/support/">Support</a> for how to save diagnostics on each app.
+        </li>
+      </ul>
+    </div>
+  </section>
+
+  <section id="roadmap">
+    <div class="prose">
+      <h2>What is planned</h2>
+      <p>
+        Areas planned for future releases, with no fixed dates:
+      </p>
+      <ul>
+        <li><strong>iPhone and iPad release</strong> on the App Store, bringing the desktop GPU stacking engine and Apple Pencil retouching to iOS and iPadOS.</li>
+        <li><strong>Code-signed Windows installer</strong>, so Windows SmartScreen no longer warns on first install.</li>
+        <li><strong>Slabs</strong>, for stacking deep brackets in overlapping groups and retouching from them.</li>
+        <li><strong>More gallery subjects and machine timings</strong>, including everyday laptops and integrated GPUs.</li>
+      </ul>
+      <p>
+        <a href="/features/#not-in-version">Not in this version</a> lists what Deptheos intentionally leaves to your
+        photo editor or does not include today.
+      </p>
+    </div>
+  </section>
+
+  <section id="contributing">
+    <div class="prose">
+      <h2>Contributing</h2>
+      <p>
+        The source is on <a href="https://github.com/ryanmitts/deptheos">GitHub</a>. Bug reports on difficult
+        stacks, timings from other GPUs (<code>deptheos bench &lt;folder&gt; --live --repeat 5 --cool 30 --json</code>),
+        and credited gallery photographs are all welcome.
+      </p>
+    </div>
+  </section>
+
+  <section id="stack">
+    <div class="prose">
+      <h2>How it is built</h2>
+      <p>
+        Deptheos is a native Rust application with GPU compute shaders running on Metal (macOS, iOS, iPadOS),
+        DirectX 12 and Vulkan (Windows), and Vulkan (Linux). There is no Electron or bundled browser runtime.
+      </p>
+      <p>
+        It builds on open-source work including
+        <a href="https://github.com/wgpu-rs/wgpu">wgpu</a>,
+        <a href="https://www.gpui.rs/">GPUI</a>,
+        <a href="https://www.libraw.org/">LibRaw</a>, the Adobe DNG SDK, and Petteri Aimonen's
+        <a href="https://github.com/PetteriAimonen/focus-stack">focus-stack</a> (for the complex wavelet method,
+        after Forster and colleagues, 2004). Full license notices are in
+        <a href="https://github.com/ryanmitts/deptheos/blob/main/THIRD_PARTY_NOTICES.txt">THIRD_PARTY_NOTICES.txt</a>.
+      </p>
+    </div>
+  </section>
+
+  <section id="name">
+    <div class="prose">
+      <h2>How to say the name</h2>
+      <p>
+        <strong>DEPTH-ee-ohs</strong>: from <em>depth</em> (as in depth of field) and <em>EOS</em>.
+      </p>
+    </div>
+  </section>
+</BaseLayout>

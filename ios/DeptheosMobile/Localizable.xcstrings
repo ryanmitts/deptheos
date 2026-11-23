@@ -1,0 +1,2959 @@
+{
+  "sourceLanguage" : "en",
+  "strings" : {
+    " · " : {
+      "comment" : "The separator between the items of a line of compact metadata, such as 'Pyramid · 24 of 30 frames'. Spaces included."
+    },
+    "–/%lld" : {
+      "comment" : "Beside the focus rail while no frame is shown (the result is). The placeholder is how many frames the stack has."
+    },
+    "\"%@\" can't be read. %@" : {
+      "comment" : "Alert text when Stack is tapped: a frame's file can't be read. The placeholders are the file's name and the system's sentence saying why.",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "\"%1$@\" can't be read. %2$@"
+          }
+        }
+      }
+    },
+    "#%u vs #%u" : {
+      "comment" : "The viewer's title on iPhone while comparing two renders. The placeholders are the compared render's number and the result's.",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "#%1$u vs #%2$u"
+          }
+        }
+      }
+    },
+    "%@" : {
+      "comment" : "The lens in the camera screen's status pill. The placeholder is its magnification, such as 1× or 3×; usually left as it is."
+    },
+    "%@ · focus from %@" : {
+      "comment" : "Camera status pill when ready. The placeholders are the lens ('0.5× macro') and the closest focus distance with its unit ('20 mm').",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "%1$@ · focus from %2$@"
+          }
+        }
+      }
+    },
+    "%@ %@" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "%1$@ %2$@"
+          }
+        }
+      }
+    },
+    "%@ × %@ pixels" : {
+      "comment" : "Export sheet footer: the exported picture's size. The placeholders are its width and height in pixels, as numbers in the user's locale.",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "%1$@ × %2$@ pixels"
+          }
+        }
+      }
+    },
+    "%@ and %@" : {
+      "comment" : "VoiceOver label of a photo split by a divider. The placeholders are the pictures either side of it, leading first, as their labels name them ('Frame 18', 'Result · #4')."
+    },
+    "%@ EV" : {
+      "comment" : "Exposure compensation in the camera screen's Exposure menu. The placeholder is the signed amount ('+0.5', '0', '−1')."
+    },
+    "%@ macro" : {
+      "comment" : "The lens in the camera screen's status pill: the ultra-wide, used as the macro lens. The placeholder is its magnification, such as 0.5×."
+    },
+    "%@ Not Connected" : {
+      "comment" : "The badge at the head of the Frames list: the drive or server its frames are on isn't connected. The placeholder is its name."
+    },
+    "%@ s · ISO %lld" : {
+      "comment" : "The camera's exposure readout. The placeholders are the shutter time in seconds ('1/60') and the ISO number."
+    },
+    "%@ Too few frames were taken to stack." : {
+      "comment" : "Error when a camera burst was cut short with fewer than two frames, which are discarded. The placeholder is the sentence saying what cut it short."
+    },
+    "%@, %lld renders" : {
+      "comment" : "VoiceOver label of a Library tile. The placeholders are the stack's name and how many renders it has.",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%1$@, %#@renders@"
+          },
+          "substitutions" : {
+            "renders" : {
+              "argNum" : 2,
+              "formatSpecifier" : "lld",
+              "variations" : {
+                "plural" : {
+                  "one" : {
+                    "stringUnit" : {
+                      "state" : "translated",
+                      "value" : "%arg render"
+                    }
+                  },
+                  "other" : {
+                    "stringUnit" : {
+                      "state" : "translated",
+                      "value" : "%arg renders"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "%@, not stacked yet" : {
+      "comment" : "VoiceOver label of a Library tile of a stack with no render yet. The placeholder is the stack's name."
+    },
+    "%@%@%@" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "%1$@%2$@%3$@"
+          }
+        }
+      }
+    },
+    "%lld failed" : {
+      "comment" : "Last item of a batch card's line in the Library, in red: how many of its stacks didn't finish.",
+      "localizations" : {
+        "en" : {
+          "variations" : {
+            "plural" : {
+              "one" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld failed"
+                }
+              },
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld failed"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "%lld folders · %@" : {
+      "comment" : "Settings ▸ Storage: the Unused copies row's value. The placeholders are how many folders and their size, such as '1.2 GB'.",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%#@folders@ · %2$@"
+          },
+          "substitutions" : {
+            "folders" : {
+              "argNum" : 1,
+              "formatSpecifier" : "lld",
+              "variations" : {
+                "plural" : {
+                  "one" : {
+                    "stringUnit" : {
+                      "state" : "translated",
+                      "value" : "%arg folder"
+                    }
+                  },
+                  "other" : {
+                    "stringUnit" : {
+                      "state" : "translated",
+                      "value" : "%arg folders"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "%lld fps" : {
+      "comment" : "Burst rate in the camera screen's menu. The placeholder is frames a second."
+    },
+    "%lld frames" : {
+      "comment" : "A choice in the bracket's Frames menu, and its label. The placeholder is the number of frames (5 to 20).\nA count of frames: under a stack's name, on a Library tile, in the camera's status, under a folder in the Add Frames sheet. The placeholder is how many; zero reads 'No frames'.",
+      "localizations" : {
+        "en" : {
+          "variations" : {
+            "plural" : {
+              "one" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld frame"
+                }
+              },
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld frames"
+                }
+              },
+              "zero" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "No frames"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "%lld frames are in a folder Deptheos already reads, and are used where they are." : {
+      "comment" : "Add Frames sheet: about frames picked one by one in Files from inside a folder whose frames Deptheos already uses where they are. The placeholder is how many.",
+      "localizations" : {
+        "en" : {
+          "variations" : {
+            "plural" : {
+              "one" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld frame is in a folder Deptheos already reads, and is used where it is."
+                }
+              },
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld frames are in a folder Deptheos already reads, and are used where they are."
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "%lld frames can't be found" : {
+      "comment" : "Frames list banner heading: frames whose files aren't where the list says. The placeholder is how many.",
+      "localizations" : {
+        "en" : {
+          "variations" : {
+            "plural" : {
+              "one" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld frame can't be found"
+                }
+              },
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld frames can't be found"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "%lld frames can't be reached. Connect %@, or use Locate… if the folder has moved." : {
+      "comment" : "Alert text when Stack is tapped: frames are on a drive or server that isn't connected. The placeholders are how many frames and the drive's or server's name.",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%#@frames@ can't be reached. Connect %2$@, or use Locate… if the folder has moved."
+          },
+          "substitutions" : {
+            "frames" : {
+              "argNum" : 1,
+              "formatSpecifier" : "lld",
+              "variations" : {
+                "plural" : {
+                  "one" : {
+                    "stringUnit" : {
+                      "state" : "translated",
+                      "value" : "%arg frame"
+                    }
+                  },
+                  "other" : {
+                    "stringUnit" : {
+                      "state" : "translated",
+                      "value" : "%arg frames"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "%lld frames can't be reached. Connect iCloud Drive, or use Locate… if the folder has moved." : {
+      "comment" : "Alert text when Stack is tapped: frames are in iCloud Drive, which can't be reached. The placeholder is how many frames.",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%#@frames@ can't be reached. Connect iCloud Drive, or use Locate… if the folder has moved."
+          },
+          "substitutions" : {
+            "frames" : {
+              "argNum" : 1,
+              "formatSpecifier" : "lld",
+              "variations" : {
+                "plural" : {
+                  "one" : {
+                    "stringUnit" : {
+                      "state" : "translated",
+                      "value" : "%arg frame"
+                    }
+                  },
+                  "other" : {
+                    "stringUnit" : {
+                      "state" : "translated",
+                      "value" : "%arg frames"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "%lld frames can't be reached. Connect the drive or server, or use Locate… if the folder has moved." : {
+      "comment" : "Alert text when Stack is tapped: frames are on a drive or server that isn't connected, its name unknown. The placeholder is how many frames.",
+      "localizations" : {
+        "en" : {
+          "variations" : {
+            "plural" : {
+              "one" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld frame can't be reached. Connect the drive or server, or use Locate… if the folder has moved."
+                }
+              },
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld frames can't be reached. Connect the drive or server, or use Locate… if the folder has moved."
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "%lld frames can't be reached. Connect the drive, or use Locate… if the folder has moved." : {
+      "comment" : "Alert text when Stack is tapped: frames are on a drive with no name that isn't connected. The placeholder is how many frames.",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%#@frames@ can't be reached. Connect the drive, or use Locate… if the folder has moved."
+          },
+          "substitutions" : {
+            "frames" : {
+              "argNum" : 1,
+              "formatSpecifier" : "lld",
+              "variations" : {
+                "plural" : {
+                  "one" : {
+                    "stringUnit" : {
+                      "state" : "translated",
+                      "value" : "%arg frame"
+                    }
+                  },
+                  "other" : {
+                    "stringUnit" : {
+                      "state" : "translated",
+                      "value" : "%arg frames"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "%lld frames can't be reached. Connect the server, or use Locate… if the folder has moved." : {
+      "comment" : "Alert text when Stack is tapped: frames are on a server with no name that isn't connected. The placeholder is how many frames.",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%#@frames@ can't be reached. Connect the server, or use Locate… if the folder has moved."
+          },
+          "substitutions" : {
+            "frames" : {
+              "argNum" : 1,
+              "formatSpecifier" : "lld",
+              "variations" : {
+                "plural" : {
+                  "one" : {
+                    "stringUnit" : {
+                      "state" : "translated",
+                      "value" : "%arg frame"
+                    }
+                  },
+                  "other" : {
+                    "stringUnit" : {
+                      "state" : "translated",
+                      "value" : "%arg frames"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "%lld frames can't be read, starting with \"%@\". %@" : {
+      "comment" : "Alert text when Stack is tapped: frames' files can't be read. The placeholders are how many, the first one's file name and the system's sentence saying why.",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%#@frames@ can't be read, starting with \"%2$@\". %3$@"
+          },
+          "substitutions" : {
+            "frames" : {
+              "argNum" : 1,
+              "formatSpecifier" : "lld",
+              "variations" : {
+                "plural" : {
+                  "other" : {
+                    "stringUnit" : {
+                      "state" : "translated",
+                      "value" : "%arg frames"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "%lld frames couldn't be copied or downloaded." : {
+      "comment" : "Alert text after Add from Files: frames picked couldn't be copied into Deptheos or downloaded. The placeholder is how many frames.",
+      "localizations" : {
+        "en" : {
+          "variations" : {
+            "plural" : {
+              "one" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld frame couldn't be copied or downloaded."
+                }
+              },
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld frames couldn't be copied or downloaded."
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "%lld frames couldn't be copied or downloaded. %@" : {
+      "comment" : "Alert text after Add from Files: frames picked couldn't be copied into Deptheos or downloaded. The placeholders are how many frames and the system's sentence saying why.",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%#@frames@ couldn't be copied or downloaded. %2$@"
+          },
+          "substitutions" : {
+            "frames" : {
+              "argNum" : 1,
+              "formatSpecifier" : "lld",
+              "variations" : {
+                "plural" : {
+                  "one" : {
+                    "stringUnit" : {
+                      "state" : "translated",
+                      "value" : "%arg frame"
+                    }
+                  },
+                  "other" : {
+                    "stringUnit" : {
+                      "state" : "translated",
+                      "value" : "%arg frames"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "%lld frames couldn't be copied." : {
+      "comment" : "Alert text after Add from Files: frames picked couldn't be copied into Deptheos. The placeholder is how many frames.",
+      "localizations" : {
+        "en" : {
+          "variations" : {
+            "plural" : {
+              "one" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld frame couldn't be copied."
+                }
+              },
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld frames couldn't be copied."
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "%lld frames couldn't be copied. %@" : {
+      "comment" : "Alert text after Add from Files: frames picked couldn't be copied into Deptheos. The placeholders are how many frames and the system's sentence saying why.",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%#@frames@ couldn't be copied. %2$@"
+          },
+          "substitutions" : {
+            "frames" : {
+              "argNum" : 1,
+              "formatSpecifier" : "lld",
+              "variations" : {
+                "plural" : {
+                  "one" : {
+                    "stringUnit" : {
+                      "state" : "translated",
+                      "value" : "%arg frame"
+                    }
+                  },
+                  "other" : {
+                    "stringUnit" : {
+                      "state" : "translated",
+                      "value" : "%arg frames"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "%lld frames couldn't be downloaded." : {
+      "comment" : "Alert text after Add from Files: frames picked couldn't be downloaded where they are. The placeholder is how many frames.",
+      "localizations" : {
+        "en" : {
+          "variations" : {
+            "plural" : {
+              "one" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld frame couldn't be downloaded."
+                }
+              },
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld frames couldn't be downloaded."
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "%lld frames couldn't be downloaded. %@" : {
+      "comment" : "Alert text after Add from Files: frames picked couldn't be downloaded where they are. The placeholders are how many frames and the system's sentence saying why.",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%#@frames@ couldn't be downloaded. %2$@"
+          },
+          "substitutions" : {
+            "frames" : {
+              "argNum" : 1,
+              "formatSpecifier" : "lld",
+              "variations" : {
+                "plural" : {
+                  "one" : {
+                    "stringUnit" : {
+                      "state" : "translated",
+                      "value" : "%arg frame"
+                    }
+                  },
+                  "other" : {
+                    "stringUnit" : {
+                      "state" : "translated",
+                      "value" : "%arg frames"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "%lld frames were in \"%@\"." : {
+      "comment" : "Frames list banner, under how many frames can't be found. The placeholders are how many frames and the name of the folder the first was in; in English the number only picks 'It was' or 'They were' and isn't shown.",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%#@were@ in \"%2$@\"."
+          },
+          "substitutions" : {
+            "were" : {
+              "argNum" : 1,
+              "formatSpecifier" : "lld",
+              "variations" : {
+                "plural" : {
+                  "one" : {
+                    "stringUnit" : {
+                      "state" : "translated",
+                      "value" : "It was"
+                    }
+                  },
+                  "other" : {
+                    "stringUnit" : {
+                      "state" : "translated",
+                      "value" : "They were"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "%lld frames were taken." : {
+      "comment" : "Message of the camera's Sweep Cut Short alert, after why it stopped. The placeholder is how many frames were taken."
+    },
+    "%lld frames will be copied into Deptheos (%@)." : {
+      "comment" : "Add Frames sheet: about the frames picked one by one in Files. The placeholders are how many and their size, such as '1.2 GB'.",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%#@frames@ will be copied into Deptheos (%2$@)."
+          },
+          "substitutions" : {
+            "frames" : {
+              "argNum" : 1,
+              "formatSpecifier" : "lld",
+              "variations" : {
+                "plural" : {
+                  "one" : {
+                    "stringUnit" : {
+                      "state" : "translated",
+                      "value" : "%arg frame"
+                    }
+                  },
+                  "other" : {
+                    "stringUnit" : {
+                      "state" : "translated",
+                      "value" : "%arg frames"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "%lld frames will be copied into Deptheos." : {
+      "comment" : "Add Frames sheet: about the frames picked one by one in Files. The placeholder is how many.",
+      "localizations" : {
+        "en" : {
+          "variations" : {
+            "plural" : {
+              "one" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld frame will be copied into Deptheos."
+                }
+              },
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld frames will be copied into Deptheos."
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "%lld MP" : {
+      "comment" : "A photo size in the camera's menu, in megapixels, as the Camera app names it. The placeholder is the number (12 or 48)."
+    },
+    "%lld MP RAW" : {
+      "comment" : "The camera screen's stack menu label for RAW photos. The placeholder is the size in megapixels (12)."
+    },
+    "%lld of %lld" : {
+      "comment" : "Camera status pill while a bracket is taken. The placeholders are the frames taken so far and how many the bracket takes.",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "%1$lld of %2$lld"
+          }
+        }
+      }
+    },
+    "%lld of %lld frames" : {
+      "comment" : "How many frames are included, of how many in the list: under a stack's name, under the Stack button, the Stack Settings sheet's subtitle, on a Library tile. The placeholders are the two counts.",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%1$lld of %#@frames@"
+          },
+          "substitutions" : {
+            "frames" : {
+              "argNum" : 2,
+              "formatSpecifier" : "lld",
+              "variations" : {
+                "plural" : {
+                  "one" : {
+                    "stringUnit" : {
+                      "state" : "translated",
+                      "value" : "%arg frame"
+                    }
+                  },
+                  "other" : {
+                    "stringUnit" : {
+                      "state" : "translated",
+                      "value" : "%arg frames"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "%lld of %lld frames stacked" : {
+      "comment" : "VoiceOver label of the focus rail while a stack runs, the key to the depth map as it forms: how many of the stack's frames are in so far, of how many. The placeholders are the two counts.",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%1$lld of %#@frames@ stacked"
+          },
+          "substitutions" : {
+            "frames" : {
+              "argNum" : 2,
+              "formatSpecifier" : "lld",
+              "variations" : {
+                "plural" : {
+                  "one" : {
+                    "stringUnit" : {
+                      "state" : "translated",
+                      "value" : "%arg frame"
+                    }
+                  },
+                  "other" : {
+                    "stringUnit" : {
+                      "state" : "translated",
+                      "value" : "%arg frames"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "%lld of %lld frames were taken, so part of the focus range is missing." : {
+      "comment" : "Message of the camera's Bracket Cut Short alert. The placeholders are the frames taken and the frames the bracket was to take."
+    },
+    "%lld of %lld included" : {
+      "comment" : "Under the switch at the head of the Frames list: how many frames are included, of how many.",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "%1$lld of %2$lld included"
+          }
+        }
+      }
+    },
+    "%lld photos couldn't be read; the others were added." : {
+      "comment" : "Alert text: some of the photos picked from Photos couldn't be copied. The placeholder is how many.",
+      "localizations" : {
+        "en" : {
+          "variations" : {
+            "plural" : {
+              "one" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld photo couldn't be read; the others were added."
+                }
+              },
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld photos couldn't be read; the others were added."
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "%lld px" : {
+      "comment" : "The brush's size, beside the Size slider and in the iPhone's brush bar. The placeholder is its radius in pixels."
+    },
+    "%lld renders" : {
+      "comment" : "A count of renders: over the strip of the stack's renders, in a Library tile's accessibility label. The placeholder is how many; zero reads 'No renders'.",
+      "localizations" : {
+        "en" : {
+          "variations" : {
+            "plural" : {
+              "one" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld render"
+                }
+              },
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld renders"
+                }
+              },
+              "zero" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "No renders"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "%lld seconds" : {
+      "comment" : "A choice in the bracket's Delay menu. The placeholder is the seconds waited (2 or 5)."
+    },
+    "%lld selected" : {
+      "comment" : "Bar while selecting frames. The placeholder is how many are selected.",
+      "localizations" : {
+        "en" : {
+          "variations" : {
+            "plural" : {
+              "one" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld selected"
+                }
+              },
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld selected"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "%lld stacks" : {
+      "comment" : "A count of stacks: beside a day's heading, over Not Stacked Yet, on a batch card, under a folder in Settings ▸ Storage ▸ Folders. The placeholder is how many.",
+      "localizations" : {
+        "en" : {
+          "variations" : {
+            "plural" : {
+              "one" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld stack"
+                }
+              },
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld stacks"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "%lld/%lld" : {
+      "comment" : "Beside the focus rail: the frame shown's place, of how many frames the stack has ('18/46'); while a stack runs, how many frames it has taken in, of how many ('9/66').",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "%1$lld/%2$lld"
+          }
+        }
+      }
+    },
+    "%u × %u×%u %@" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "%1$u × %2$u×%3$u %4$@"
+          }
+        }
+      }
+    },
+    "%u strokes" : {
+      "comment" : "In paint mode, under the title: how many strokes can be undone. The placeholder is how many; zero reads 'No strokes'.",
+      "localizations" : {
+        "en" : {
+          "variations" : {
+            "plural" : {
+              "one" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%u stroke"
+                }
+              },
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%u strokes"
+                }
+              },
+              "zero" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "No strokes"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "1×" : {
+      "comment" : "The lens in the camera screen's status pill before the camera is set up: the main wide lens."
+    },
+    "16 bits per channel" : {
+      "comment" : "Export sheet and Settings ▸ Export switch for PNG and TIFF: write 16 bits per color channel rather than 8."
+    },
+    "66 frames · handheld" : {
+      "comment" : "Under the Hornet item of the Try a Sample Stack menu: how many frames the sample has, and that it was shot with the camera held in the hand."
+    },
+    "200 frames · on a tripod" : {
+      "comment" : "Under the Circuit Board item of the Try a Sample Stack menu: how many frames the sample has, and that it was shot with the camera on a tripod."
+    },
+    "A burst is already running." : {
+      "comment" : "Error when the shutter is pressed while a burst is still running."
+    },
+    "A finger paints too; two fingers pan and zoom." : {
+      "comment" : "Retouch's Brush panel (iPad): under Only Pencil paints, off."
+    },
+    "A finger paints too; two fingers pan and zoom. Pencil pressure sets how much each stroke paints." : {
+      "comment" : "Settings ▸ Retouch: footer under the Apple Pencil options, Only Pencil paints off."
+    },
+    "A finger paints; two fingers pan" : {
+      "comment" : "Subtitle under Only Pencil paints in Retouch's menu when off."
+    },
+    "A folder added with Add Folder…, or stacked in a batch, is read where it is and listed here." : {
+      "comment" : "Settings ▸ Storage ▸ Folders: the empty-state text. Add Folder… is the Frames list's command."
+    },
+    "A folder couldn't be copied into Deptheos, so its frames are still used where they are. %@" : {
+      "comment" : "Alert text after Copy into Deptheos in the Library. The placeholder is a sentence saying why, the system's or the app's."
+    },
+    "A stack is already running." : {
+      "comment" : "Alert text: a second stack was asked for while one runs."
+    },
+    "About Deptheos" : {
+      "comment" : "Settings: the row that opens the app's version, license and notices, and that page's title."
+    },
+    "Add" : {
+      "comment" : "Add Frames sheet: adds the frames picked in Files.\nThe Frames list's + menu: adds frames from Photos, Files or the camera."
+    },
+    "Add a Focus Bracket" : {
+      "comment" : "Library empty-state title: there are no stacks yet. A focus bracket is the photos of one subject at stepped focus."
+    },
+    "Add Folder…" : {
+      "comment" : "Add menu item, and a button of the empty Frames list and of the empty Library (there into a new stack): picks one folder in Files, whose frames are used where they are."
+    },
+    "Add Folders…" : {
+      "comment" : "New Batch: the button that picks folders in Files, each stacked."
+    },
+    "Add Frames" : {
+      "comment" : "Button under the iPhone viewer's No Frames: opens the Frames sheet, which adds them.\nThe title of the sheet for frames picked with Add from Files, and of the page it is in the Frames sheet."
+    },
+    "Add from Files…" : {
+      "comment" : "Add menu item, and a button of the empty Frames list and of the empty Library (there into a new stack): picks single frames in Files, which are copied into Deptheos."
+    },
+    "Add from Photos…" : {
+      "comment" : "Add menu item, and a button of the empty Frames list and of the empty Library (there into a new stack): picks photos from the Photos library."
+    },
+    "Add Subfolders of…" : {
+      "comment" : "New Batch: the button that picks one folder in Files and stacks each folder inside it."
+    },
+    "Add the folders to stack" : {
+      "comment" : "New Batch: the summary line before any folder is added."
+    },
+    "Advanced" : {
+      "comment" : "Settings, for Depth: the row that opens its Radius and Blend Range sliders.\nTitle of the page with Depth's Radius and Blend Range sliders."
+    },
+    "Align frames" : {
+      "comment" : "Settings switch: line the frames up before stacking."
+    },
+    "aligned" : {
+      "comment" : "New Batch: in the line of settings every stack uses ('Pyramid · S4 · aligned · cropped'). Lowercase."
+    },
+    "Aligner" : {
+      "comment" : "Settings: the picker of the aligner, ECC or Grid search."
+    },
+    "Aligning and stacking" : {
+      "comment" : "Stack progress: frames are lined up and stacked."
+    },
+    "Aligning and stacking %u of %u" : {
+      "comment" : "Stack progress: frames are lined up and stacked. The placeholders are the frame's number and how many frames there are.",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Aligning and stacking %1$u of %2$u"
+          }
+        }
+      }
+    },
+    "Alignment" : {
+      "comment" : "Settings: the page on Grid search's limits and exposure compensation, its row and title.\nSettings: the section header over the alignment settings.\nTitle of the iPhone page with the alignment settings.\niPhone Settings: the row that opens the alignment settings."
+    },
+    "All detail" : {
+      "comment" : "Settings: under the Denoise slider's low end."
+    },
+    "All Stacks" : {
+      "comment" : "Library filter (iPhone picker): every stack.\niPad Library: title and sidebar row of the filter showing every stack."
+    },
+    "Allow Deptheos to add photos in Settings to save exports to your photo library." : {
+      "comment" : "Alert message when Save to Photos is tapped without permission to add to the Photos library."
+    },
+    "Another app is using the camera." : {
+      "comment" : "Hint on the camera screen while another app has the camera."
+    },
+    "Another render" : {
+      "comment" : "What the brush paints from: another render of the stack, whose number isn't known."
+    },
+    "Apple" : {
+      "comment" : "Settings, RAW Decoder: Apple's decoder, a name."
+    },
+    "Apple's decoder develops RAW files with the system's color and tone: the result exports as TIFF, JPEG or PNG. Linear DNGs, such as ProRAW, stay linear either way." : {
+      "comment" : "Settings: under RAW Decoder, with Apple chosen."
+    },
+    "Auto sort" : {
+      "comment" : "New Batch, How to Split: each folder is split into stacks by capture time."
+    },
+    "Auto sort splits each folder into stacks by capture time. It never mixes folders, and skips frames it can't place." : {
+      "comment" : "New Batch: the footer under How to Split."
+    },
+    "Available once nothing is stacking, opening or being retouched." : {
+      "comment" : "Settings ▸ Storage: the footer under Delete Library… while a stack, batch, open or Retouch holds the app."
+    },
+    "Back 10 Frames" : {
+      "comment" : "VoiceOver action of the focus rail under the photo: shows the frame ten back in the stack."
+    },
+    "Back to the Library" : {
+      "comment" : "Pointer tooltip of the back button to the Library."
+    },
+    "Back to the painted result" : {
+      "comment" : "Pointer tooltip of the Depth Map label at the top of the photo in Retouch."
+    },
+    "Batch" : {
+      "comment" : "First item of a batch card's line in the Library, such as 'Batch · 3 stacks · 14:05'."
+    },
+    "Batch options" : {
+      "comment" : "VoiceOver label of a batch card's ••• menu."
+    },
+    "Benchmark" : {
+      "comment" : "Settings: the page that times focus stacking on this device, its row and title."
+    },
+    "Blend Range" : {
+      "comment" : "Settings, Depth's Advanced: a slider, a name."
+    },
+    "Blending" : {
+      "comment" : "Stack progress: the frames are being blended."
+    },
+    "Blending %u of %u" : {
+      "comment" : "Stack progress: the frames are being blended. The placeholders are the frame's number and how many frames there are.",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Blending %1$u of %2$u"
+          }
+        }
+      }
+    },
+    "Bracket" : {
+      "comment" : "A camera mode: the phone stays still and the lens steps its focus. A name, capitalized."
+    },
+    "Bracket canceled" : {
+      "comment" : "Said by VoiceOver when a bracket is canceled from the shutter."
+    },
+    "Bracket Cut Short" : {
+      "comment" : "Title of the camera's alert when a bracket ended without all its frames."
+    },
+    "Brightness" : {
+      "comment" : "The camera screen's menu of how bright the light (torch) is."
+    },
+    "Brush" : {
+      "comment" : "Retouch tray tab: adjust brush/eraser size, hardness, opacity, flow and color tolerance.\nRetouch's brush settings title.\nRetouch's inline brush tray: the brush tool."
+    },
+    "Burst Not Saved" : {
+      "comment" : "Title of the camera's alert when a burst failed and nothing was stacked."
+    },
+    "Burst Rate" : {
+      "comment" : "The camera screen's menu of how many frames a second a sweep takes."
+    },
+    "Calm, softer" : {
+      "comment" : "Settings: under the Smoothness slider's high end."
+    },
+    "Camera access is off. Turn it on for Deptheos in Settings." : {
+      "comment" : "Shown on the camera screen when Deptheos isn't allowed to use the camera."
+    },
+    "Camera mode" : {
+      "comment" : "The camera screen's choice between Sweep and Bracket (read by VoiceOver)."
+    },
+    "Camera paused" : {
+      "comment" : "Camera status pill while the camera is interrupted (a call, another app, heat)."
+    },
+    "Camera stopped" : {
+      "comment" : "Camera status pill after the camera stopped with an error."
+    },
+    "Camera unavailable" : {
+      "comment" : "Camera status pill when the camera couldn't start or a burst failed."
+    },
+    "Camera Unavailable" : {
+      "comment" : "Camera screen title when the camera couldn't start or a burst failed."
+    },
+    "Cancel" : {
+      "comment" : "Add Frames sheet: stops adding the frames picked in Files.\nButton beside a stack's or a batch's progress: stops it. What is made is kept.\nCancels an alert.\nNew Batch: closes the sheet without starting a batch.\nRename Render alert: closes it without renaming.\nRename Stack alert: closes it without renaming.\nRevert's confirmation: closes it, and nothing changes.\nSettings ▸ Storage ▸ Folders: stops copying a folder's frames into Deptheos."
+    },
+    "Cancel Bracket" : {
+      "comment" : "VoiceOver label of the camera's shutter while a bracket counts down or is taken."
+    },
+    "Canceled." : {
+      "comment" : "An alert's text: the work was stopped with Cancel."
+    },
+    "Canceling" : {
+      "comment" : "Camera status pill while a canceled bracket's last photos land."
+    },
+    "Changed" : {
+      "comment" : "VoiceOver: a setting or render changed since the base render."
+    },
+    "Choose the frames and settings, then tap Stack." : {
+      "comment" : "Viewer empty-state text under No Result Yet."
+    },
+    "Circuit Board" : {
+      "comment" : "Item of the Try a Sample Stack menu: the sample stack of a circuit board. Its stack is named Circuit Board, untranslated, as a folder is."
+    },
+    "Close" : {
+      "comment" : "VoiceOver label of the camera screen's close button."
+    },
+    "Close Depth Map" : {
+      "comment" : "VoiceOver label of the Depth Map label at the top of the photo: a tap goes back from the map."
+    },
+    "Close the depth map" : {
+      "comment" : "Pointer tooltip of the Depth Map label at the top of the photo outside Retouch."
+    },
+    "Collapsed" : {
+      "comment" : "VoiceOver value of a batch card's header: its stacks are hidden."
+    },
+    "Color Match" : {
+      "comment" : "Compact chip in Retouch's inline brush tray for Only where colors match."
+    },
+    "Compare" : {
+      "comment" : "View menu item: lays the result out with a frame or another render, in the layout used last; off, the result alone."
+    },
+    "Compare the result with a frame or another render, show what it took from a frame, or show the depth map" : {
+      "comment" : "Pointer tooltip of the view button under the photo."
+    },
+    "Compare With" : {
+      "comment" : "Submenu of the view menu under the photo: the frame on the rail and the stack's other renders, one of which the result is compared with."
+    },
+    "Compare with Result" : {
+      "comment" : "Render menu item, in the Renders list: lays the render out with the render shown, the result."
+    },
+    "Comparing with %@" : {
+      "comment" : "VoiceOver announcement when what the result is compared with changes. The placeholder is a frame, such as 'Frame 23'."
+    },
+    "Comparing with render %u" : {
+      "comment" : "VoiceOver announcement when the result is now compared with another render. The placeholder is the render's number in its stack."
+    },
+    "Configuration" : {
+
+    },
+    "Connect %@, or use Locate… if %lld frames moved." : {
+      "comment" : "The menu of the badge at the head of the Frames list, while frames can't be reached. The placeholders are the drive's or server's name and how many frames; in English the number only picks 'it' or 'they' and isn't shown.",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Connect %1$@, or use Locate… if %#@moved@."
+          },
+          "substitutions" : {
+            "moved" : {
+              "argNum" : 2,
+              "formatSpecifier" : "lld",
+              "variations" : {
+                "plural" : {
+                  "one" : {
+                    "stringUnit" : {
+                      "state" : "translated",
+                      "value" : "it moved"
+                    }
+                  },
+                  "other" : {
+                    "stringUnit" : {
+                      "state" : "translated",
+                      "value" : "they moved"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "Connect %@, or use Locate… if the frames moved." : {
+      "comment" : "Viewer empty-state text under Not Connected. The placeholder is the drive's or server's name."
+    },
+    "Connect iCloud Drive, or use Locate… if %lld frames moved." : {
+      "comment" : "The menu of the badge at the head of the Frames list, while frames can't be reached, in iCloud Drive. The placeholder is how many frames; in English the number only picks 'it' or 'they' and isn't shown.",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Connect iCloud Drive, or use Locate… if %#@moved@."
+          },
+          "substitutions" : {
+            "moved" : {
+              "argNum" : 1,
+              "formatSpecifier" : "lld",
+              "variations" : {
+                "plural" : {
+                  "one" : {
+                    "stringUnit" : {
+                      "state" : "translated",
+                      "value" : "it moved"
+                    }
+                  },
+                  "other" : {
+                    "stringUnit" : {
+                      "state" : "translated",
+                      "value" : "they moved"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "Connect iCloud Drive, or use Locate… if the frames moved." : {
+      "comment" : "Viewer empty-state text under Not Connected, for frames in iCloud Drive."
+    },
+    "Connect the drive or server it is on, or use Locate… if the frames moved." : {
+      "comment" : "Viewer empty-state text under Not Connected, when the drive's or server's name isn't known."
+    },
+    "Connect the drive, or use Locate… if %lld frames moved." : {
+      "comment" : "The menu of the badge at the head of the Frames list, while frames can't be reached, on a drive with no name. The placeholder is how many frames; in English the number only picks 'it' or 'they' and isn't shown.",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Connect the drive, or use Locate… if %#@moved@."
+          },
+          "substitutions" : {
+            "moved" : {
+              "argNum" : 1,
+              "formatSpecifier" : "lld",
+              "variations" : {
+                "plural" : {
+                  "one" : {
+                    "stringUnit" : {
+                      "state" : "translated",
+                      "value" : "it moved"
+                    }
+                  },
+                  "other" : {
+                    "stringUnit" : {
+                      "state" : "translated",
+                      "value" : "they moved"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "Connect the drive, or use Locate… if the frames moved." : {
+      "comment" : "Viewer empty-state text under Not Connected, for a drive with no name."
+    },
+    "Connect the server, or use Locate… if %lld frames moved." : {
+      "comment" : "The menu of the badge at the head of the Frames list, while frames can't be reached, on a server with no name. The placeholder is how many frames; in English the number only picks 'it' or 'they' and isn't shown.",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Connect the server, or use Locate… if %#@moved@."
+          },
+          "substitutions" : {
+            "moved" : {
+              "argNum" : 1,
+              "formatSpecifier" : "lld",
+              "variations" : {
+                "plural" : {
+                  "one" : {
+                    "stringUnit" : {
+                      "state" : "translated",
+                      "value" : "it moved"
+                    }
+                  },
+                  "other" : {
+                    "stringUnit" : {
+                      "state" : "translated",
+                      "value" : "they moved"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "Connect the server, or use Locate… if the frames moved." : {
+      "comment" : "Viewer empty-state text under Not Connected, for a server with no name."
+    },
+    "Contribution" : {
+      "comment" : "Item of the view menu under the photo and View menu item, with a frame shown or compared with: shows what the result took from that frame as it is, the rest dimmed."
+    },
+    "Copied Summary" : {
+
+    },
+    "Copy Frames into Deptheos" : {
+      "comment" : "Menu item (the Frames head's place, or the Frames list's other commands): copies the frames used where they are in Files into the app."
+    },
+    "Copy into Deptheos" : {
+      "comment" : "Add Frames sheet: the switch that copies the picked folders into Deptheos instead of reading them where they are.\nSettings ▸ Storage ▸ Folders, a folder's menu: copies the frames in use from the folder into Deptheos, so they are no longer read from it."
+    },
+    "Copy Summary" : {
+
+    },
+    "Copying %lld of %lld" : {
+      "comment" : "Progress in the Add sheet: frames picked in Files are copied into Deptheos. The placeholders are the file's number and how many.",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Copying %1$lld of %2$lld"
+          }
+        }
+      }
+    },
+    "Couldn't Add Frames" : {
+      "comment" : "Add Frames sheet: the heading when adding frames picked in Files failed, over the sentence saying why."
+    },
+    "Crisp, more noise" : {
+      "comment" : "Settings: under the Smoothness slider's low end."
+    },
+    "Crop to the area every frame covers" : {
+      "comment" : "Settings switch: crop the result to the area all the aligned frames cover."
+    },
+    "cropped" : {
+      "comment" : "New Batch: in the line of settings every stack uses ('Pyramid · S4 · aligned · cropped'). Lowercase.\niPhone Settings, beside Alignment, after the aligner's name: the result is cropped to the area every frame covers."
+    },
+    "Defaults for new exports" : {
+      "comment" : "Settings ▸ Export: the header over 16-bit, TIFF compression and JPEG quality, which the Export sheet starts from."
+    },
+    "Delay" : {
+      "comment" : "The camera screen's menu of how long a bracket waits after the shutter before its first frame."
+    },
+    "Delete" : {
+      "comment" : "Settings ▸ Storage: confirms deleting the unused copies."
+    },
+    "Delete %lld Failed Stacks" : {
+      "comment" : "Library menu item, in the Failed filter while searching, and on a batch card: moves the failed stacks shown to Recently Deleted. The placeholder is how many; zero reads 'Delete Failed Stacks'.",
+      "localizations" : {
+        "en" : {
+          "variations" : {
+            "plural" : {
+              "one" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "Delete %lld Failed Stack"
+                }
+              },
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "Delete %lld Failed Stacks"
+                }
+              },
+              "zero" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "Delete Failed Stacks"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "Delete %lld Other Renders" : {
+      "comment" : "Menu item on a render in the Renders list: moves the stack's other unstarred renders to Recently Deleted. The placeholder is how many; zero reads 'Delete Other Renders'.",
+      "localizations" : {
+        "en" : {
+          "variations" : {
+            "plural" : {
+              "one" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "Delete %lld Other Render"
+                }
+              },
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "Delete %lld Other Renders"
+                }
+              },
+              "zero" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "Delete Other Renders"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "Delete %lld Unstarred Renders" : {
+      "comment" : "Library tile menu item, Keep Only Starred with how many it deletes: moves the stack's unstarred renders to Recently Deleted. The placeholder is how many.",
+      "localizations" : {
+        "en" : {
+          "variations" : {
+            "plural" : {
+              "one" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "Delete %lld Unstarred Render"
+                }
+              },
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "Delete %lld Unstarred Renders"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "Delete All Failed Stacks" : {
+      "comment" : "Library menu item in the Failed filter: moves every failed stack to Recently Deleted."
+    },
+    "Delete Batch (%lld Stacks)" : {
+      "comment" : "Batch card menu item: moves every stack the batch made to Recently Deleted. The placeholder is how many.",
+      "localizations" : {
+        "en" : {
+          "variations" : {
+            "plural" : {
+              "one" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "Delete Batch (%lld Stack)"
+                }
+              },
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "Delete Batch (%lld Stacks)"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "Delete Failed Stack" : {
+      "comment" : "Failed tile menu item: moves the failed stack to Recently Deleted."
+    },
+    "Delete Library…" : {
+      "comment" : "Settings ▸ Storage: the button that asks before deleting every stack and render in the Library."
+    },
+    "Delete Render" : {
+      "comment" : "Render menu item: moves the render to Recently Deleted."
+    },
+    "Delete Stack" : {
+      "comment" : "Library tile menu item: moves the stack with every render to Recently Deleted."
+    },
+    "Delete the unused copies?" : {
+      "comment" : "Settings ▸ Storage: the title of the dialog that confirms Delete Unused Copies…."
+    },
+    "Delete Unused Copies…" : {
+      "comment" : "Settings ▸ Storage: the button that asks before deleting the unused copies."
+    },
+    "Deletes every stack, render and failed stack, with their retouching, the working version and everything in Recently Deleted, for good, leaving the Library empty. Your frames and exported files are left alone; copies of frames that nothing uses then are unused copies, below." : {
+      "comment" : "Settings ▸ Storage: the footer under Delete Library…, on what it deletes and leaves."
+    },
+    "Denoise" : {
+      "comment" : "Settings: the Wavelet method's slider, a name."
+    },
+    "Depth" : {
+      "comment" : "The name of a stacking method, Depth."
+    },
+    "Depth Map" : {
+      "comment" : "The depth map view: which frame each area's detail came from. An item of the view menu under the photo, a View menu item and the label over the picture."
+    },
+    "Deptheos couldn't keep access to \"%@\", so it wasn't used. Pick it in Files again." : {
+      "comment" : "Alert text after a folder or file is picked in Files: iOS did not let Deptheos keep reading it. The placeholder is its name."
+    },
+    "Deptheos is free software under the GNU General Public License version 3, with an additional permission for the Adobe DNG SDK and XMP Toolkit. It includes software by others under their own licenses, listed in the third-party notices." : {
+      "comment" : "About Deptheos: the footer under the version, on the app's license."
+    },
+    "Deptheos is starting its GPU engine." : {
+      "comment" : "Why Stack is off while the engine starts, under the Stack button."
+    },
+    "Deptheos reads the frames from %@ each time. Stacking again and retouching need them there." : {
+      "comment" : "Add Frames sheet: the footer under the folders while Copy into Deptheos is off. The placeholder is a drive's or server's name."
+    },
+    "Deptheos reads the frames from iCloud Drive each time. Stacking again and retouching need them there." : {
+      "comment" : "Add Frames sheet: the footer under the folders while Copy into Deptheos is off, for folders in iCloud Drive."
+    },
+    "Deptheos reads the frames from the drive each time. Stacking again and retouching need them there." : {
+      "comment" : "Add Frames sheet: the footer under the folders while Copy into Deptheos is off, for folders on a drive with no name."
+    },
+    "Deptheos reads the frames from the server each time. Stacking again and retouching need them there." : {
+      "comment" : "Add Frames sheet: the footer under the folders while Copy into Deptheos is off, for folders on a server with no name."
+    },
+    "Deptheos reads the frames from where they are each time. Stacking again and retouching need them there." : {
+      "comment" : "Add Frames sheet: the footer under the folders while Copy into Deptheos is off, for folders on the device."
+    },
+    "Deptheos reads the frames in these folders where they are. A folder stays here while a stack or render uses its frames, and goes when the last of them is deleted. After a drive or a server was disconnected, pick its top folder once with Locate… and every folder on it comes back." : {
+      "comment" : "Settings ▸ Storage ▸ Folders: the footer under the list of folders. Locate… is a folder's command here."
+    },
+    "Diagnostics" : {
+      "comment" : "Settings: the page with Verbose logging and Send Diagnostics…, its row and title."
+    },
+    "Discard" : {
+      "comment" : "Button of the camera's Cut Short alert: deletes the frames that were taken."
+    },
+    "Dismiss" : {
+      "comment" : "Closes the Added frames notice."
+    },
+    "Divider" : {
+      "comment" : "VoiceOver label of the divider between the result and what it is compared with, in Split."
+    },
+    "DNG keeps the linear camera data, with the frames' camera profile, for your RAW editor to develop." : {
+      "comment" : "Export sheet: the note shown when DNG is the format."
+    },
+    "Done" : {
+      "comment" : "Bar while selecting frames: stops selecting.\nCloses the Settings sheet.\nRecently Deleted's bar while selecting: stops selecting.\nRetouch: the button on the card over a canvas that couldn't be opened; leaves paint mode.\nToolbar button in paint mode: leaves paint mode.\niPhone Frames list head: stops selecting frames."
+    },
+    "Downloading %lld of %lld" : {
+      "comment" : "Progress in the Add sheet: frames picked in Files are downloaded where they are. The placeholders are the file's number and how many.",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Downloading %1$lld of %2$lld"
+          }
+        }
+      }
+    },
+    "Downloading frame" : {
+      "comment" : "Stack progress: a frame in iCloud is downloaded before the stack starts."
+    },
+    "Downloading frame %u of %u" : {
+      "comment" : "Stack progress: frames in iCloud are downloaded before the stack starts. The placeholders are the frame's number and how many frames the stack has.",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Downloading frame %1$u of %2$u"
+          }
+        }
+      }
+    },
+    "Drive Not Connected" : {
+      "comment" : "The badge at the head of the Frames list: the drive with no name its frames are on isn't connected."
+    },
+    "Each Stack makes a render, kept here with its frames and settings." : {
+      "comment" : "The Renders list's empty-state text."
+    },
+    "Edited" : {
+      "comment" : "Under the stack's name after the number of the render shown, on the base render's tile, and on the stack's Library tile: the stack's working version has changed since its base render."
+    },
+    "Empty Recently Deleted…" : {
+      "comment" : "Recently Deleted: the button that asks before deleting everything in the list for good."
+    },
+    "End Sweep" : {
+      "comment" : "VoiceOver label of the camera's shutter while a sweep is taken."
+    },
+    "Eraser" : {
+      "comment" : "Retouch tray tab when Eraser is selected.\nRetouch's inline brush tray: the eraser tool."
+    },
+    "Even backgrounds" : {
+      "comment" : "Settings: under the Smoothing slider's high end."
+    },
+    "Every painted pixel goes back to the stacked result, and the undo history is cleared. This can't be undone." : {
+      "comment" : "Text of the Reset the retouching? dialog."
+    },
+    "Every render of this stack takes the new name. Leave it empty to use the folder's name." : {
+      "comment" : "Rename Stack alert's text."
+    },
+    "Every stack uses the method and alignment set in Settings. Where iOS gives Deptheos time in the background, the batch goes on when you leave the app; otherwise it pauses until you come back." : {
+      "comment" : "New Batch: the footer under the summary of what the batch will make."
+    },
+    "Exclude" : {
+      "comment" : "Excludes a frame, or the frames selected, from the stack; it stays in the list."
+    },
+    "Exclude All" : {
+      "comment" : "Frames list's ••• menu item: excludes every frame."
+    },
+    "Excluded" : {
+      "comment" : "VoiceOver value of a frame in the list that is excluded from the stack."
+    },
+    "Expanded" : {
+      "comment" : "VoiceOver value of a batch card's header: its stacks are shown."
+    },
+    "Export" : {
+      "comment" : "Settings: the page on how exports are written and named, its row and title.\nTitle of the Export sheet."
+    },
+    "Export #%u…" : {
+      "comment" : "Library tile menu item: opens the Export sheet for the render the tile shows. The placeholder is its number."
+    },
+    "Export, alignment and the app's other options" : {
+      "comment" : "Pointer tooltip of the Library's Settings button."
+    },
+    "Export…" : {
+      "comment" : "Library tile menu item: opens the Export sheet for the stack's one render.\nToolbar button: opens the Export sheet for the result shown."
+    },
+    "Exporting" : {
+      "comment" : "Title of the system's progress for an export going on after the app leaves the foreground."
+    },
+    "Exposure" : {
+      "comment" : "The camera screen's menu of exposure compensation, in EV."
+    },
+    "Failed" : {
+      "comment" : "Library filter (iPhone picker): stacks whose batch stack didn't finish.\nOn a Library tile: the batch stack didn't finish.\niPad Library: title and sidebar row of the filter showing stacks that didn't finish."
+    },
+    "Finalizing" : {
+      "comment" : "Stack progress: the result is being finished."
+    },
+    "Finalizing %u of %u" : {
+      "comment" : "Stack progress: the result is being finished. The placeholders are the step and how many steps there are.",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Finalizing %1$u of %2$u"
+          }
+        }
+      }
+    },
+    "Fingers pan and zoom; hold to peek" : {
+      "comment" : "Subtitle under Only Pencil paints in Retouch's menu when on."
+    },
+    "Fingers pan and zoom; touch and hold shows the source. Pencil pressure sets how much each stroke paints." : {
+      "comment" : "Settings ▸ Retouch: footer under the Apple Pencil options, Only Pencil paints on."
+    },
+    "Fingers pan and zoom; touch and hold shows the source. Starts as Only Draw with Apple Pencil in the iPad's Settings." : {
+      "comment" : "Retouch's Brush panel (iPad): under Only Pencil paints, on. Only Draw with Apple Pencil is the system setting's name in Settings ▸ Apple Pencil."
+    },
+    "Finishing" : {
+      "comment" : "Stack progress: the stack is almost done."
+    },
+    "Finishing %u of %u" : {
+      "comment" : "Stack progress: the stack is almost done. The placeholders are the step and how many steps there are.",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Finishing %1$u of %2$u"
+          }
+        }
+      }
+    },
+    "First" : {
+      "comment" : "Label of the bracket's slider for where its first frame focuses."
+    },
+    "First Frame" : {
+      "comment" : "VoiceOver action of the focus rail under the photo: shows the stack's first frame."
+    },
+    "First frame's focus" : {
+      "comment" : "VoiceOver label of the bracket's slider for where its first frame focuses."
+    },
+    "Flicker" : {
+      "comment" : "Compare layout: Flip switches between the result and what it is compared with, in place. In the view menu under the photo and the View menu."
+    },
+    "Flip" : {
+      "comment" : "Button beside the view menu in Flicker: switches between the result and what it is compared with."
+    },
+    "Flow" : {
+      "comment" : "Brush slider, a name: how much each dab of a stroke paints."
+    },
+    "Focus %@ to %@" : {
+      "comment" : "On the bracket's controls: where the first and the last frame focus, each a percentage of the lens's range from closest focus ('10%')."
+    },
+    "Focus peaking" : {
+      "comment" : "VoiceOver label of the camera screen's switch for focus peaking."
+    },
+    "Focus step" : {
+      "comment" : "VoiceOver label of the bracket's step slider: the lens travel between frames."
+    },
+    "Folder Actions" : {
+      "comment" : "Settings ▸ Storage ▸ Folders: VoiceOver label of the menu button on a folder's row."
+    },
+    "Folders" : {
+      "comment" : "New Batch: the header of the section of folders to stack.\nSettings ▸ Storage: the row that opens the list of folders Deptheos reads frames from where they are, and that list's title."
+    },
+    "For PNG and TIFF. Off writes 8 bits per channel, in smaller files." : {
+      "comment" : "Settings ▸ Export: the help under the 16 bits per channel switch."
+    },
+    "Format" : {
+      "comment" : "Export sheet: the picker of the file format.\nThe camera screen's menu of photo formats (HEIC or RAW)."
+    },
+    "Forward 10 Frames" : {
+      "comment" : "VoiceOver action of the focus rail under the photo: shows the frame ten on in the stack."
+    },
+    "Found %lld of %lld frames in \"%@\". The rest may have been moved, renamed or changed." : {
+      "comment" : "Alert text after Locate…: some of the frames looked for are in the folder picked as they were (by name, size and contents). The placeholders are how many were found, how many were looked for and the folder's name.",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Found %1$lld of %#@frames@ in \"%3$@\". The rest may have been moved, renamed or changed."
+          },
+          "substitutions" : {
+            "frames" : {
+              "argNum" : 2,
+              "formatSpecifier" : "lld",
+              "variations" : {
+                "plural" : {
+                  "one" : {
+                    "stringUnit" : {
+                      "state" : "translated",
+                      "value" : "%arg frame"
+                    }
+                  },
+                  "other" : {
+                    "stringUnit" : {
+                      "state" : "translated",
+                      "value" : "%arg frames"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "Found all %lld frames in \"%@\"." : {
+      "comment" : "Notice after Locate…: every frame looked for is in the folder picked. The placeholders are how many and the folder's name.",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Found all %#@frames@ in \"%2$@\"."
+          },
+          "substitutions" : {
+            "frames" : {
+              "argNum" : 1,
+              "formatSpecifier" : "lld",
+              "variations" : {
+                "plural" : {
+                  "one" : {
+                    "stringUnit" : {
+                      "state" : "translated",
+                      "value" : "%arg frame"
+                    }
+                  },
+                  "other" : {
+                    "stringUnit" : {
+                      "state" : "translated",
+                      "value" : "%arg frames"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "Found the frame in \"%@\"." : {
+      "comment" : "Notice after Locate…: the one frame looked for is in the folder picked. The placeholder is the folder's name."
+    },
+    "Frame" : {
+      "comment" : "The viewer's title on iPhone while comparing a frame whose number isn't known."
+    },
+    "Frame %lld" : {
+      "comment" : "A frame of the list, by its number from 1. The placeholder is the number."
+    },
+    "Frame %lld · %@" : {
+      "comment" : "Over the focus rail as a finger scrubs, for a render that kept no record of where each part came from. The placeholders are the frame's number in the stack and its file name.",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Frame %1$lld · %2$@"
+          }
+        }
+      }
+    },
+    "Frame %lld · %@ · %@" : {
+      "comment" : "Over the focus rail as a finger scrubs. The placeholders are the frame's number in the stack, its file name, and its share of the result's pixels, formatted ('14%', '<1%').",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Frame %1$lld · %2$@ · %3$@"
+          }
+        }
+      }
+    },
+    "Frame %lld · %@ · left out" : {
+      "comment" : "Over the focus rail as a finger scrubs: a frame the stack left out. The placeholders are the frame's number in the stack and its file name.",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Frame %1$lld · %2$@ · left out"
+          }
+        }
+      }
+    },
+    "Frame %lld of %lld, %@" : {
+      "comment" : "VoiceOver value of the focus rail: the frame shown, its place of how many, and its file name.",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Frame %1$lld of %2$lld, %3$@"
+          }
+        }
+      }
+    },
+    "Frame %lld of %lld, %@, %@" : {
+      "comment" : "VoiceOver value of the focus rail: the frame shown, its place of how many, its file name, and its share of the result's pixels, formatted ('14%', '<1%').",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Frame %1$lld of %2$lld, %3$@, %4$@"
+          }
+        }
+      }
+    },
+    "Frame %lld of %lld, %@, left out" : {
+      "comment" : "VoiceOver value of the focus rail: the frame shown, which the stack left out. The placeholders are its place, how many frames there are, and its file name.",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Frame %1$lld of %2$lld, %3$@, left out"
+          }
+        }
+      }
+    },
+    "Frame %lld vs #%u" : {
+      "comment" : "The viewer's title on iPhone while comparing a frame with the result. The placeholders are the frame's number and the result's render number.",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Frame %1$lld vs #%2$u"
+          }
+        }
+      }
+    },
+    "Frame %lld, %@" : {
+      "comment" : "VoiceOver label of a frame in the list. The placeholders are its number and its file's name.",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Frame %1$lld, %2$@"
+          }
+        }
+      }
+    },
+    "Frame Missing" : {
+      "comment" : "Viewer empty-state title: the frame selected isn't where the list says."
+    },
+    "Frame vs #%u" : {
+      "comment" : "The viewer's title on iPhone while comparing a frame with the result. The placeholder is the result's render number."
+    },
+    "Frames" : {
+      "comment" : "Settings ▸ Storage: the header of the sections on where frames are read from and the copies Deptheos keeps.\nThe camera screen's menu of how many frames a bracket takes.\nThe side of the Frames | Renders switch at the head of the stack's sources that lists its frames, and the title of the iPhone's sheet of them.\nVoiceOver label of the focus rail, which steps through the stack's frames; its value is the frame shown.\niPhone toolbar button: opens the sheet on the stack's frames and renders, and closes it again."
+    },
+    "Frames picked one by one are always copied. To use them where they are, add their folder instead." : {
+      "comment" : "Add Frames sheet: the footer under the line about single frames picked in Files, from more than one folder."
+    },
+    "Frames picked one by one are copied. To use these where they are, choose their folder, \"%@\": Deptheos then reads them from it each time." : {
+      "comment" : "Add Frames sheet: the footer under the line about single frames picked in Files, all from one folder, and the Use Them Where They Are… button. The placeholder is the folder's name."
+    },
+    "Give this render a short label to tell it apart in Renders and Search. Leave empty to clear." : {
+      "comment" : "Rename Render alert's text."
+    },
+    "Hard" : {
+      "comment" : "High end of inline Hardness slider in Retouch."
+    },
+    "Hardness" : {
+      "comment" : "Brush slider, a name: how sharp the brush's edge is."
+    },
+    "HEIC" : {
+      "comment" : "A photo format in the camera's Format menu: Apple's processed photo. A file format's name."
+    },
+    "Hide Controls" : {
+      "comment" : "Menu bar View item: hides every control over the photo. A tap on the photo also hides them and shows them again."
+    },
+    "Hides this notice" : {
+      "comment" : "VoiceOver hint of the notice over the photo: a tap hides it."
+    },
+    "Hold still" : {
+      "comment" : "Camera status pill while a bracket's delay counts down before its first frame."
+    },
+    "Hold still and tap the shutter." : {
+      "comment" : "Hint on the camera screen in Bracket mode."
+    },
+    "Hold the shutter and move slowly toward the subject." : {
+      "comment" : "Hint on the camera screen in Sweep mode."
+    },
+    "Hornet" : {
+      "comment" : "Item of the Try a Sample Stack menu: the sample stack of a hornet. Its stack is named Hornet, untranslated, as a folder is."
+    },
+    "How to split" : {
+      "comment" : "New Batch: the choice of how folders become stacks (read by VoiceOver)."
+    },
+    "How to Split" : {
+      "comment" : "New Batch: the header of the section of how folders become stacks."
+    },
+    "iCloud Drive Not Connected" : {
+      "comment" : "The badge at the head of the Frames list: iCloud Drive, where its frames are, can't be reached."
+    },
+    "in %@" : {
+      "comment" : "New Batch: under a folder found with Add Subfolders of…. The placeholder is the name of the folder it was found in."
+    },
+    "In iCloud" : {
+      "comment" : "Under a frame's name in the list: it is in iCloud and not downloaded yet.\nViewer empty-state title: the frame selected is in iCloud and not downloaded."
+    },
+    "Include" : {
+      "comment" : "Includes a frame, or the frames selected, in the stack."
+    },
+    "Include All" : {
+      "comment" : "Frames list's ••• menu item: includes every frame."
+    },
+    "Include deeper folders" : {
+      "comment" : "New Batch: the switch that also stacks the folders inside the subfolders."
+    },
+    "iOS stopped the export in the background before it finished." : {
+      "comment" : "Alert text: the time iOS gave an export in the background ran out."
+    },
+    "iOS stopped the stack in the background before it finished." : {
+      "comment" : "Alert text: the time iOS gave a stack in the background ran out."
+    },
+    "It isn't where the list says. If its folder moved, find it with Locate… in Frames." : {
+      "comment" : "Viewer empty-state text under Frame Missing. Locate… is a command in the Frames list's menu."
+    },
+    "Jump To" : {
+      "comment" : "iPad Library sidebar: the section that scrolls to the stacks of a time span."
+    },
+    "Keep Only Starred" : {
+      "comment" : "Library tile menu item, off: the stack has no starred render, or nothing else to delete."
+    },
+    "Last Frame" : {
+      "comment" : "VoiceOver action of the focus rail under the photo: shows the stack's last frame."
+    },
+    "Lens" : {
+      "comment" : "The camera screen's menu of the back cameras (0.5×, 1×, 3×)."
+    },
+    "Less noise" : {
+      "comment" : "Settings: under the Denoise slider's high end."
+    },
+    "Library" : {
+      "comment" : "Back button at the leading edge of the Stacking screen's bar: back to the Library.\nMenu bar item: goes back to the Library from a stack.\nSettings ▸ Storage: the header of the section with Delete Library….\nTitle of the Library, the home screen with every stack."
+    },
+    "LibRaw keeps RAW files linear, as the camera recorded them: the result exports as DNG too, to develop later." : {
+      "comment" : "Settings: under RAW Decoder, with LibRaw chosen."
+    },
+    "License" : {
+      "comment" : "About Deptheos: the row that opens the app's license, and that page's title."
+    },
+    "Light" : {
+      "comment" : "VoiceOver label of the camera screen's switch for the torch."
+    },
+    "Locate…" : {
+      "comment" : "Frames list banner button, and the Frames head's menu while their drive isn't connected: points the list and renders at a folder that moved.\nSettings ▸ Storage ▸ Folders, a folder's menu while it can't be reached: picks where the folder is now, and its stacks and renders point there."
+    },
+    "Make a render from the working version" : {
+      "comment" : "Pointer tooltip of the Stack button."
+    },
+    "Make the frames and settings those of #%u" : {
+      "comment" : "Pointer tooltip of Revert, above Stack. The placeholder is the number of the render it reverts to."
+    },
+    "Max fps" : {
+      "comment" : "Burst rate in the camera screen's menu: as many frames a second as the camera can take."
+    },
+    "Median" : {
+
+    },
+    "Meter the Whole Picture" : {
+      "comment" : "In the camera screen's Exposure menu after a tap metered a point: meters the whole picture again."
+    },
+    "Method" : {
+      "comment" : "Settings: the heading over the stacking method's picker.\nSettings: the picker of the stacking method."
+    },
+    "Missing" : {
+      "comment" : "Settings ▸ Storage ▸ Folders: under a folder that isn't where it was, though what it is on is there.\nUnder a frame's name in the list: its file isn't where the list says."
+    },
+    "Mixed, softer" : {
+      "comment" : "Settings: under the Blend Range slider's high end."
+    },
+    "Mode" : {
+
+    },
+    "More" : {
+      "comment" : "Retouch toolbar menu for Zoom to Fit, Export, Pencil options and Reset Retouching.\nThe Frames list's menu of its other commands (Select, Include All, Exclude All, Remove All Frames, New Stack), before iOS 27."
+    },
+    "Name" : {
+      "comment" : "Rename Render alert: placeholder of the name field.\nRename Stack alert: placeholder of the name field."
+    },
+    "Narrow outlines" : {
+      "comment" : "Settings: under the Smoothing slider's low end."
+    },
+    "New" : {
+      "comment" : "iPhone Library's + menu: New Stack, Take Burst, New Batch… and Try a Sample Stack."
+    },
+    "New Batch" : {
+      "comment" : "The title of the sheet that sets up a batch."
+    },
+    "New Batch…" : {
+      "comment" : "Library: opens the New Batch sheet, which stacks many folders."
+    },
+    "New Stack" : {
+      "comment" : "Menu item: starts a new, empty stack."
+    },
+    "New Stack Instead" : {
+      "comment" : "Button on the Added frames notice: moves the newly added frames into a new stack of their own."
+    },
+    "Next Frame" : {
+      "comment" : "Menu bar View item: the next frame (key →)."
+    },
+    "Next Render" : {
+      "comment" : "Menu bar View item while comparing with a render: the next render in the Renders list (key →)."
+    },
+    "No delay" : {
+      "comment" : "A choice in the bracket's Delay menu: the bracket starts at once."
+    },
+    "No Failed Stacks" : {
+      "comment" : "Library empty-state title of the Failed filter."
+    },
+    "No Folders" : {
+      "comment" : "Settings ▸ Storage ▸ Folders: the empty-state title."
+    },
+    "No Frame Selected" : {
+      "comment" : "Viewer empty-state title: no frame is selected in the list."
+    },
+    "No frame shown" : {
+      "comment" : "VoiceOver value of the focus rail while no frame is shown (the result is, or a render compared with)."
+    },
+    "No frames" : {
+      "comment" : "Camera status pill as a sweep starts, before its first frame is saved."
+    },
+    "No Frames" : {
+      "comment" : "Frames list empty-state title.\nViewer empty-state title: the stack has no frames."
+    },
+    "No Other Renders" : {
+      "comment" : "Retouch's Renders list empty-state title: the stack has no render but the one retouched."
+    },
+    "No Renders" : {
+      "comment" : "The Renders list's empty-state title: the stack was never stacked."
+    },
+    "No Result Yet" : {
+      "comment" : "Viewer empty-state title: the stack has not been stacked yet."
+    },
+    "No Starred Renders" : {
+      "comment" : "Library empty-state title of the Starred filter."
+    },
+    "None" : {
+      "comment" : "Settings ▸ Storage: the Folders row when no folder is read where it is.\nSettings ▸ Storage: the Unused copies row when there are none.\nWhat the brush paints from: nothing is picked yet."
+    },
+    "None of the %lld frames were found in \"%@\" as they were. They may have been moved, renamed or changed." : {
+      "comment" : "Alert text after Locate…: none of the frames looked for are in the folder picked as they were (by name, size and contents). The placeholders are how many and the folder's name.",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "None of the %#@frames@ were found in \"%2$@\" as they were. They may have been moved, renamed or changed."
+          },
+          "substitutions" : {
+            "frames" : {
+              "argNum" : 1,
+              "formatSpecifier" : "lld",
+              "variations" : {
+                "plural" : {
+                  "one" : {
+                    "stringUnit" : {
+                      "state" : "translated",
+                      "value" : "%arg frame"
+                    }
+                  },
+                  "other" : {
+                    "stringUnit" : {
+                      "state" : "translated",
+                      "value" : "%arg frames"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "None of the files you picked are ones Deptheos reads." : {
+      "comment" : "Alert text after Add from Files: nothing picked is an image Deptheos reads."
+    },
+    "None of the photos could be read." : {
+      "comment" : "Alert text: none of the photos picked from Photos could be copied into Deptheos."
+    },
+    "not aligned" : {
+      "comment" : "After the label of a frame compared with the result: it couldn't be lined up with the result.\nNew Batch: in the line of settings every stack uses ('Pyramid · S4 · not aligned'). Lowercase."
+    },
+    "Not connected" : {
+      "comment" : "Under a frame's name in the list: the drive or server it is on isn't connected."
+    },
+    "Not Connected" : {
+      "comment" : "Settings ▸ Storage ▸ Folders: under a folder that can't be reached, when what it is on isn't known.\nViewer empty-state title: the frame selected is on a drive or server that isn't connected."
+    },
+    "Not Enough Space" : {
+      "comment" : "Title of the camera's alert when the device has too little room for a burst."
+    },
+    "Not enough space: the copy needs %@, and %@ is free." : {
+      "comment" : "Add Frames sheet: the warning when the device hasn't room for the copy. The placeholders are sizes, such as '14.2 GB': what the copy needs and what is free.",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Not enough space: the copy needs %1$@, and %2$@ is free."
+          }
+        }
+      }
+    },
+    "Not stacked yet" : {
+      "comment" : "On a Library tile of a stack with frames and no render yet, and under the stack's name while it has none."
+    },
+    "Not Stacked Yet" : {
+      "comment" : "Library heading over the stacks that have frames and no render yet."
+    },
+    "Nothing to stack: %@" : {
+      "comment" : "Notice after Start in the Batch sheet when the plan has no stacks. The placeholder is the engine's summary of the plan."
+    },
+    "Off" : {
+      "comment" : "Choice of what squeezing Apple Pencil Pro does: nothing.\nValue shown on Color Match chip when disabled.\nVoiceOver value of a camera screen switch (focus peaking, the light) that is off.\niPhone Settings, beside Alignment: frames aren't aligned."
+    },
+    "OK" : {
+      "comment" : "Add Frames sheet: closes it after it said what went wrong.\nButton that closes an error alert."
+    },
+    "On" : {
+      "comment" : "VoiceOver value of a camera screen switch (focus peaking, the light) that is on."
+    },
+    "on %@" : {
+      "comment" : "Add Frames sheet: where a picked folder is, in the line under its name ('214 frames · 14.2 GB · on T7 SSD'). The placeholder is a drive's or server's name."
+    },
+    "On %@" : {
+      "comment" : "The badge at the head of the Frames list: where its frames are read from. The placeholder is a drive's or a server's name."
+    },
+    "on iCloud Drive" : {
+      "comment" : "Add Frames sheet: a picked folder is in iCloud Drive, in the line under its name ('214 frames · 14.2 GB · on iCloud Drive')."
+    },
+    "On iCloud Drive" : {
+      "comment" : "The badge at the head of the Frames list: its frames are read from iCloud Drive."
+    },
+    "on the drive" : {
+      "comment" : "Add Frames sheet: a picked folder is on a drive with no name, in the line under its name ('214 frames · 14.2 GB · on the drive')."
+    },
+    "On the drive" : {
+      "comment" : "The badge at the head of the Frames list: its frames are read from a drive with no name."
+    },
+    "on the server" : {
+      "comment" : "Add Frames sheet: a picked folder is on a server with no name, in the line under its name ('214 frames · 14.2 GB · on the server')."
+    },
+    "On the server" : {
+      "comment" : "The badge at the head of the Frames list: its frames are read from a server with no name."
+    },
+    "One frame per spot" : {
+      "comment" : "Settings: under the Blend Range slider's low end."
+    },
+    "One stack per folder" : {
+      "comment" : "New Batch, How to Split: each folder becomes one stack."
+    },
+    "Only Apple Pencil paints; tap to also paint with a finger" : {
+      "comment" : "Pointer tooltip of the Pencil Only status pill in Retouch on iPad."
+    },
+    "Only Pencil paints" : {
+      "comment" : "Switch in Retouch's Brush panel and Settings ▸ Retouch (iPad): a finger pans and zooms rather than paints.\nSwitch in Retouch's options menu (iPad): a finger pans and zooms rather than paints.\nVoiceOver label of the Pencil Only status pill in Retouch on iPad."
+    },
+    "Only These" : {
+      "comment" : "Bar while selecting frames: includes the frames selected and excludes the rest."
+    },
+    "Only where colors match" : {
+      "comment" : "Brush switch: paint only where the source's colors are close to the result's."
+    },
+    "Opacity" : {
+      "comment" : "Brush slider, a name: how much one stroke paints at most."
+    },
+    "Open" : {
+      "comment" : "Library tile menu item: opens the stack in Stacking."
+    },
+    "Open Settings" : {
+      "comment" : "Camera screen button when camera access is off: opens Deptheos's page in the Settings app.\nExport sheet alert button when Photos access is off: opens Deptheos's page in the Settings app."
+    },
+    "Open to Retry" : {
+      "comment" : "Failed tile menu item: opens the stack's frames and settings to stack them again."
+    },
+    "Opening for Retouch…" : {
+      "comment" : "Retouch: the label at the top of the photo while the render opens for painting, which can't start until it has."
+    },
+    "Opening to export" : {
+      "comment" : "VoiceOver label of the spinner on a tile while its render loads for Export."
+    },
+    "Opens its frames and settings in Stacking" : {
+      "comment" : "VoiceOver hint of a Library tile of a stack with no render yet."
+    },
+    "Opens its frames and settings in Stacking to try again." : {
+      "comment" : "VoiceOver hint of a failed Library tile."
+    },
+    "Original" : {
+      "comment" : "What the brush paints from: the render as stacked, which the eraser and Original in the Paint From menu under the photo paint back. After 'Source · ' over the source's picture."
+    },
+    "Paint From" : {
+      "comment" : "Title of the iPad column in paint mode: the frames and renders the brush can paint from.\nVoiceOver label and pointer tooltip of the Paint From menu under the photo in Retouch: the frames, the renders and the original the brush can paint from. Its value is what is painted from."
+    },
+    "Paint over the result from a frame or another render" : {
+      "comment" : "Pointer tooltip of the Retouch button."
+    },
+    "Painted" : {
+      "comment" : "Retouch: the label over the painted result beside or under its source, and the layout menu's item for the painted result alone."
+    },
+    "Painted from" : {
+      "comment" : "Marks a frame or render the result has paint from, in the Paint From list."
+    },
+    "Paints the render back as stacked" : {
+      "comment" : "Under Original, the last item of the Paint From menu under the photo in Retouch."
+    },
+    "Pencil Only" : {
+      "comment" : "Status pill in Retouch on iPad when Only Pencil paints is enabled; tapping allows finger painting."
+    },
+    "Per Frame" : {
+
+    },
+    "Photo Size" : {
+      "comment" : "The camera screen's menu of photo sizes (12 MP, 48 MP)."
+    },
+    "Photos Access Off" : {
+      "comment" : "Alert title when Save to Photos is tapped without permission to add to the Photos library."
+    },
+    "Previous Frame" : {
+      "comment" : "Menu bar View item: the frame before (key ←)."
+    },
+    "Previous Render" : {
+      "comment" : "Menu bar View item while comparing with a render: the render before in the Renders list (key ←)."
+    },
+    "Privacy Policy" : {
+      "comment" : "About Deptheos: the link to the privacy policy on the website."
+    },
+    "Pyramid" : {
+      "comment" : "The name of a stacking method, Pyramid."
+    },
+    "Quality %lld" : {
+      "comment" : "Export sheet: the JPEG quality slider's label. The placeholder is the quality, from 1 to 100."
+    },
+    "Radius" : {
+      "comment" : "Settings, Depth's Advanced: a slider, a name."
+    },
+    "Radius, blend range" : {
+      "comment" : "Settings, for Depth: beside Advanced, what it holds."
+    },
+    "Range" : {
+
+    },
+    "RAW" : {
+      "comment" : "A photo format in the camera's Format menu: the sensor's data, saved as DNG. Always capitalized."
+    },
+    "RAW + JPEG pairs" : {
+      "comment" : "Frames list: the picker for shots that have both a RAW and a JPEG file."
+    },
+    "RAW Decoder" : {
+      "comment" : "Settings: the picker of who decodes camera RAW files, Apple or LibRaw."
+    },
+    "Reading Frames…" : {
+      "comment" : "Frames list: the last row while frames added are being read into the list."
+    },
+    "Recently Deleted" : {
+      "comment" : "The Library's row (iPad: its sidebar's) that opens the list of stacks and renders deleted in the last 30 days, and that list's title."
+    },
+    "Redo" : {
+      "comment" : "Paint mode toolbar: does the stroke taken back again."
+    },
+    "Remove" : {
+      "comment" : "New Batch: the swipe action that takes a folder out of the batch.\nSwipe action on a frame: takes it out of the list."
+    },
+    "Remove All" : {
+      "comment" : "Destructive button of the Remove all frames? dialog."
+    },
+    "Remove All Frames" : {
+      "comment" : "Frames list's ••• menu item: empties the list."
+    },
+    "Remove all frames?" : {
+      "comment" : "Title of the dialog after Remove All Frames, for a stack never stacked."
+    },
+    "Remove from List" : {
+      "comment" : "Bar while selecting frames: takes the frames selected out of the list."
+    },
+    "Rename" : {
+      "comment" : "Rename Render alert: gives the render the name typed.\nRename Stack alert: gives the stack the name typed."
+    },
+    "Rename Render" : {
+      "comment" : "Title of the alert that renames a render."
+    },
+    "Rename Render…" : {
+      "comment" : "Render menu item: asks for a custom name for this render."
+    },
+    "Rename Stack" : {
+      "comment" : "Title of the alert that renames a stack."
+    },
+    "Rename Stack…" : {
+      "comment" : "Stack menu item: asks for a new name for the stack."
+    },
+    "Render" : {
+      "comment" : "A render whose number isn't known, where '#4' would name it."
+    },
+    "Render Info" : {
+      "comment" : "Title menu, a render's menu in the Renders list and Stack menu item (⌘I): shows a render's frames and settings as stacked, read-only."
+    },
+    "Render vs #%u" : {
+      "comment" : "The viewer's title on iPhone while comparing a render with the result. The placeholder is the result's render number."
+    },
+    "Renders" : {
+      "comment" : "The side of the Frames | Renders switch at the head of the stack's sources that lists its renders."
+    },
+    "Renders of This Stack" : {
+      "comment" : "Header of the menu section listing the stack's other renders, and the VoiceOver label and pointer tooltip of the menu of the stack's renders under the photo."
+    },
+    "Reset" : {
+      "comment" : "Destructive button of the Reset the retouching? dialog."
+    },
+    "Reset Retouching…" : {
+      "comment" : "Retouch menu button: asks, then takes the result back to as stacked."
+    },
+    "Reset Settings" : {
+      "comment" : "Settings button: puts the method's sliders back to their defaults."
+    },
+    "Reset the retouching?" : {
+      "comment" : "Title of the dialog after Reset Retouching…."
+    },
+    "Reset to Defaults" : {
+      "comment" : "Settings: the button at the end of a page that sets every option on it back to its default."
+    },
+    "Restarting in reverse order" : {
+      "comment" : "Stack progress: the stack starts again from the last frame."
+    },
+    "Restarting in reverse order %u of %u" : {
+      "comment" : "Stack progress: the stack runs again from the last frame. The placeholders are the frame's number and how many frames there are.",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Restarting in reverse order %1$u of %2$u"
+          }
+        }
+      }
+    },
+    "Restore" : {
+      "comment" : "Recently Deleted: a row's button, swipe action and menu item that put it back in the Library."
+    },
+    "Restore %lld Items" : {
+      "comment" : "Recently Deleted's bottom button while selecting: puts the rows selected back. The placeholder is how many.",
+      "localizations" : {
+        "en" : {
+          "variations" : {
+            "plural" : {
+              "one" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "Restore %lld Item"
+                }
+              },
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "Restore %lld Items"
+                }
+              },
+              "zero" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "Restore"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "Result" : {
+      "comment" : "The label over the result in the viewer, when its render's number isn't known.\nView menu item (key 1): the result alone, not compared."
+    },
+    "Result · #%u" : {
+      "comment" : "The label over the result in the viewer. The placeholder is the render's number."
+    },
+    "Results" : {
+
+    },
+    "Retouch" : {
+      "comment" : "Prominent deck button when viewing a clean render: opens Retouch.\nSettings: the page on Apple Pencil in Retouch (iPad), its row and title.\nToolbar button: opens paint mode on the result."
+    },
+    "Retouching" : {
+      "comment" : "The title in paint mode, when the render's number isn't known."
+    },
+    "Retouching #%u" : {
+      "comment" : "The title in paint mode. The placeholder is the number of the render being retouched."
+    },
+    "Retry" : {
+      "comment" : "Retouch: the button on the card over a canvas that couldn't be opened; opens the render for retouching again."
+    },
+    "Revert" : {
+      "comment" : "Button beside the change line above Stack, and the destructive button of the dialog it may ask with: makes the working version the frames and settings of the render shown."
+    },
+    "Revert to #%u" : {
+      "comment" : "Menu item (the menu bar's Stack menu, a render's menu in the Renders list): makes the working version that render's frames and settings, based on it. The placeholder is its number."
+    },
+    "Run Benchmark" : {
+
+    },
+    "Save to Files…" : {
+      "comment" : "Export sheet: saves the exported file in the Files app."
+    },
+    "Save to Photos" : {
+      "comment" : "Export sheet: saves the exported file directly to the Photos library."
+    },
+    "Saved to Photos." : {
+      "comment" : "Notice after saving an exported render to the Photos library."
+    },
+    "Saving" : {
+      "comment" : "Stack progress: the result is made and being saved."
+    },
+    "Saving %lld frames" : {
+      "comment" : "Camera status pill while a sweep's frames are saved. The placeholder is how many.",
+      "localizations" : {
+        "en" : {
+          "variations" : {
+            "plural" : {
+              "one" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "Saving %lld frame"
+                }
+              },
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "Saving %lld frames"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "Select" : {
+      "comment" : "Frames list's ••• menu item: starts selecting frames.\nRecently Deleted's bar: selects rows to restore several at once.\niPhone Frames list head: starts selecting frames."
+    },
+    "Select frames" : {
+      "comment" : "Bar while selecting frames, before any is selected."
+    },
+    "Send Diagnostics…" : {
+      "comment" : "Settings ▸ Diagnostics: the button that zips the log and opens the share sheet."
+    },
+    "Server Not Connected" : {
+      "comment" : "The badge at the head of the Frames list: the server with no name its frames are on isn't connected."
+    },
+    "Settings" : {
+      "comment" : "The Library's gear button, and the title of the sheet it opens: the app's options."
+    },
+    "Share JSON…" : {
+
+    },
+    "Share…" : {
+      "comment" : "Export sheet: opens the system's share sheet with the exported file."
+    },
+    "Sharpest Frame" : {
+      "comment" : "Button under the photo in Retouch (VoiceOver label): the next tap on the photo paints from the frame sharpest there."
+    },
+    "Show" : {
+      "comment" : "Settings button: shows the frames the stack left out in the list.\nVoiceOver label of the Frames | Renders switch at the head of the stack's sources.\niPhone Library: the filter picker's label (hidden; read by VoiceOver)."
+    },
+    "Show Controls" : {
+      "comment" : "Menu bar View item while the controls over the photo are hidden: shows them again."
+    },
+    "Show or hide the frames and renders" : {
+      "comment" : "Pointer tooltip of the iPhone's Frames button: opens or closes the sheet on the frames and renders."
+    },
+    "Show or hide the method, its sliders and alignment" : {
+      "comment" : "Pointer tooltip of the Stack Settings button: opens the Stack Settings popover.\nPointer tooltip of the iPhone's Stack Settings button: opens or closes the sheet on Stack Settings."
+    },
+    "Show the result alone" : {
+      "comment" : "Pointer tooltip of the render shown, under the photo."
+    },
+    "Show the source" : {
+      "comment" : "VoiceOver label of the eye under the photo in Retouch: shows what the brush paints from in place of the painted result."
+    },
+    "Show the Source" : {
+      "comment" : "Choice of what squeezing Apple Pencil Pro does: show what the brush paints from in place of the painted result, or the painted result again, one squeeze each."
+    },
+    "Show Whole Map" : {
+      "comment" : "VoiceOver action on the Depth Map label while a frame is lit on the map: shows the map whole again, no frame lit."
+    },
+    "Showing the first frame's focus." : {
+      "comment" : "Hint on the camera screen while the bracket's first-frame slider is dragged and the lens shows the first frame's focus."
+    },
+    "Showing the last frame's focus." : {
+      "comment" : "Hint on the camera screen while the bracket's step slider is dragged and the lens shows the last frame's focus."
+    },
+    "Showing the result" : {
+      "comment" : "VoiceOver value of Flip in Flicker: the result is shown."
+    },
+    "Showing what it is compared with" : {
+      "comment" : "VoiceOver value of Flip in Flicker: the frame or render is shown in place of the result."
+    },
+    "Shows every stack" : {
+      "comment" : "VoiceOver hint of the back button to the Library."
+    },
+    "Shows the result alone." : {
+      "comment" : "VoiceOver hint of the render shown, under the photo: a tap shows the result alone."
+    },
+    "Shows the stack in the viewer" : {
+      "comment" : "VoiceOver hint of the iPhone bar with a batch's progress."
+    },
+    "Shutter" : {
+      "comment" : "VoiceOver label of the camera screen's shutter button."
+    },
+    "Side by Side" : {
+      "comment" : "Compare layout: the result beside what it is compared with. In the view menu under the photo and the View menu."
+    },
+    "Size" : {
+      "comment" : "Brush slider, a name: the brush's size."
+    },
+    "Slow shutter" : {
+      "comment" : "VoiceOver label of the camera's exposure readout when a sweep's shutter time is slow enough to blur."
+    },
+    "Smoothing" : {
+      "comment" : "Settings: the Depth method's main slider, a name."
+    },
+    "Smoothness" : {
+      "comment" : "Settings: the Pyramid method's slider, a name."
+    },
+    "Soft" : {
+      "comment" : "Low end of inline Hardness slider in Retouch."
+    },
+    "Source" : {
+      "comment" : "Label over the frame shown while the result is touched and held, when its number isn't known.\nRetouch tray tab: choose the frame or render to paint from."
+    },
+    "Source · %@" : {
+      "comment" : "Label over the picture in paint mode while the source is shown. The placeholder is the source, such as 'Frame 23', '#3' or 'Original'."
+    },
+    "Source · Frame %lld" : {
+      "comment" : "Label over the frame shown while the result is touched and held. The placeholder is the frame's number."
+    },
+    "Source Code" : {
+      "comment" : "About Deptheos: the link to the app's source code on GitHub."
+    },
+    "Split" : {
+      "comment" : "Compare layout: the result and what it is compared with, split by a divider. In the view menu under the photo and the View menu."
+    },
+    "Squeeze" : {
+      "comment" : "Settings ▸ Retouch: the picker of what squeezing Apple Pencil Pro does."
+    },
+    "Stack" : {
+      "comment" : "Menu bar: the menu of what is done with the stack on screen.\nThe Stack button: makes a render from the working version."
+    },
+    "Stack again with other settings to have another render to paint from." : {
+      "comment" : "Retouch's Renders list empty-state text."
+    },
+    "Stack and render names" : {
+      "comment" : "Placeholder of the Library's search field: what it searches."
+    },
+    "Stack Settings" : {
+      "comment" : "Button that shows or hides the stack's settings (an anchored popover at regular width, a sheet at compact width), and its title."
+    },
+    "Stack Them" : {
+      "comment" : "Button of the camera's Cut Short alert: stacks the frames that were taken."
+    },
+    "Stack These" : {
+      "comment" : "Bar while selecting frames: stacks the included frames among those selected."
+    },
+    "Stack With" : {
+      "comment" : "The camera screen's menu of the stacking method a burst is stacked with."
+    },
+    "Stacking %@" : {
+      "comment" : "Title of the system's progress for a stack running in the background. The placeholder is the stack's name."
+    },
+    "Stacks and renders stay here for 30 days, then are deleted for good. Restore puts one back with its renders and retouching." : {
+      "comment" : "Recently Deleted: the footer under its list, on how long things stay and what Restore does."
+    },
+    "Star" : {
+      "comment" : "Library tile menu item: stars the stack's one render.\nRender menu item: marks the render to keep."
+    },
+    "Star #%u" : {
+      "comment" : "Library tile menu item: stars the render the tile shows. The placeholder is its number."
+    },
+    "Starred" : {
+      "comment" : "Library filter (iPhone picker): stacks with a starred render.\nVoiceOver, in Render Info: the render is starred.\niPad Library: title and sidebar row of the filter showing stacks with a starred render."
+    },
+    "Start" : {
+      "comment" : "New Batch: starts the batch."
+    },
+    "Starting" : {
+      "comment" : "Stack progress: the stack is starting."
+    },
+    "Starting %u of %u" : {
+      "comment" : "Stack progress: the stack is starting. The placeholders are the frame's number and how many frames there are.",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Starting %1$u of %2$u"
+          }
+        }
+      }
+    },
+    "Starting camera" : {
+      "comment" : "Camera status pill while the camera starts."
+    },
+    "Starts a sweep; activate again to end it." : {
+      "comment" : "VoiceOver hint of the shutter in Sweep mode."
+    },
+    "Steadier" : {
+      "comment" : "Settings: under the Radius slider's high end."
+    },
+    "Step" : {
+      "comment" : "Label of the bracket's slider for the lens travel between frames."
+    },
+    "Storage" : {
+      "comment" : "Settings: the page on the folders read where they are, the copies Deptheos keeps and Delete Library…, its row and title."
+    },
+    "Sweep" : {
+      "comment" : "A camera mode: hold the shutter while moving toward the subject. A name, capitalized."
+    },
+    "Sweep Cut Short" : {
+      "comment" : "Title of the camera's alert when a sweep stopped before it was let go, with frames to stack."
+    },
+    "Switch between the result and what it is compared with" : {
+      "comment" : "Pointer tooltip of Flip in Flicker."
+    },
+    "Switch to Eraser" : {
+      "comment" : "Choice of what squeezing Apple Pencil Pro does: switch between the brush and the eraser."
+    },
+    "Take a burst, or add a focus bracket from Photos or Files." : {
+      "comment" : "Viewer empty-state text under No Frames."
+    },
+    "Take a burst, or add frames from Photos or Files." : {
+      "comment" : "Frames list empty-state text, over its Take Burst, Add from Photos…, Add from Files… and Add Folder… buttons."
+    },
+    "Take Burst" : {
+      "comment" : "Opens the camera to take a burst."
+    },
+    "Takes a bracket: one photo at each focus step." : {
+      "comment" : "VoiceOver hint of the shutter in Bracket mode."
+    },
+    "Tap a frame in the list." : {
+      "comment" : "Viewer empty-state text under No Frame Selected."
+    },
+    "Tap the photo to paint from the frame sharpest there" : {
+      "comment" : "Retouch: the hint over the photo while Sharpest Frame is on, and that button's VoiceOver hint and pointer tooltip."
+    },
+    "Tap the shutter to cancel." : {
+      "comment" : "Hint on the camera screen while a bracket counts down or is taken."
+    },
+    "Tap to also paint with a finger" : {
+      "comment" : "VoiceOver hint of the Pencil Only status pill in Retouch on iPad."
+    },
+    "Tap to open and retry" : {
+      "comment" : "Under a failed Library tile: a tap opens its frames and settings to stack again."
+    },
+    "That folder doesn't hold the frames you picked. Choose the folder they are in, or add them as copies." : {
+      "comment" : "Alert text in the Add Frames sheet after Use Them Where They Are…: the folder picked is not the one the picked frames are in."
+    },
+    "The burst had fewer than 2 frames, so it wasn't stacked. In Sweep, keep holding the shutter while you move." : {
+      "comment" : "Alert text: a camera burst too short to stack. Sweep is the name of a camera mode."
+    },
+    "The burst is saved in Captures but couldn't be read to stack it. %@ Add it from Files." : {
+      "comment" : "Alert text: a camera burst's frames couldn't be listed to make a stack. The placeholder is the engine's sentence saying why. Captures is the name of the app's folder and Files the system app."
+    },
+    "The burst is saved in Captures but wasn't stacked, because Deptheos was busy. Add it from Files when it finishes." : {
+      "comment" : "Alert text: a camera burst finished while a stack or batch ran. Captures is the name of the app's folder and Files the system app."
+    },
+    "The burst stopped because a frame couldn't be saved. %@" : {
+      "comment" : "Shown on the camera screen when a burst's frame couldn't be written. The placeholder is the system's own sentence about why."
+    },
+    "The burst stopped because the camera dropped several frames in a row." : {
+      "comment" : "Error when a camera burst was cut short because several of its frames in a row couldn't be taken."
+    },
+    "The burst stopped because this device is almost full." : {
+      "comment" : "Error when a camera burst was cut short because the device's free space ran low."
+    },
+    "The burst stopped because this device is full. Free up space, then take the burst again." : {
+      "comment" : "Shown on the camera screen when a burst's frame couldn't be written because the device is full."
+    },
+    "The burst was canceled." : {
+      "comment" : "Error when a camera burst was canceled before it finished; its frames are discarded."
+    },
+    "The burst was interrupted." : {
+      "comment" : "Error when a camera burst was cut short by a call, another app or the camera stopping."
+    },
+    "The camera couldn't be set up. Close the camera and open it again." : {
+      "comment" : "Shown on the camera screen when the camera couldn't be set up."
+    },
+    "The camera is paused." : {
+      "comment" : "Hint on the camera screen while the camera is interrupted for another reason."
+    },
+    "The camera paused to let the device cool down." : {
+      "comment" : "Hint on the camera screen while the device is too hot for the camera."
+    },
+    "The camera pauses in Split View and Slide Over. Make Deptheos full screen to shoot." : {
+      "comment" : "Hint on the camera screen while Deptheos shares the screen with another app."
+    },
+    "The camera stopped. Close it and open it again." : {
+      "comment" : "Hint on the camera screen after the camera stopped with an error it didn't recover from."
+    },
+    "The diagnostics file couldn't be made" : {
+      "comment" : "Alert title when Send Diagnostics… couldn't zip the log."
+    },
+    "The export stopped when you left Deptheos, and iOS gave it no time to finish in the background." : {
+      "comment" : "Alert text: an export stopped because the app went to the background."
+    },
+    "The folders in Imports that no stack or render uses are deleted. This can't be undone." : {
+      "comment" : "Settings ▸ Storage: the message of the dialog that confirms Delete Unused Copies…."
+    },
+    "The folders whose frames Deptheos reads where they are, on this device, a drive or a server." : {
+      "comment" : "Settings ▸ Storage: the footer under the Folders row."
+    },
+    "The frame or render you picked couldn't be loaded to compare with this result." : {
+      "comment" : "Alert text: what the result was to be compared with couldn't be loaded."
+    },
+    "The frame wasn't found in \"%@\" as it was. It may have been moved, renamed or changed." : {
+      "comment" : "Alert text after Locate…: the one frame looked for isn't in the folder picked as it was (by name, size and contents). The placeholder is the folder's name."
+    },
+    "The frames are copied, so they stay available whatever happens to the photos." : {
+      "comment" : "Add Frames sheet: the footer under the folders while Copy into Deptheos is on."
+    },
+    "The frames are copied, so they stay available whatever happens to the photos. Uses %@ on this device." : {
+      "comment" : "Add Frames sheet: the footer under the folders while Copy into Deptheos is on. The placeholder is the copy's size, such as '14.2 GB'."
+    },
+    "The frames directly inside each folder are stacked; folders inside it are not. Add Subfolders of… stacks each folder inside the one you pick." : {
+      "comment" : "New Batch: the footer under the folders."
+    },
+    "The Library is empty." : {
+      "comment" : "Settings ▸ Storage: the footer under Delete Library… when there is nothing to delete."
+    },
+    "The Library is still being read." : {
+      "comment" : "Settings ▸ Storage: the footer under Delete Library… while the Library hasn't been read yet."
+    },
+    "The list" : {
+      "comment" : "New Batch: the name a batch gives the stacks made from the frames in the list, alone or before a folder's name ('The list · bee')."
+    },
+    "The photos of one subject, each focused a little nearer or farther than the one before. Deptheos stacks them into one picture, sharp throughout." : {
+      "comment" : "Library empty-state text under Add a Focus Bracket, over its Add Folder…, Add from Photos…, Add from Files…, Take Burst and Try a Sample Stack buttons: what a focus bracket is, and what the app makes of it."
+    },
+    "The renders couldn't be pointed at the new folder. %@" : {
+      "comment" : "Alert text after Locate…: the renders couldn't follow the folder picked. The placeholder is the engine's sentence saying why."
+    },
+    "The sample stack couldn't be copied into Deptheos." : {
+      "comment" : "Alert text after Try a Sample Stack, when there is no reason to give."
+    },
+    "The stack can't start" : {
+      "comment" : "Alert title when Stack is tapped and the frames can't be stacked."
+    },
+    "The stack didn't finish" : {
+      "comment" : "Alert title when a stack fails; the text says why."
+    },
+    "The stack goes on in the background while iOS allows it. Where iOS doesn't, leaving the app stops the stack." : {
+      "comment" : "Under a running stack's progress in Settings."
+    },
+    "The stack stopped when you left Deptheos, and iOS gave it no time to finish in the background." : {
+      "comment" : "Alert text: a stack stopped because the app went to the background."
+    },
+    "There isn't enough space to copy these frames into Deptheos: they need %@ and %@ is free. Free up space, then add them again." : {
+      "comment" : "Alert text after Add from Files. The placeholders are sizes, such as '2.1 GB': what the copy needs and what the device has free.",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "There isn't enough space to copy these frames into Deptheos: they need %1$@ and %2$@ is free. Free up space, then add them again."
+          }
+        }
+      }
+    },
+    "These are frames copied into Deptheos from Photos or Files that no stack or render uses any more. They are in Files, under On My iPad ▸ Deptheos ▸ Imports." : {
+      "comment" : "Settings ▸ Storage: the footer on an iPad. 'On My iPad' is the location as the Files app names it."
+    },
+    "These are frames copied into Deptheos from Photos or Files that no stack or render uses any more. They are in Files, under On My iPhone ▸ Deptheos ▸ Imports." : {
+      "comment" : "Settings ▸ Storage: the footer on an iPhone. 'On My iPhone' is the location as the Files app names it."
+    },
+    "These frames were never stacked, so the list can't be brought back. The files stay where they are." : {
+      "comment" : "Text of the Remove all frames? dialog."
+    },
+    "Thin detail" : {
+      "comment" : "Settings: under the Radius slider's low end."
+    },
+    "Third-Party Notices" : {
+      "comment" : "About Deptheos: the row that opens the licenses of the software Deptheos includes, and that page's title."
+    },
+    "This bracket needs about %@ and %@ is free." : {
+      "comment" : "Message of the camera's Not Enough Space alert. The placeholders are sizes with their units ('260 MB')."
+    },
+    "This camera can't step its focus. Use Sweep instead." : {
+      "comment" : "Hint on the camera screen in Bracket mode on a camera whose lens can't be stepped."
+    },
+    "This copy of Deptheos is missing \"%@.%@\". Reinstall Deptheos to read it." : {
+      "comment" : "Shown in place of the license or the notices when the app's copy of the file is missing. The placeholders are the file's name and its extension, such as LICENSE and md.",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "This copy of Deptheos is missing \"%1$@.%2$@\". Reinstall Deptheos to read it."
+          }
+        }
+      }
+    },
+    "This device has no back camera." : {
+      "comment" : "Shown on the camera screen on a device without a back camera."
+    },
+    "This frame isn't downloaded. Stack downloads the frames it needs." : {
+      "comment" : "Viewer empty-state text under In iCloud."
+    },
+    "Throughput" : {
+
+    },
+    "Times Pyramid + ECC end to end (disk read, decode, align, stack, and viewer image). Thorough matches `deptheos bench --live --repeat 5 --cool 30`." : {
+
+    },
+    "Today" : {
+      "comment" : "Library, the heading over the stacks made today."
+    },
+    "Top and Bottom" : {
+      "comment" : "Compare layout: the result below what it is compared with. In the view menu under the photo and the View menu."
+    },
+    "Touch and hold the eye to see the source" : {
+      "comment" : "Retouch: the hint shown for a moment over the deck under the photo, and the eye's help, when a finger paints too."
+    },
+    "Touch and hold to see the source" : {
+      "comment" : "Paint mode hint, when only Apple Pencil paints: a finger's touch and hold shows the source."
+    },
+    "Touch and hold to see the source frame" : {
+      "comment" : "VoiceOver hint on the result: touch and hold shows the frame selected in its place."
+    },
+    "Try a Sample Stack" : {
+      "comment" : "Button of the empty Library and item of the Library's + menu: opens a menu of the focus brackets that come with the app. The one picked is copied into Deptheos and opened as a new stack, ready to stack."
+    },
+    "uncropped" : {
+      "comment" : "New Batch: in the line of settings every stack uses ('Pyramid · S4 · aligned · uncropped'). Lowercase.\niPhone Settings, beside Alignment, after the aligner's name: the result isn't cropped."
+    },
+    "Undo" : {
+      "comment" : "Button of the notice after a delete: puts back what was just deleted.\nPaint mode toolbar: takes back the last stroke."
+    },
+    "Unstar" : {
+      "comment" : "Library tile menu item: takes the star off the stack's one render.\nRender menu item: takes the star off the render."
+    },
+    "Unstar #%u" : {
+      "comment" : "Library tile menu item: takes the star off the render the tile shows. The placeholder is its number."
+    },
+    "Untitled stack" : {
+      "comment" : "The name of a stack that has no name and no folder to be named after."
+    },
+    "Unused copies" : {
+      "comment" : "Settings ▸ Storage: the row showing how many copied folders no stack or render uses, and their size."
+    },
+    "Use JPEG" : {
+      "comment" : "Pairs picker: stack the JPEG file of each shot that has both."
+    },
+    "Use RAW" : {
+      "comment" : "Pairs picker: stack the RAW file of each shot that has both."
+    },
+    "Use the list (%lld)" : {
+      "comment" : "New Batch: the switch that adds the frames in the list to the batch. The placeholder is how many frames the list has."
+    },
+    "Use Them Where They Are…" : {
+      "comment" : "Add Frames sheet: the button under the line about single frames picked in Files, all from one folder. It opens Files to pick that folder, so the frames are read from it and not copied."
+    },
+    "Verbose logging" : {
+      "comment" : "Settings ▸ Diagnostics: the switch that adds detail to the log for bug reports."
+    },
+    "Verbose logging adds detail to the log until Deptheos quits. Send Diagnostics… shares the log of Deptheos's recent launches, as a file to email to support@deptheos.com." : {
+      "comment" : "Settings ▸ Diagnostics: the footer under Verbose logging and Send Diagnostics…."
+    },
+    "Version" : {
+      "comment" : "About Deptheos: the row showing the app's version and build."
+    },
+    "View" : {
+      "comment" : "Retouch tray tab: choose Painted, Split, Side by Side, Top and Bottom, or Depth Map.\nVoiceOver label of the view menu under the photo (Result, the compare layouts, Compare With, Contribution, Depth Map; in Retouch Painted, the layouts, Depth Map); its value is what is on, such as Split or Depth Map."
+    },
+    "Wavelet" : {
+      "comment" : "The name of a stacking method, Wavelet."
+    },
+    "Within" : {
+      "comment" : "Brush slider, a name, under Only where colors match: how close the colors must be."
+    },
+    "Working out the stacks…" : {
+      "comment" : "New Batch: the summary line while the first plan is made."
+    },
+    "Yesterday" : {
+      "comment" : "Library, the heading over the stacks made yesterday."
+    },
+    "Zoom to Fit" : {
+      "comment" : "View menu item (key F): fits the picture to the view."
+    }
+  },
+  "version" : "1.0"
+}

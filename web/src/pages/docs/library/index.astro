@@ -1,0 +1,141 @@
+---
+import DocsLayout from "../../../layouts/DocsLayout.astro";
+---
+
+<DocsLayout
+  docKey="library"
+  title="Your Library and backups"
+  description="What the Deptheos Library holds, where it is, backing it up and restoring it, Recently Deleted, and what Delete Library deletes."
+>
+  <div class="prose">
+    <h1>Your Library and backups</h1>
+    <p class="lede">
+      Everything you make in Deptheos is kept in its Library: every render, its settings and its retouching.
+      Your frames are not in it, and are never changed. This page says what the Library holds, where it is, how
+      to back it up, and what deleting does.
+    </p>
+  </div>
+
+  <section id="holds">
+    <div class="prose">
+      <h2>What the Library holds</h2>
+      <ul>
+        <li>
+          <strong>Each render:</strong> its result, saved without loss, its depth map, a thumbnail, the list of
+          frames it was made from with which were included, the method and settings, and any retouching painted
+          on it.
+        </li>
+        <li><strong>Each stack:</strong> its name, its renders' numbering, and the frames and settings you were editing.</li>
+        <li><strong>Failed stacks</strong> from a batch, so you can try them again.</li>
+        <li><strong>Recently Deleted:</strong> what you deleted in the last 30 days (below).</li>
+        <li>
+          <strong>Where your frames are:</strong> the folders the renders' frames were read from. A render names
+          its frames; it doesn't hold a copy of them.
+        </li>
+      </ul>
+      <p>
+        Renders take room, since each holds a full-size result. The Library is kept apart from your photos, in
+        the app's own folder:
+      </p>
+      <ul>
+        <li>macOS: <code>~/Library/Application Support/Deptheos</code></li>
+        <li>Windows: <code>%LOCALAPPDATA%\Deptheos</code></li>
+        <li>Linux: <code>~/.local/share/Deptheos</code></li>
+        <li>iPhone and iPad: inside the app's own storage, which Files doesn't show</li>
+      </ul>
+      <p>
+        On a Mac, Windows or Linux you can keep it on another disk: choose a folder under Settings ▸ Library ▸
+        <em>Library folder</em>, and Deptheos uses it the next time it starts. A folder that iCloud Drive,
+        Dropbox, OneDrive or Google Drive keeps in sync is refused, since a sync service rewriting the Library's
+        files while Deptheos writes them can damage it. A Library on a drive that isn't connected waits, and
+        Deptheos says to connect it. One copy of the app uses a Library at a time.
+      </p>
+      <p>
+        On the desktop, the default folder also holds a cache of RAW files converted to DNG (<code>DNGCache</code>),
+        which Deptheos makes again when it needs one, and on Windows the logs. Neither is part of the Library.
+      </p>
+    </div>
+  </section>
+
+  <section id="frames">
+    <div class="prose">
+      <h2>Your frames are never changed</h2>
+      <p>
+        Deptheos only ever reads your frames. It never changes, moves, renames or deletes them, wherever they
+        are, and nothing you do in the Library touches them: deleting a render, a stack or the whole Library
+        leaves them as they were. RAW files are converted into the app's own cache, not beside your photos. An
+        export is always a new file: when the name is taken, the new file gets a number rather than replacing
+        the one there.
+      </p>
+      <p>
+        On iPhone and iPad, frames you add from Files or Photos are read where they are, or copied into the
+        app's Imports folder when they must be (On My iPhone ▸ Deptheos in Files). Camera bursts are saved in
+        its Captures folder.
+      </p>
+    </div>
+  </section>
+
+  <section id="backup">
+    <div class="prose">
+      <h2>Backing up the Library</h2>
+      <p>
+        Back up the Library folder as you would any folder, with Time Machine, File History or a copy on another
+        drive. To make a copy by hand, quit Deptheos first, so nothing is being written while it is copied.
+      </p>
+      <p>
+        Back up your frames too. A render shows and exports without them, but stacking again, retouching from a
+        frame and comparing with a frame need the frames, and the Library holds no copy of them.
+      </p>
+      <p>
+        To restore, quit Deptheos and put the Library folder back where it was, or anywhere and choose it under
+        Settings ▸ Library ▸ <em>Library folder</em>. If your frames are no longer where they were, the Frames
+        list marks them Missing and <a href="/docs/concepts/#locate">Locate…</a> points the renders at where
+        they are now.
+      </p>
+      <p>
+        A newer version of Deptheos may upgrade the Library as it opens it, and an older version then refuses
+        that Library whole, without changing it. If you might go back to an older version, keep a copy from
+        before you update.
+      </p>
+      <p>
+        On iPhone and iPad, the Library and the camera's bursts are in the device's iCloud or computer backup
+        with the rest of the app's data. Copies in Imports are left out of it, since their originals are in
+        Photos or Files already.
+      </p>
+    </div>
+  </section>
+
+  <section id="deleted">
+    <div class="prose">
+      <h2>Recently Deleted</h2>
+      <p>
+        Deleting a render, a stack or a failed stack doesn't ask first, and doesn't remove it at once: it moves
+        to <em>Recently Deleted</em>, and the notice that says so has <em>Undo</em>. Recently Deleted, at the
+        foot of the Library's sidebar on the desktop and on iPad, and at the end of the Library on iPhone, lists each delete
+        with its days left and its size. <em>Restore</em> puts it back as it was, with its retouching and its
+        number.
+      </p>
+      <p>
+        Each item is kept for 30 days, then removed for good the next time Deptheos opens the Library.
+        <em>Empty Recently Deleted…</em> removes everything in it now, after asking. While they are kept, deleted
+        renders still take their room on disk.
+      </p>
+    </div>
+  </section>
+
+  <section id="delete-library">
+    <div class="prose">
+      <h2>Delete Library</h2>
+      <p>
+        <em>Delete Library…</em> (Settings ▸ Library on the desktop, Settings ▸ Storage on iPhone and iPad)
+        deletes every stack and render, with their retouching, the failed stacks, the working version and
+        everything in Recently Deleted, leaving the Library empty. It asks first, saying how many stacks and
+        renders go, and it can't be undone.
+      </p>
+      <p>
+        It leaves your frames and the files you exported alone. On iPhone and iPad it leaves the copies in
+        Imports too: Settings ▸ Storage lists those no stack uses any more, to delete separately.
+      </p>
+    </div>
+  </section>
+</DocsLayout>

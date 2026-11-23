@@ -1,0 +1,144 @@
+---
+import Shot from "../../../components/Shot.astro";
+import DocsLayout from "../../../layouts/DocsLayout.astro";
+---
+
+<DocsLayout
+  docKey="batch"
+  title="Batch"
+  description="Stack many folders in one Deptheos run: one stack per folder or auto sort by capture time, exports as it goes, failed stacks, and sequences."
+>
+  <div class="prose">
+    <h1>Batch</h1>
+    <p class="lede">
+      A batch stacks many focus brackets in one run, one after another, with the same method and settings.
+      Use it after a session in the field or on the rail: point it at the folders, or at one folder holding
+      several brackets, and come back to a render of each.
+    </p>
+    <p>
+      Set the method and settings in the inspector first, ideally after stacking one of the brackets by hand to
+      check them: every stack in the run uses the settings as they are when it starts. Then choose File ▸ New
+      Batch… (⇧⌘B), or <em>New Batch…</em> in the Library's title bar. Or drag two or more folders onto the
+      Library and drop them on <em>A Stack per Folder (Batch…)</em>: the dialog opens with them listed. Dropped
+      on <em>One Stack</em>, their frames go into one stack instead.
+    </p>
+  </div>
+
+  <section id="folders">
+    <div class="prose">
+      <h2>Folders</h2>
+      <p>The top of the dialog lists what the run will read.</p>
+      <ul>
+        <li><em>Add Folders…</em> adds folders, one or several at a time.</li>
+        <li><em>Add Subfolders of…</em> adds every folder inside the one you pick, leaving out its own frames: the usual choice for a day's folders under one parent.</li>
+        <li><em>Add the Frames List</em> adds the frames included in the Stacking screen's Frames list, as one more source.</li>
+        <li><em>Include deeper folders</em> also reads folders inside those folders.</li>
+      </ul>
+      <p>A folder added twice is stacked once.</p>
+    </div>
+    <figure class="shot"><Shot name="batch-dialog" width="2880" height="1800" loading="lazy" alt="The Batch dialog with folder list, capture-time auto sort, and export options." /><figcaption>The Batch dialog, ready to start.</figcaption></figure>
+  </section>
+
+  <section id="split">
+    <div class="prose">
+      <h2>How to split</h2>
+      <p>
+        <strong>One stack per folder</strong> makes one render of all the frames in each folder. It suits
+        brackets you already keep in folders of their own.
+      </p>
+      <p>
+        <strong>Auto sort: split each folder into stacks by capture time</strong> is for a card's worth of
+        brackets in one folder. It reads when each shot was taken and cuts between two shots when the pause is
+        both longer than 2 seconds and four times the typical pause of the shots around it, or when the camera
+        changes. A slow rail stack with a frame every 5 seconds is not cut at its own pace, and two brackets
+        shot a few seconds apart still come apart. Auto sort never mixes frames from two folders. It skips:
+      </p>
+      <ul>
+        <li>runs of fewer than 5 shots, such as test shots and brackets you abandoned;</li>
+        <li>the odd ones out of a run that mixes RAW and other files;</li>
+        <li>a folder with too few frames to stack.</li>
+      </ul>
+      <p>
+        The summary at the bottom of the dialog counts the stacks it found and what it skipped before you
+        start, so check it. A file with no capture time is placed by the time it was last changed.
+      </p>
+      <h3>The other choices</h3>
+      <ul>
+        <li><em>RAW + JPEG pairs</em>: <em>Use RAW</em> or <em>Use JPEG</em>, for shots saved both ways.</li>
+        <li>
+          <em>Frame order</em>: <em>Name</em>, or <em>Capture time</em>. Auto sort uses capture time only to
+          split; inside each stack the frames go in name order unless you choose Capture time, since some
+          cameras get capture times wrong by a second or two.
+        </li>
+        <li><em>RAW decoder</em>, shown when Adobe DNG Converter is installed as well as LibRaw (see <a href="/docs/raw/">RAW, DNG and color</a>).</li>
+      </ul>
+    </div>
+  </section>
+
+  <section id="export">
+    <div class="prose">
+      <h2>After stacking: export each render</h2>
+      <p>
+        Every stack of a batch is kept as a render in the Library, as a stack made by hand is. Tick
+        <em>Export each render</em> to also write a file of each one as soon as it is made: choose the format
+        (with the JPEG quality, or <em>16 bits per channel</em> for TIFF and PNG) and a folder with <em>Choose Folder…</em>.
+        Each file is named after its stack. DNG applies to the RAW stacks; any others in the run are written
+        as TIFF. <a href="/docs/export/">Exporting</a> explains the formats.
+      </p>
+    </div>
+  </section>
+
+  <section id="running">
+    <div class="prose">
+      <h2>While it runs</h2>
+      <p>
+        <em>Start Batch</em> runs the stacks one at a time. The Library shows where the run is ("Batch 2 of 5 · bee")
+        with a <em>Cancel</em> button. One thing runs at a time, so while a batch runs nothing else can be
+        stacked and the list and settings are locked.
+      </p>
+      <p>
+        Cancel (⌘.) stops the stack in progress. Every render already made stays, and the exports already under way
+        are finished. When the run ends, a notice sums it up: "Batch: 12 of 14 made · 2 failed", with the
+        exports and anything skipped.
+      </p>
+    </div>
+  </section>
+
+  <section id="failed">
+    <div class="prose">
+      <h2>Stacks that failed</h2>
+      <p>
+        A stack that fails doesn't stop the run. It is kept under the batch's section in the Library, marked
+        <em>Failed</em>, and <em>Failed</em> in the Library's left bar lists every one. Select it to see
+        why, then <em>Open to Retry</em>: its frames and settings load into Stacking, to fix (exclude a bad
+        frame, try the grid aligner) and Stack again. <em>Delete All Failed Stacks</em> clears them once you are done.
+      </p>
+    </div>
+  </section>
+
+  <section id="sequences">
+    <div class="prose">
+      <h2>Turntable and grow sequences</h2>
+      <p>
+        These make an animation rather than a still, as a folder of numbered frames for a video editor such as
+        DaVinci Resolve to import as one clip.
+      </p>
+      <ul>
+        <li>
+          <strong>Grow sequence</strong>: frame <em>k</em> is the stack of <em>k</em> of the bracket's frames,
+          so the subject comes into focus as it plays, from the back (the default) or from the front. The last
+          frame is the render itself. It is made from a Pyramid
+          render: File ▸ Export Grow Sequence…, or the same item on a render's right-click menu. Retouching is
+          not included.
+        </li>
+        <li>
+          <strong>Turntable sequence</strong>: for a subject on a turntable, shot as one bracket per angle, each
+          in its own folder. In the Batch dialog, choose One stack per folder and tick <em>Turntable
+          sequence</em>. <em>Full</em> turns the finished stacks; <em>Grow across stacks</em> turns and comes
+          into focus at once (Pyramid only); <em>Both</em> writes the two.
+        </li>
+      </ul>
+      <p>The command line makes both too: see <a href="/docs/cli/#sequence">The command line</a>.</p>
+    </div>
+  </section>
+</DocsLayout>

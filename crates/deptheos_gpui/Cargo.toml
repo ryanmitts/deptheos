@@ -1,0 +1,52 @@
+[package]
+name = "deptheos_gpui"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+authors.workspace = true
+license.workspace = true
+repository.workspace = true
+homepage.workspace = true
+publish = false
+build = "build.rs"
+
+[[bin]]
+name = "deptheos-gui"
+path = "src/main.rs"
+
+[dependencies]
+deptheos_app = { workspace = true }
+gpui = { workspace = true }
+gpui-kit = { workspace = true }
+image = { workspace = true, features = ["jpeg", "png", "tiff", "rayon"] }
+futures = { workspace = true }
+rfd = { workspace = true }
+chrono = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+dirs = { workspace = true }
+tracing = { workspace = true }
+mimalloc = { workspace = true }
+semver = { workspace = true }
+ureq = { workspace = true }
+# The desktop's strings (words.rs; the messages in i18n/).
+i18n-embed = { workspace = true }
+i18n-embed-fl = { workspace = true }
+rust-embed = { workspace = true }
+
+[target.'cfg(target_os = "macos")'.dependencies]
+objc2 = "0.6"
+objc2-core-graphics = { version = "0.3", default-features = false, features = ["std", "objc2", "CGColorSpace"] }
+raw-window-handle = "0.6"
+
+[target.'cfg(windows)'.build-dependencies]
+winresource = { workspace = true }
+
+[dev-dependencies]
+# The message file's checks (words/catalog.rs).
+deptheos_app = { workspace = true, features = ["test-support"] }
+gpui = { workspace = true, features = ["test-support"] }
+gpui-kit = { workspace = true, features = ["test-support"] }
+tempfile = { workspace = true }
+# The end-to-end test's checks of what it exports (app/tests/e2e.rs).
+deptheos_e2e = { path = "../deptheos_e2e" }

@@ -1,0 +1,124 @@
+[package]
+name = "deptheos_app"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+authors.workspace = true
+license.workspace = true
+repository.workspace = true
+homepage.workspace = true
+publish = false
+
+[dependencies]
+deptheos_gpu = { workspace = true }
+deptheos_core = { workspace = true }
+deptheos_aligner = { workspace = true }
+deptheos_raw = { workspace = true }
+deptheos_dng = { workspace = true }
+image = { workspace = true, features = ["jpeg", "png", "tiff", "rayon"] }
+thiserror = { workspace = true }
+rayon = { workspace = true }
+# The pool's replies (work.rs): a one-shot channel each, awaited or waited on.
+futures = { workspace = true }
+tracing = { workspace = true }
+# Calendar dates: capture times, the log's timestamps.
+chrono = { workspace = true }
+# The diagnostic log (logs.rs).
+tracing-subscriber = { workspace = true }
+zip = { workspace = true }
+sys-locale = { workspace = true }
+# The user's sentences (words.rs; the messages in i18n/).
+i18n-embed = { workspace = true }
+i18n-embed-fl = { workspace = true }
+rust-embed = { workspace = true }
+# The message files' checks (words/check.rs), for this crate's tests and,
+# through `test-support`, the desktop's.
+fluent = { workspace = true, optional = true }
+wgpu = { workspace = true }
+nalgebra = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+uuid = { workspace = true }
+dirs = { workspace = true }
+zstd = { workspace = true }
+libc = { workspace = true }
+kamadak-exif = { workspace = true }
+# Resizing sequence frames (Lanczos-3, 16-bit).
+fast_image_resize = { workspace = true }
+bytemuck = { workspace = true }
+# The Library's roots (sources.rs, ADR-145): a frame's fingerprint, a hash
+# whose output is fixed across versions and platforms, and names matched
+# in NFC.
+seahash = "4.1"
+unicode-normalization = "0.1.24"
+# A render's paint and its undo spill (paint/store.rs, ADR-148).
+rusqlite = { workspace = true }
+# A panic's frames as addresses, for a release build's symbols
+# (logs/images.rs); the version std's own backtrace is.
+backtrace = "0.3"
+
+[target.'cfg(windows)'.dependencies]
+windows = { version = "0.62.2", default-features = false, features = [
+    "Win32_Storage_FileSystem",
+    # A file's id and a volume's serial for the Library's roots.
+    "Win32_Foundation",
+    # The OS version in the log header.
+    "Wdk_System_SystemServices",
+    "Win32_System_SystemInformation",
+    # The executable's load address in a panic's log (logs/images.rs).
+    "Win32_System_LibraryLoader",
+    # A native crash's minidump (logs/dumps.rs).
+    "Win32_System_Diagnostics_Debug",
+    "Win32_System_Kernel",
+    "Win32_System_Memory",
+    "Win32_System_Threading",
+    "Win32_Security",
+] }
+
+[dev-dependencies]
+# `test_support` for the integration tests.
+deptheos_app = { workspace = true, features = ["test-support"] }
+# Hand-written DNGs for the linear stacks' tests.
+deptheos_dng = { workspace = true, features = ["test-support"] }
+# The message file's checks give Fluent arguments of both kinds.
+fluent = { workspace = true }
+mimalloc = { workspace = true }
+moxcms = { workspace = true }
+tempfile = { workspace = true }
+# A CMYK TIFF, which the input stage refuses.
+tiff = { workspace = true }
+# The paint worker driven by random command sequences against a model,
+# and an eviction run at every point of an undo snapshot's write.
+proptest = { workspace = true }
+proptest-state-machine = { workspace = true }
+shuttle = { workspace = true }
+
+[features]
+# `words::check`, the checks of a message file against its code, for the
+# desktop's tests, and `test_support`, the engine and frames the tests
+# share.
+test-support = ["dep:fluent"]
+# The examples (benches and probes) build only
+# with this on, so `cargo test` does not compile and link them:
+#   cargo run --release -p deptheos_app --features examples --example <name>
+examples = []
+
+[[example]]
+name = "capture_check"
+required-features = ["examples"]
+
+[[example]]
+name = "dab_bench"
+required-features = ["examples"]
+
+[[example]]
+name = "memory_probe"
+required-features = ["examples"]
+
+[[example]]
+name = "mimalloc_shed"
+required-features = ["examples"]
+
+[[example]]
+name = "thumb_bench"
+required-features = ["examples"]

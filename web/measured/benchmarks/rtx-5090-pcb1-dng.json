@@ -1,0 +1,59 @@
+{
+  "version": "0.2.0",
+  "commit": "dc7e87fc",
+  "date": "2026-11-21",
+  "label": "Ryzen 9 9950X3D + RTX 5090",
+  "machine": {
+    "os": "Windows 11 Pro 26H2",
+    "cpu": "AMD Ryzen 9 9950X3D 16-Core Processor",
+    "threads": 32,
+    "memory_gb": 64.0,
+    "gpu": "NVIDIA GeForce RTX 5090",
+    "gpu_backend": "Vulkan",
+    "gpu_driver": "NVIDIA 621.01"
+  },
+  "stack": {
+    "name": "115EOSR5",
+    "frames": 200,
+    "width": 8192,
+    "height": 5464,
+    "megapixels": 44.761088,
+    "format": "DNG",
+    "converted_from": "CR3",
+    "conversion_seconds": 46.2612259,
+    "uncompressed": true,
+    "decoder": "Adobe DNG Converter",
+    "bytes": 54199456360
+  },
+  "path": "live",
+  "runs": {
+    "pyramid": {
+      "ecc": {
+        "fastest": 15.3864832,
+        "left_out": 0,
+        "mpx_per_s": 577.5548691530668,
+        "ms_per_frame": 77.501014,
+        "phases": {
+          "blend": 0.0,
+          "complete": 0.0651931,
+          "finalize": 0.0192751,
+          "pass1": 15.346187699999993
+        },
+        "repeats": [
+          15.8127736,
+          15.5002028,
+          15.5210141,
+          15.4881613,
+          15.3864832
+        ],
+        "result": [
+          8192,
+          5464
+        ],
+        "reversed": false,
+        "seconds": 15.5002028,
+        "slowest": 15.8127736
+      }
+    }
+  }
+}

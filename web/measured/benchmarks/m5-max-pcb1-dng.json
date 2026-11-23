@@ -1,0 +1,61 @@
+{
+  "version": "0.2.0",
+  "commit": "e1f4e113",
+  "date": "2026-11-21",
+  "label": "Apple M5 Max (32-core GPU)",
+  "machine": {
+    "os": "macOS 27.2",
+    "cpu": "Apple M5 Max",
+    "threads": 18,
+    "memory_gb": 36.0,
+    "gpu": "Apple M5 Max",
+    "gpu_backend": "Metal",
+    "gpu_cores": 32,
+    "power": "AC Power",
+    "power_mode": "automatic"
+  },
+  "stack": {
+    "name": "115EOSR5",
+    "frames": 200,
+    "width": 8192,
+    "height": 5464,
+    "megapixels": 44.761088,
+    "format": "DNG",
+    "converted_from": "CR3",
+    "conversion_seconds": 74.451346417,
+    "uncompressed": true,
+    "decoder": "Adobe DNG Converter",
+    "bytes": 54206709184
+  },
+  "path": "live",
+  "runs": {
+    "pyramid": {
+      "ecc": {
+        "fastest": 5.7939563750000005,
+        "left_out": 0,
+        "mpx_per_s": 1537.3858394512276,
+        "ms_per_frame": 29.11506458,
+        "phases": {
+          "blend": 0.0,
+          "complete": 0.084919875,
+          "finalize": 0.00050625,
+          "pass1": 5.685633958999999
+        },
+        "repeats": [
+          5.834038541,
+          5.915423958,
+          5.823012916,
+          5.7939563750000005,
+          5.806601458
+        ],
+        "result": [
+          8192,
+          5464
+        ],
+        "reversed": false,
+        "seconds": 5.823012916,
+        "slowest": 5.915423958
+      }
+    }
+  }
+}

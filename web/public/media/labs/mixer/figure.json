@@ -1,0 +1,18 @@
+{
+  "id": "mixer",
+  "kind": "pair",
+  "a": 40,
+  "b": 5,
+  "width": 512,
+  "height": 384,
+  "files": [
+    {
+      "file": "a.jpg",
+      "bytes": 51106
+    },
+    {
+      "file": "b.jpg",
+      "bytes": 39186
+    }
+  ]
+}

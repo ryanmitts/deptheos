@@ -1,0 +1,301 @@
+# Build the macOS DMG, the Windows installer, the Linux packages (x86_64
+# and arm64, each built natively on its own runner) and the full source
+# tarball with LibRaw, and on a version tag
+# (v0.2.0) put them in a draft GitHub release. Publishing the draft is what
+# the app's update check sees (drafts are skipped).
+#
+# Run it by hand (Actions → Release → Run workflow) for a test build: the
+# files are kept as workflow artifacts and no release is made.
+#
+# Every action is pinned to a commit, with its tag in a comment: the macOS
+# job holds the signing identity, and a tag can be moved. To update one,
+# change the commit and the comment together.
+#
+# Secrets (Settings → Secrets and variables → Actions):
+#   MACOS_CERTIFICATE           Developer ID Application .p12, base64
+#   MACOS_CERTIFICATE_PASSWORD  its export password
+#   APPLE_API_KEY               App Store Connect API key (.p8 contents)
+#   APPLE_API_KEY_ID            its key id
+#   APPLE_API_ISSUER            its issuer id
+# Without them the Mac build is signed ad-hoc and not notarized, which a
+# tag build refuses.
+name: Release
+
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  macos:
+    runs-on: macos-26 # Apple Silicon
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: ./.github/actions/select-xcode
+      - uses: ./.github/actions/fetch-libraw
+      - uses: dtolnay/rust-toolchain@b725eda525362e7cf34af9a7243cac1e3f01a7ec # stable
+        with:
+          targets: aarch64-apple-darwin
+      - uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2
+      - name: Check the tag matches the version
+        if: startsWith(github.ref, 'refs/tags/')
+        run: |
+          version=$(script/version.sh)
+          [[ "${GITHUB_REF_NAME}" == "v${version}" ]] || {
+            echo "::error::tag ${GITHUB_REF_NAME} does not match Cargo.toml version ${version}"; exit 1; }
+      - uses: taiki-e/install-action@cfdb7ed4ccc7c7dce37759eae89dc5674b469b39 # v2
+        with:
+          tool: cargo-about@0.9.3
+      - name: Check the third-party notices are current
+        run: script/notices.sh --check
+      - name: Check the design tokens are current
+        run: node script/tokens.mjs --check
+      - name: Check the website's parameters are current
+        run: cargo run -q -p deptheos_webexport -- --check
+      - run: brew install create-dmg
+      - name: Import the signing certificate
+        env:
+          MACOS_CERTIFICATE: ${{ secrets.MACOS_CERTIFICATE }}
+          MACOS_CERTIFICATE_PASSWORD: ${{ secrets.MACOS_CERTIFICATE_PASSWORD }}
+          APPLE_API_KEY: ${{ secrets.APPLE_API_KEY }}
+          APPLE_API_KEY_ID: ${{ secrets.APPLE_API_KEY_ID }}
+          APPLE_API_ISSUER: ${{ secrets.APPLE_API_ISSUER }}
+        run: |
+          if [[ -z "$MACOS_CERTIFICATE" ]]; then
+            if [[ "$GITHUB_REF" == refs/tags/* ]]; then
+              echo "::error::release builds need the MACOS_CERTIFICATE secrets"; exit 1
+            fi
+            echo "::warning::no signing secrets: the app is signed ad-hoc and not notarized"
+            exit 0
+          fi
+          keychain="$RUNNER_TEMP/signing.keychain-db"
+          keychain_password=$(openssl rand -base64 24)
+          echo "$MACOS_CERTIFICATE" | base64 --decode > "$RUNNER_TEMP/cert.p12"
+          security create-keychain -p "$keychain_password" "$keychain"
+          security set-keychain-settings -lut 21600 "$keychain"
+          security unlock-keychain -p "$keychain_password" "$keychain"
+          security import "$RUNNER_TEMP/cert.p12" -k "$keychain" \
+            -P "$MACOS_CERTIFICATE_PASSWORD" -T /usr/bin/codesign
+          security set-key-partition-list -S apple-tool:,apple: -k "$keychain_password" "$keychain"
+          # The keychains listed now, one word each, after the new one.
+          # shellcheck disable=SC2046
+          security list-keychains -d user -s "$keychain" $(security list-keychains -d user | tr -d '"')
+          rm "$RUNNER_TEMP/cert.p12"
+
+          echo "$APPLE_API_KEY" > "$RUNNER_TEMP/AuthKey.p8"
+          xcrun notarytool store-credentials deptheos-ci --key "$RUNNER_TEMP/AuthKey.p8" \
+            --key-id "$APPLE_API_KEY_ID" --issuer "$APPLE_API_ISSUER"
+          rm "$RUNNER_TEMP/AuthKey.p8"
+      - name: Build, sign and notarize
+        env:
+          NOTARY_PROFILE: deptheos-ci
+          BUILD_NUMBER: ${{ github.run_number }}
+        run: script/bundle-mac.sh
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: macos
+          path: dist/*.dmg
+          if-no-files-found: error
+      # The dSYMs, for symbolizing a crash in this build (docs/releasing.md):
+      # kept with the run, not put in the release.
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: symbols-macos
+          path: dist/symbols/
+          if-no-files-found: error
+          retention-days: 90
+
+  windows:
+    runs-on: windows-2025
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: ./.github/actions/fetch-libraw
+      - uses: dtolnay/rust-toolchain@b725eda525362e7cf34af9a7243cac1e3f01a7ec # stable
+      - uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2
+      - name: Install Inno Setup
+        run: |
+          if (-not (Test-Path "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe")) {
+            choco install innosetup -y --no-progress
+          }
+      # The Windows build is unsigned. To sign it (Azure Artifact Signing), sign
+      # target\release\deptheos-gui.exe and deptheos.exe after the build (and after
+      # the script merges the long-path manifest into deptheos-gui.exe) and pass
+      # /DSign and /Sdeptheos=... to iscc, as script/bundle-windows.ps1 says.
+      - name: Build the installer and portable zip
+        run: script\bundle-windows.ps1
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: windows
+          path: |
+            dist/*-setup.exe
+            dist/*-portable.zip
+          if-no-files-found: error
+      # The PDBs, for symbolizing a crash dump of this build
+      # (docs/releasing.md): kept with the run, not put in the release.
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: symbols-windows
+          path: |
+            target/release/deptheos_gui.pdb
+            target/release/deptheos.pdb
+          if-no-files-found: error
+          retention-days: 90
+
+  linux:
+    strategy:
+      matrix:
+        include:
+          # 22.04: a binary runs on distros with its glibc or newer, so the
+          # oldest supported runner reaches the most of them.
+          - { runner: ubuntu-22.04, arch: x86_64 }
+          - { runner: ubuntu-22.04-arm, arch: arm64 }
+    runs-on: ${{ matrix.runner }}
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: ./.github/actions/fetch-libraw
+      - name: Install the build packages
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends build-essential pkg-config cmake clang \
+            libfontconfig-dev libfreetype-dev libxkbcommon-dev libxkbcommon-x11-dev \
+            libwayland-dev libx11-xcb-dev libxcb1-dev libvulkan-dev libasound2-dev \
+            libssl-dev libzstd-dev
+      # nfpm's release package, checked against the checksum recorded here
+      # (from the release's checksums.txt). To update: change the version
+      # and both checksums together.
+      - name: Install nfpm
+        env:
+          NFPM_VERSION: 2.49.0
+          NFPM_SHA256: ${{ matrix.arch == 'arm64' && 'f6c77951e74a267fade0c6a14fa66eee35a750cd23da483e39d2e92a6b307527' || '45650c5f6109685436fa6ba91958eb93e09a899bb0d65dd5b7c3c66020c056d2' }}
+          NFPM_ARCH: ${{ matrix.arch == 'arm64' && 'arm64' || 'amd64' }}
+        run: |
+          deb="nfpm_${NFPM_VERSION}_${NFPM_ARCH}.deb"
+          curl -fsSL -o "$deb" "https://github.com/goreleaser/nfpm/releases/download/v${NFPM_VERSION}/${deb}"
+          echo "${NFPM_SHA256}  ${deb}" | sha256sum --check
+          sudo apt-get install -y "./${deb}"
+      - uses: dtolnay/rust-toolchain@b725eda525362e7cf34af9a7243cac1e3f01a7ec # stable
+      - uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2
+      - name: Build the packages
+        run: script/bundle-linux.sh ${{ matrix.arch }}
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: linux-${{ matrix.arch }}
+          path: |
+            dist/*.tar.gz
+            dist/*.deb
+            dist/*.rpm
+          if-no-files-found: error
+
+  # The iOS app, numbered as the Mac's is: the workspace version and this
+  # run's number (ios/build-xcframework.sh writes them into
+  # ios/Version.xcconfig). On a tag, with the App Store Connect key below,
+  # it is signed by Xcode's cloud signing and uploaded to TestFlight
+  # (ios/ExportOptions.plist); otherwise it is archived unsigned, as a check
+  # that it builds. The desktop release doesn't wait for it.
+  #
+  #   ASC_API_KEY     an App Store Connect team key with the Admin role (or
+  #                   App Manager with access to cloud-managed distribution
+  #                   certificates): the .p8 file's contents
+  #   ASC_API_KEY_ID  its key id (the issuer is APPLE_API_ISSUER)
+  ios:
+    runs-on: macos-26
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: ./.github/actions/select-xcode
+      - uses: ./.github/actions/fetch-libraw
+      - uses: dtolnay/rust-toolchain@b725eda525362e7cf34af9a7243cac1e3f01a7ec # stable
+        with:
+          targets: aarch64-apple-ios,aarch64-apple-ios-sim
+      - uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2
+      - name: Build the engine
+        env:
+          BUILD_NUMBER: ${{ github.run_number }}
+        run: ios/build-xcframework.sh
+      - name: Archive
+        env:
+          ASC_API_KEY: ${{ secrets.ASC_API_KEY }}
+          ASC_API_KEY_ID: ${{ secrets.ASC_API_KEY_ID }}
+          APPLE_API_ISSUER: ${{ secrets.APPLE_API_ISSUER }}
+        run: |
+          archive="$RUNNER_TEMP/Deptheos.xcarchive"
+          args=(-project ios/DeptheosMobile.xcodeproj -scheme DeptheosMobile -configuration Release
+                -destination generic/platform=iOS -archivePath "$archive")
+          if [[ -n "$ASC_API_KEY" && "$GITHUB_REF" == refs/tags/* ]]; then
+            echo "$ASC_API_KEY" > "$RUNNER_TEMP/AuthKey.p8"
+            auth=(-allowProvisioningUpdates -authenticationKeyPath "$RUNNER_TEMP/AuthKey.p8"
+                  -authenticationKeyID "$ASC_API_KEY_ID" -authenticationKeyIssuerID "$APPLE_API_ISSUER")
+            xcodebuild archive "${args[@]}" "${auth[@]}" -quiet
+            xcodebuild -exportArchive -archivePath "$archive" -exportOptionsPlist ios/ExportOptions.plist \
+              -exportPath "$RUNNER_TEMP/export" "${auth[@]}"
+            rm "$RUNNER_TEMP/AuthKey.p8"
+          else
+            [[ -n "$ASC_API_KEY" ]] || echo "::warning::no ASC_API_KEY: the iOS app is archived unsigned and not uploaded"
+            xcodebuild archive "${args[@]}" CODE_SIGNING_ALLOWED=NO -quiet
+          fi
+          plutil -extract CFBundleVersion raw \
+            "$archive/Products/Applications/DeptheosMobile.app/Info.plist"
+      # The dSYMs, engine included (docs/releasing.md); TestFlight has them too.
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: symbols-ios
+          path: ${{ runner.temp }}/Deptheos.xcarchive/dSYMs/
+          if-no-files-found: warn
+          retention-days: 90
+
+  # The full source, LibRaw included, for the GPL and the CDDL: GitHub's own
+  # source downloads leave the submodule out (script/source-tarball.sh).
+  source:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: ./.github/actions/fetch-libraw
+        with:
+          recursive: "true"
+      - name: Archive the source
+        run: script/source-tarball.sh
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: source
+          path: dist/*-source.tar.gz
+          if-no-files-found: error
+
+  release:
+    if: startsWith(github.ref, 'refs/tags/')
+    needs: [macos, windows, linux, source]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          sparse-checkout: CHANGELOG.md
+          sparse-checkout-cone-mode: false
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        with:
+          path: dist
+          merge-multiple: true
+      # The symbols stay workflow artifacts, out of the release.
+      - name: Leave the symbols out
+        run: rm -rf dist/*.dSYM dist/*.pdb
+      - name: Checksums
+        working-directory: dist
+        run: sha256sum -- * > SHA256SUMS.txt && cat SHA256SUMS.txt
+      - name: Draft the release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          # The notes are CHANGELOG.md's section for this version.
+          version="${GITHUB_REF_NAME#v}"
+          awk -v h="## $version" '$0 == h {p=1; next} p && /^## / {exit} p' \
+            CHANGELOG.md > "$RUNNER_TEMP/notes.md"
+          [[ -s "$RUNNER_TEMP/notes.md" ]] \
+            || { echo "CHANGELOG.md has no '## $version' section" >&2; exit 1; }
+          gh release create "$GITHUB_REF_NAME" dist/* \
+            --repo "$GITHUB_REPOSITORY" --draft --notes-file "$RUNNER_TEMP/notes.md" \
+            --title "Deptheos $version"

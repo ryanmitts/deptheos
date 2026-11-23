@@ -1,0 +1,20 @@
+---
+import { formatParam } from "../lib/site-data.ts";
+
+interface Props {
+  path: string;
+  digits?: number;
+  scale?: number;
+  offset?: number;
+}
+
+const { path, digits, scale, offset } = Astro.props;
+const value = formatParam(path, { digits, scale, offset });
+---
+
+<span
+  data-param={path}
+  data-digits={digits !== undefined ? String(digits) : undefined}
+  data-scale={scale !== undefined ? String(scale) : undefined}
+  data-offset={offset !== undefined ? String(offset) : undefined}
+>{value}</span>

@@ -1,0 +1,57 @@
+{
+  "version": "0.2.0",
+  "commit": "e1f4e113",
+  "date": "2026-11-21",
+  "label": "Apple M5 Max (32-core GPU)",
+  "machine": {
+    "os": "macOS 27.2",
+    "cpu": "Apple M5 Max",
+    "threads": 18,
+    "memory_gb": 36.0,
+    "gpu": "Apple M5 Max",
+    "gpu_backend": "Metal",
+    "gpu_cores": 32,
+    "power": "AC Power",
+    "power_mode": "automatic"
+  },
+  "stack": {
+    "name": "hornet",
+    "frames": 66,
+    "width": 8192,
+    "height": 5464,
+    "megapixels": 44.761088,
+    "format": "JPEG",
+    "bytes": 263576049
+  },
+  "path": "live",
+  "runs": {
+    "pyramid": {
+      "ecc": {
+        "fastest": 1.953691208,
+        "left_out": 0,
+        "mpx_per_s": 1503.7461835057152,
+        "ms_per_frame": 29.766385106060607,
+        "phases": {
+          "blend": 0.0,
+          "complete": 0.069570833,
+          "finalize": 0.000205,
+          "pass1": 1.8676944169999998
+        },
+        "repeats": [
+          1.964581417,
+          1.962428209,
+          1.953691208,
+          2.205011917,
+          1.993382333
+        ],
+        "result": [
+          8138,
+          5449
+        ],
+        "reversed": false,
+        "seconds": 1.964581417,
+        "slowest": 2.205011917
+      }
+    }
+  }
+}

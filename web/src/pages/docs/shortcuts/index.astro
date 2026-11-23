@@ -1,0 +1,198 @@
+---
+import DocsLayout from "../../../layouts/DocsLayout.astro";
+---
+
+<DocsLayout
+  docKey="shortcuts"
+  title="Keyboard shortcuts"
+  description="Every keyboard shortcut in Deptheos for macOS, Windows, and Linux: stacking, frame list, Library, zoom, comparing, retouching, and window controls."
+>
+  <div class="prose">
+    <h1>Keyboard shortcuts</h1>
+    <p class="lede">
+      Every key the desktop app responds to, grouped by what you are doing. Help ▸ Keyboard Shortcuts
+      (<kbd>⌘/</kbd>) shows the most used ones in the app.
+    </p>
+    <p>
+      Keys are written as on a Mac. On Windows and Linux, ⌘ is Ctrl and ⌥ is Alt, ⇧ is Shift and ↩ is Enter;
+      where a key differs in other ways, the table says so. Keys without ⌘, such as <kbd>X</kbd> or
+      <kbd>1</kbd>, don't act while you are typing in a field, such as the zoom field.
+    </p>
+  </div>
+
+  <section id="stacking">
+    <div class="prose">
+      <h2>Files and stacking</h2>
+    </div>
+    <div class="table-wrap">
+      <table class="choose">
+        <thead><tr><th scope="col">Key</th><th scope="col">What it does</th></tr></thead>
+        <tbody>
+          <tr><th scope="row"><kbd>⌘N</kbd></th><td>New Stack: an empty list for the next bracket.</td></tr>
+          <tr><th scope="row"><kbd>⌘O</kbd></th><td>Add Frames…</td></tr>
+          <tr><th scope="row"><kbd>⇧⌘O</kbd></th><td>Add Folder…</td></tr>
+          <tr><th scope="row"><kbd>⌘↩</kbd></th><td>Stack.</td></tr>
+          <tr><th scope="row"><kbd>⌘.</kbd></th><td>While a stack or a batch runs: cancel it.</td></tr>
+          <tr><th scope="row"><kbd>⇧⌘B</kbd></th><td>New Batch…</td></tr>
+          <tr><th scope="row"><kbd>⌘E</kbd></th><td>Export… the render on screen.</td></tr>
+          <tr><th scope="row"><kbd>⇧⌘E</kbd></th><td>Export Again, with the last choices and no sheet.</td></tr>
+          <tr><th scope="row"><kbd>K</kbd></th><td>Star or unstar the render shown.</td></tr>
+          <tr><th scope="row"><kbd>⌘I</kbd></th><td>Render Info: what made the render shown, its method, settings and frames.</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <section id="frames">
+    <div class="prose">
+      <h2>The Frames list</h2>
+    </div>
+    <div class="table-wrap">
+      <table class="choose">
+        <thead><tr><th scope="col">Key</th><th scope="col">What it does</th></tr></thead>
+        <tbody>
+          <tr><th scope="row"><kbd>X</kbd></th><td>Exclude the selected frames, or include them again if they are excluded.</td></tr>
+          <tr><th scope="row"><kbd>⌫</kbd> or <kbd>⌦</kbd></th><td>With the list focused: exclude the selected frames. They stay in the list, to include again with <kbd>X</kbd>; Remove from List in a frame's menu takes them out.</td></tr>
+          <tr><th scope="row"><kbd>⌘A</kbd></th><td>Select All Frames.</td></tr>
+          <tr><th scope="row"><kbd>↑</kbd> <kbd>↓</kbd></th><td>With the list focused: select the frame above or below.</td></tr>
+          <tr><th scope="row"><kbd>⌘</kbd>-click, <kbd>⇧</kbd>-click</th><td>Add a frame to the selection or take it out; select a run of frames.</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="prose">
+      <p>
+        Include Only Selected Frames, Include All Frames and Remove All Frames have no key; they are in the Stack and
+        Edit menus. <a href="/docs/getting-started/#steps">Your first stack</a> shows the list.
+      </p>
+    </div>
+  </section>
+
+  <section id="library">
+    <div class="prose">
+      <h2>The Library</h2>
+    </div>
+    <div class="table-wrap">
+      <table class="choose">
+        <thead><tr><th scope="col">Key</th><th scope="col">What it does</th></tr></thead>
+        <tbody>
+          <tr><th scope="row"><kbd>↩</kbd></th><td>Open the selected stack.</td></tr>
+          <tr><th scope="row"><kbd>←</kbd> <kbd>→</kbd> <kbd>↑</kbd> <kbd>↓</kbd></th><td>Select the stack beside, above or below. With <kbd>⇧</kbd>, select the stacks up to it, as <kbd>⇧</kbd>-click does.</td></tr>
+          <tr><th scope="row"><kbd>Space</kbd></th><td>Show the selected stack large over the Library: its starred render, else its newest, with its name. The arrows move to the next stack; <kbd>Space</kbd> or <kbd>Esc</kbd> closes it.</td></tr>
+          <tr><th scope="row"><kbd>⌘A</kbd></th><td>Select every stack.</td></tr>
+          <tr><th scope="row"><kbd>⌘F</kbd></th><td>Search the stacks: type in the search field. <kbd>Esc</kbd> there gives the keys back to the stacks.</td></tr>
+          <tr><th scope="row"><kbd>Esc</kbd></th><td>Close the large preview, or clear the selection. (Does not cancel a running stack or batch—use <kbd>⌘.</kbd> for that.)</td></tr>
+          <tr><th scope="row"><kbd>⌘⌫</kbd> or <kbd>⌦</kbd></th><td>Delete the selected stacks and their renders, which go to Recently Deleted; the notice offers Undo. ⌦ is the Delete key on Windows and Linux keyboards.</td></tr>
+          <tr><th scope="row"><kbd>⌘</kbd>-click, <kbd>⇧</kbd>-click</th><td>Add a stack to the selection or take it out; select a run of stacks. A click on empty space selects nothing.</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <section id="viewing">
+    <div class="prose">
+      <h2>Viewing and zoom</h2>
+    </div>
+    <div class="table-wrap">
+      <table class="choose">
+        <thead><tr><th scope="col">Key</th><th scope="col">What it does</th></tr></thead>
+        <tbody>
+          <tr><th scope="row"><kbd>⌘0</kbd>, <kbd>0</kbd> or <kbd>F</kbd></th><td>Zoom to Fit.</td></tr>
+          <tr><th scope="row"><kbd>⌘1</kbd></th><td>Actual Size: 100%, one pixel of the picture to one pixel of the screen.</td></tr>
+          <tr><th scope="row"><kbd>Space</kbd></th><td>Switch between Zoom to Fit and Actual Size, at the pointer when it is over the picture.</td></tr>
+          <tr><th scope="row"><kbd>+</kbd> or <kbd>=</kbd>, <kbd>−</kbd></th><td>Zoom in, zoom out, a step at a time (25%, 33%, 50%, 67%, 100%, 150%, 200% and so on), at the pointer when it is over the picture. <kbd>⌘=</kbd> and <kbd>⌘−</kbd> do the same.</td></tr>
+          <tr><th scope="row">Double-click</th><td>On the picture: switch between Zoom to Fit and Actual Size at the pointer. Not while retouching.</td></tr>
+          <tr><th scope="row"><kbd>⌘</kbd>-scroll</th><td>Zoom at the pointer, with a mouse wheel or a touchpad. On Windows and Linux: Ctrl-scroll.</td></tr>
+          <tr><th scope="row"><kbd>M</kbd></th><td>Show or hide the depth map.</td></tr>
+          <tr><th scope="row"><kbd>Tab</kbd></th><td>Focus Mode: hide the panels, leaving the title bar, the picture and the view bar. Tab again brings them back.</td></tr>
+          <tr><th scope="row"><kbd>⌥⌘1</kbd>, <kbd>⌥⌘2</kbd></th><td>The Stacking screen, the Library.</td></tr>
+          <tr><th scope="row"><kbd>⌃⌘S</kbd>, <kbd>⌃⌘I</kbd></th><td>Show or hide the Frames list, the inspector. On Windows and Linux: Ctrl+Alt+S and Ctrl+Alt+I.</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="prose">
+      <p><a href="/docs/compare/#zoom">Viewing and comparing</a> covers the mouse and touchpad.</p>
+    </div>
+  </section>
+
+  <section id="comparing">
+    <div class="prose">
+      <h2>Comparing</h2>
+    </div>
+    <div class="table-wrap">
+      <table class="choose">
+        <thead><tr><th scope="col">Key</th><th scope="col">What it does</th></tr></thead>
+        <tbody>
+          <tr><th scope="row"><kbd>1</kbd></th><td>Result: the result alone.</td></tr>
+          <tr><th scope="row"><kbd>2</kbd></th><td>Split: one picture, divided by a line you drag.</td></tr>
+          <tr><th scope="row"><kbd>3</kbd></th><td>Side by Side.</td></tr>
+          <tr><th scope="row"><kbd>4</kbd></th><td>Top and Bottom.</td></tr>
+          <tr><th scope="row"><kbd>\</kbd></th><td>Flicker: one at a time, full size; each press flips to the other.</td></tr>
+          <tr><th scope="row"><kbd>S</kbd></th><td>Swap Sides.</td></tr>
+          <tr><th scope="row"><kbd>←</kbd>, <kbd>→</kbd></th><td>Step to the previous or next frame on the focus rail (views it alone in Result view, or compares against it in Split, Side by Side, or Flicker). <kbd>PgUp</kbd> and <kbd>PgDn</kbd> do the same, and so does scrolling over the rail.</td></tr>
+          <tr><th scope="row"><kbd>C</kbd></th><td>Show or hide Contribution: the parts of the result that came from the frame on screen.</td></tr>
+          <tr><th scope="row"><kbd>Esc</kbd></th><td>Exit compare mode. (Does not cancel a running stack or batch—use <kbd>⌘.</kbd> for that.)</td></tr>
+          <tr><th scope="row"><kbd>⌘</kbd>-click a render</th><td>In the Renders strip: compare the render shown with that one.</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="prose">
+      <p><a href="/docs/compare/">Viewing and comparing</a> explains each view.</p>
+    </div>
+  </section>
+
+  <section id="retouching">
+    <div class="prose">
+      <h2>Retouching</h2>
+      <p>
+        In Retouch some keys change meaning: the number keys set the opacity, <kbd>X</kbd> flips the source
+        and <kbd>Esc</kbd> leaves.
+      </p>
+    </div>
+    <div class="table-wrap">
+      <table class="choose">
+        <thead><tr><th scope="col">Key</th><th scope="col">What it does</th></tr></thead>
+        <tbody>
+          <tr><th scope="row"><kbd>P</kbd></th><td>Retouch, or Done Retouching.</td></tr>
+          <tr><th scope="row"><kbd>Esc</kbd></th><td>Leave Retouch.</td></tr>
+          <tr><th scope="row"><kbd>B</kbd></th><td>Brush: paint from the source.</td></tr>
+          <tr><th scope="row"><kbd>E</kbd></th><td>Eraser: restore the original stacked result over your strokes.</td></tr>
+          <tr><th scope="row"><kbd>X</kbd></th><td>Flip between the brush and the eraser.</td></tr>
+          <tr><th scope="row"><kbd>[</kbd>, <kbd>]</kbd></th><td>Make the brush smaller, larger.</td></tr>
+          <tr><th scope="row"><kbd>⇧[</kbd>, <kbd>⇧]</kbd></th><td>Make the brush softer, harder.</td></tr>
+          <tr><th scope="row"><kbd>1</kbd> … <kbd>9</kbd>, <kbd>0</kbd></th><td>Opacity 10% to 90%, and 100%.</td></tr>
+          <tr><th scope="row"><kbd>←</kbd>, <kbd>→</kbd></th><td>Paint from the previous or next frame. <kbd>PgUp</kbd> and <kbd>PgDn</kbd> do the same.</td></tr>
+          <tr><th scope="row"><kbd>⌥</kbd>-click</th><td>Pick source frame: selects the frame the result used at that pixel.</td></tr>
+          <tr><th scope="row"><kbd>\</kbd> (held)</th><td>See the whole source in place of the painted result.</td></tr>
+          <tr><th scope="row"><kbd>Space</kbd> (held)</th><td>Drag to move around the picture instead of painting.</td></tr>
+          <tr><th scope="row"><kbd>⌘Z</kbd></th><td>Undo a stroke.</td></tr>
+          <tr><th scope="row"><kbd>⇧⌘Z</kbd></th><td>Redo. Ctrl+Y also redoes on Windows and Linux.</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="prose">
+      <p><a href="/docs/retouching/">Retouching</a> explains the brush and the sources.</p>
+    </div>
+  </section>
+
+  <section id="app">
+    <div class="prose">
+      <h2>Windows and the app</h2>
+    </div>
+    <div class="table-wrap">
+      <table class="choose">
+        <thead><tr><th scope="col">Key</th><th scope="col">What it does</th></tr></thead>
+        <tbody>
+          <tr><th scope="row"><kbd>⌘,</kbd></th><td>Settings.</td></tr>
+          <tr><th scope="row"><kbd>⌘/</kbd></th><td>Keyboard Shortcuts.</td></tr>
+          <tr><th scope="row"><kbd>⌘W</kbd></th><td>Close Window. While a stack runs, Deptheos asks first.</td></tr>
+          <tr><th scope="row"><kbd>⌘Q</kbd></th><td>Quit, asking first while a stack runs.</td></tr>
+          <tr><th scope="row"><kbd>⌃⌘F</kbd></th><td>Enter or Exit Full Screen. <kbd>F11</kbd> on Windows and Linux.</td></tr>
+          <tr><th scope="row"><kbd>⌘M</kbd></th><td>Minimize (Mac only).</td></tr>
+          <tr><th scope="row"><kbd>⌘H</kbd>, <kbd>⌥⌘H</kbd></th><td>Hide Deptheos, Hide Others (Mac only).</td></tr>
+          <tr><th scope="row"><kbd>F10</kbd>, or <kbd>Alt</kbd> alone</th><td>Windows and Linux: open the ≡ menu in the title bar, which holds the menus a Mac has in its menu bar.</td></tr>
+          <tr><th scope="row"><kbd>⌥⇧⌘C</kbd></th><td>Turn the viewer's color management off or on, to compare by eye. It has no menu item.</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+</DocsLayout>

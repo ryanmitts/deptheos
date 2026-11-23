@@ -1,0 +1,187 @@
+---
+import "../../site/download.css";
+import BaseLayout from "../../layouts/BaseLayout.astro";
+import Param from "../../components/Param.astro";
+import { getParam } from "../../lib/site-data.ts";
+
+const version = String(getParam("version"));
+---
+
+<BaseLayout
+  navKey="download"
+  title="Download Deptheos for macOS, Windows, and Linux"
+  description="Download Deptheos for macOS (Apple silicon), Windows, and Linux: direct installers, 45 MP sample brackets, requirements, and SHA-256 checksums."
+>
+  <Fragment slot="head">
+    <script is:inline>
+      (function () {
+        var n = navigator,
+          p = ((n.userAgentData && n.userAgentData.platform) || n.platform || "").toLowerCase(),
+          ua = n.userAgent || "",
+          t = n.maxTouchPoints || 0;
+        var os =
+          /iphone|ipad|ipod/i.test(ua) || (/mac/.test(p) && t > 1)
+            ? "ios"
+            : /android|cros/i.test(ua)
+              ? ""
+              : /mac/.test(p) || /mac os x/i.test(ua)
+                ? "mac"
+                : /win/.test(p) || /windows/i.test(ua)
+                  ? "windows"
+                  : /linux|x11/.test(p) || /linux/i.test(ua)
+                    ? "linux"
+                    : "";
+        if (os) document.documentElement.dataset.os = os;
+      })();
+    </script>
+  </Fragment>
+  <div class="prose dl">
+    <h1>Download</h1>
+    <p class="lede">
+      Deptheos <Param path="version" /> is free and open source, under the
+      <a href="https://github.com/ryanmitts/deptheos/blob/main/LICENSE.md">GPL-3.0 license</a>, for macOS,
+      Windows, and Linux.
+    </p>
+    <p>
+      Each button downloads the installer directly from GitHub Releases. You can also browse
+      <a href="https://github.com/ryanmitts/deptheos/releases/latest">all files and release notes</a> on GitHub.
+    </p>
+
+    <div class="dl-systems">
+      <section class="dl-os" id="mac" aria-labelledby="mac-h">
+        <div class="dl-name">
+          <p class="eyebrow dl-yours">Your system</p>
+          <h2 id="mac-h">macOS</h2>
+          <a class="btn primary" href={`https://github.com/ryanmitts/deptheos/releases/download/v${version}/Deptheos-${version}-macos-arm64.dmg`}>Download for macOS</a>
+        </div>
+        <div class="dl-detail">
+          <p class="dl-needs">macOS 27 or later, on a Mac with Apple silicon. There is no build for Intel Macs.</p>
+          <dl class="dl-files">
+            <dt>Disk image</dt>
+            <dd><a href={`https://github.com/ryanmitts/deptheos/releases/download/v${version}/Deptheos-${version}-macos-arm64.dmg`}><code>Deptheos-<Param path="version" />-macos-arm64.dmg</code></a></dd>
+          </dl>
+          <p class="dl-note">
+            Signed with a Developer ID and notarized by Apple, so macOS asks once whether to open it.
+            <a href="/docs/install/#mac">Installing on macOS</a>
+          </p>
+        </div>
+      </section>
+
+      <section class="dl-os" id="windows" aria-labelledby="windows-h">
+        <div class="dl-name">
+          <p class="eyebrow dl-yours">Your system</p>
+          <h2 id="windows-h">Windows</h2>
+          <a class="btn primary" href={`https://github.com/ryanmitts/deptheos/releases/download/v${version}/Deptheos-${version}-windows-x64-setup.exe`}>Download for Windows</a>
+        </div>
+        <div class="dl-detail">
+          <p class="dl-needs">Windows 10 or later, 64-bit.</p>
+          <dl class="dl-files">
+            <dt>Installer</dt>
+            <dd><a href={`https://github.com/ryanmitts/deptheos/releases/download/v${version}/Deptheos-${version}-windows-x64-setup.exe`}><code>Deptheos-<Param path="version" />-windows-x64-setup.exe</code></a></dd>
+            <dt>Portable zip, to run without installing</dt>
+            <dd><a href={`https://github.com/ryanmitts/deptheos/releases/download/v${version}/Deptheos-${version}-windows-x64-portable.zip`}><code>Deptheos-<Param path="version" />-windows-x64-portable.zip</code></a></dd>
+          </dl>
+          <p class="dl-note">
+            The installer isn't code-signed yet, so SmartScreen may say "Windows protected your PC": click
+            <em>More info</em>, then <em>Run anyway</em> (source and SHA-256 checksums are below).
+            <a href="/docs/install/#smartscreen">Installing on Windows</a>
+          </p>
+        </div>
+      </section>
+
+      <section class="dl-os" id="linux" aria-labelledby="linux-h">
+        <div class="dl-name">
+          <p class="eyebrow dl-yours">Your system</p>
+          <h2 id="linux-h">Linux (preview)</h2>
+          <a class="btn primary" href={`https://github.com/ryanmitts/deptheos/releases/download/v${version}/deptheos_${version}_amd64.deb`}>Download .deb (x86-64)</a>
+        </div>
+        <div class="dl-detail">
+          <p class="dl-needs">
+            x86-64 or ARM64, with glibc 2.35 or newer (Ubuntu 22.04, Debian 12, Fedora 36 and later) and a
+            Vulkan driver. A preview: tested on fewer systems than macOS and Windows.
+          </p>
+          <dl class="dl-files">
+            <dt>Ubuntu, Debian: .deb</dt>
+            <dd>
+              <a href={`https://github.com/ryanmitts/deptheos/releases/download/v${version}/deptheos_${version}_amd64.deb`}><code>deptheos_<Param path="version" />_amd64.deb</code></a>, or
+              <a href={`https://github.com/ryanmitts/deptheos/releases/download/v${version}/deptheos_${version}_arm64.deb`}><code>_arm64.deb</code></a>
+            </dd>
+            <dt>Fedora: .rpm</dt>
+            <dd>
+              <a href={`https://github.com/ryanmitts/deptheos/releases/download/v${version}/deptheos-${version}-1.x86_64.rpm`}><code>deptheos-<Param path="version" />-1.x86_64.rpm</code></a>, or
+              <a href={`https://github.com/ryanmitts/deptheos/releases/download/v${version}/deptheos-${version}-1.aarch64.rpm`}><code>.aarch64.rpm</code></a>
+            </dd>
+            <dt>Any distribution: tarball</dt>
+            <dd>
+              <a href={`https://github.com/ryanmitts/deptheos/releases/download/v${version}/Deptheos-${version}-linux-x86_64.tar.gz`}><code>Deptheos-<Param path="version" />-linux-x86_64.tar.gz</code></a>, or
+              <a href={`https://github.com/ryanmitts/deptheos/releases/download/v${version}/Deptheos-${version}-linux-arm64.tar.gz`}><code>-linux-arm64.tar.gz</code></a>
+            </dd>
+          </dl>
+          <p class="dl-note">
+            Install the .deb or .rpm with <code>apt</code> or <code>dnf</code>; the tarball has an
+            <code>install.sh</code>. <a href="/docs/install/#linux">Installing on Linux</a>
+          </p>
+        </div>
+      </section>
+    </div>
+
+    <section id="samples">
+      <h2>Try it with real 45 MP brackets</h2>
+      <p>
+        Deptheos includes a small built-in sample bracket on first launch so you can try stacking right away.
+        To test full-size 45 MP brackets or compare against another stacker, download the gallery frames:
+      </p>
+      <ul class="dl-links">
+        <li><a href="/gallery/spider/">Spider (46 frames)</a><span><a href="https://images.deptheos.com/spider1-jpeg.zip">JPEG (250 MB)</a> · <a href="https://images.deptheos.com/spider1-cr3.zip">CR3 (711 MB)</a></span></li>
+        <li><a href="/gallery/hornet/">Hornet (66 frames, handheld)</a><span><a href="https://images.deptheos.com/samples/hornet-jpeg.zip">JPEG (264 MB)</a> · <a href="https://images.deptheos.com/samples/hornet-cr3.zip">CR3 (1.1 GB)</a></span></li>
+        <li><a href="/gallery/pcb/">Circuit board (200 frames, tripod)</a><span><a href="https://images.deptheos.com/samples/pcb-jpeg.zip">JPEG (412 MB)</a> · <a href="https://images.deptheos.com/samples/pcb-cr3.zip">CR3 (3.1 GB)</a></span></li>
+      </ul>
+    </section>
+
+    <section id="needs">
+      <h2>What it needs</h2>
+      <p>
+        Stacking runs on the graphics card: Metal on a Mac, DirectX 12 or Vulkan on Windows, Vulkan on Linux.
+        Integrated graphics will do. A Windows or Linux computer with no GPU stacks on the CPU instead, much more
+        slowly. 16 GB of memory is recommended. <a href="/docs/install/#requirements">Installing</a> has the
+        full requirements.
+      </p>
+    </section>
+
+    <section id="more">
+      <h2>Release notes, checksums and source</h2>
+      <ul class="dl-links">
+        <li><a href="https://github.com/ryanmitts/deptheos/releases/latest">Release notes &amp; all files</a><span>What changed in <Param path="version" />, and every asset on GitHub.</span></li>
+        <li><a href={`https://github.com/ryanmitts/deptheos/releases/download/v${version}/SHA256SUMS.txt`}>SHA256SUMS.txt</a><span>Checksums for every file in this release.</span></li>
+        <li><a href="https://github.com/ryanmitts/deptheos/releases">Older versions</a><span>Every release, with its files.</span></li>
+        <li><a href="https://github.com/ryanmitts/deptheos">Source code</a><span>The repository on GitHub, under GPL-3.0.</span></li>
+        <li><a href="/docs/install/">Installing</a><span>The steps on each system, first-launch warnings, updates and uninstalling.</span></li>
+      </ul>
+      <p>To check a download against <code>SHA256SUMS.txt</code> on macOS or Linux:</p>
+      <p><code class="cmd">shasum -a 256 -c --ignore-missing SHA256SUMS.txt</code></p>
+      <p>On Windows PowerShell:</p>
+      <p><code class="cmd">Get-FileHash Deptheos-{version}-windows-x64-setup.exe -Algorithm SHA256</code></p>
+    </section>
+
+    <aside class="dl-ios" id="ios" aria-labelledby="ios-h">
+      <p class="eyebrow">Coming soon</p>
+      <h2 id="ios-h">iPhone and iPad</h2>
+      <p>The desktop app's stacking engine on iPhone and iPad, with everything on the device. <a href="/iphone/">See what it does <span aria-hidden="true">→</span></a></p>
+      <ul>
+        <li>Stack with Pyramid, Depth, and Wavelet using the same automatic alignment as the desktop app.</li>
+        <li>Retouch with Apple Pencil on iPad, with pressure sensitivity, hover preview, and double-tap/squeeze shortcuts.</li>
+        <li>Import brackets from Photos, Files, or an external drive, or capture them with the built-in bracketing tool.</li>
+      </ul>
+      <p class="soon-note">
+        Requires a modern device: iPhone 15 Pro or newer, or an iPad with an M-series or A17 Pro chip or newer,
+        on iOS 26 or iPadOS 26.
+      </p>
+    </aside>
+  </div>
+
+  <Fragment slot="scripts">
+    <script>
+      import "../../download.ts";
+    </script>
+  </Fragment>
+</BaseLayout>

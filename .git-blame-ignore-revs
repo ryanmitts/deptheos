@@ -1,0 +1,12 @@
+# Formatting-only commits, skipped by `git blame`
+# (git config blame.ignoreRevsFile .git-blame-ignore-revs).
+
+# style: adopt rustfmt (S21)
+fcae1c512e9051fd89919e23520c495f6fe3562c
+
+# cargo fmt --all
+7d1bc590a047e35022cff2d6c013a6c022cea3d9
+# Split app.rs by subject
+d03f0491d826d7cb74239c8d59d20eb277238f02
+# Split renders.rs by subject
+590327f43375c6ad4e80c625ec077bc009c6d946

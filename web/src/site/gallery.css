@@ -1,0 +1,38 @@
+/* The gallery (gallery/index.html) and a picture's page (gallery/<name>/index.html), on top of
+   story.css and home.css (the wiper, the viewer and the zoom button are home.css's). */
+
+.g-main { margin: var(--s7) 0 0; }
+.g-photo { position: relative; border-radius: var(--radius-lg); overflow: hidden; background: var(--viewer); cursor: zoom-in; }
+.g-photo img { display: block; width: 100%; height: auto; }
+.g-photo .hero-zoom { right: 16px; }
+
+.g-section { margin-top: var(--s9); padding-top: var(--s5); border-top: 1px solid var(--line); }
+.g-section h2 { margin: 0 0 var(--s3); font-size: var(--t-2xl); letter-spacing: -0.018em; }
+.g-section > p { margin: 0 0 var(--s5); max-width: var(--text); }
+
+.g-facts { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 0 var(--s6); margin: var(--s4) 0 0; }
+.g-facts > div { padding: var(--s4) 0; border-top: 1px solid var(--line); }
+.g-facts dt { margin-bottom: 2px; font-family: var(--font-mono); font-size: var(--t-xs); letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted); }
+.g-facts dd { margin: 0; font-size: var(--t-md); line-height: 1.5; color: var(--fg); }
+
+.turntable { margin: 0; }
+.turntable video { display: block; width: 100%; height: auto; border-radius: var(--radius-lg); background: var(--viewer); }
+.turntable figcaption { max-width: none; margin: var(--s3) 0 0 -0.75em; }
+.g-section .turntable { margin-top: var(--s5); }
+.g-video { display: block; width: 100%; height: auto; border-radius: var(--radius-lg); background: var(--viewer); }
+.g-back { margin: var(--s8) 0 0; font-weight: 600; }
+
+.g-cards { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--s5); margin-top: var(--s7); }
+.g-card { display: block; color: var(--body); text-decoration: none; }
+.g-card img { display: block; width: 100%; height: auto; aspect-ratio: 3 / 2; object-fit: cover; border-radius: var(--radius); background: var(--viewer); transition: opacity 150ms; }
+.g-card:hover img { opacity: 0.88; }
+.g-card .exif { margin: var(--s3) 0 0 -0.75em; }
+.g-cards + .fine { margin-top: var(--s4); }
+
+@media (max-width: 980px) {
+  .g-facts { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+@media (max-width: 640px) {
+  .g-cards { grid-template-columns: 1fr; }
+  .g-facts { grid-template-columns: 1fr; }
+}

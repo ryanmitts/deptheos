@@ -1,0 +1,30 @@
+{
+  "id": "wavelet",
+  "kind": "renders",
+  "frames": 66,
+  "renders": [
+    {
+      "name": "wavelet",
+      "method": "wavelet",
+      "args": [],
+      "every": 1
+    }
+  ],
+  "places": [
+    {
+      "name": "hairs",
+      "width": 768,
+      "height": 512
+    }
+  ],
+  "files": [
+    {
+      "file": "wavelet-hairs-grey.jpg",
+      "bytes": 85841
+    },
+    {
+      "file": "wavelet-hairs.jpg",
+      "bytes": 88558
+    }
+  ]
+}

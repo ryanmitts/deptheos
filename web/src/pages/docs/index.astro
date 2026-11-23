@@ -1,0 +1,36 @@
+---
+import DocsLayout from "../../layouts/DocsLayout.astro";
+import { DOC_GROUPS, DOCS, docHref } from "../../data/docs.ts";
+---
+
+<DocsLayout
+  docKey="docs"
+  title="Docs"
+  description="How to use Deptheos: your first stack, choosing a method and its settings, aligning, RAW and DNG, comparing, retouching, batch and the command line."
+>
+  <div class="prose">
+    <h1>Docs</h1>
+    <p class="lede">
+      How to use Deptheos: what each method and setting does, and when to change it. New here? Start with{" "}
+      <a href="/docs/getting-started/">your first stack</a>.
+    </p>
+  </div>
+
+  {
+    DOC_GROUPS.map((group) => (
+      <section id={group.toLowerCase()}>
+        <div class="prose">
+          <h2>{group}</h2>
+        </div>
+        <div class="intro-cards">
+          {DOCS.filter((d) => d.group === group).map((doc) => (
+            <a class="intro-card" href={docHref(doc.key)}>
+              <strong>{doc.title}</strong>
+              <span>{doc.summary}</span>
+            </a>
+          ))}
+        </div>
+      </section>
+    ))
+  }
+</DocsLayout>

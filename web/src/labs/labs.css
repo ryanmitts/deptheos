@@ -1,0 +1,134 @@
+/* The docs pages' figures (src/labs/). Colors, type and spacing come from src/site/site-tokens.css. */
+
+.lab [hidden] { display: none !important; }
+
+/* A figure is a panel: the working part (.lab-body) on top, then the caption and "what to look for" in bands. */
+.lab {
+  margin: var(--s6) auto; max-width: 860px; display: flex; flex-direction: column;
+  border: 1px solid var(--line); border-radius: var(--radius-lg); background: var(--panel);
+  scroll-margin-top: var(--nav-height, 110px);
+}
+.lab-body { display: flex; flex-direction: column; gap: var(--s3); padding: var(--s5); transition: opacity 150ms; }
+.lab[aria-busy="true"] .lab-body { opacity: 0.72; }
+.lab figcaption { margin: 0; max-width: none; padding: var(--s4) var(--s5); border-top: 1px solid var(--line); background: var(--bg); font-size: var(--t-sm); }
+.lab > :last-child { border-bottom-left-radius: var(--radius-lg); border-bottom-right-radius: var(--radius-lg); }
+.lab-why { margin: 0; padding: var(--s4) var(--s5); border-top: 1px solid var(--line); font-size: var(--t-md); }
+.lab-why::before { content: "What to look for"; display: block; margin-bottom: 6px; font-family: var(--font-mono); font-size: var(--t-xs); font-weight: 500; letter-spacing: 0.08em; text-transform: uppercase; color: var(--accent); }
+.lab-why:not([hidden]) ~ .lab-why::before { display: none; }
+.lab-why p { margin: 0 0 var(--s2); }
+.lab-why p:last-child { margin: 0; }
+.lab-status { color: var(--muted); font-family: var(--font-mono); font-size: var(--t-xs); margin: 0; font-variant-numeric: tabular-nums; }
+
+/* A figure wider than the prose. */
+.lab-wide { max-width: var(--wide); }
+
+/* A detail panel at 100%: the box shows what fits, the reader drags for the rest. */
+.pan {
+  overflow: auto;
+  max-width: 100%;
+  max-height: min(70vh, 768px);
+  width: max-content;
+  margin: 0 auto;
+  border-radius: var(--radius);
+  background: var(--viewer);
+  cursor: grab;
+  scrollbar-width: thin;
+}
+.pan.dragging { cursor: grabbing; }
+/* "Drag to look around", pinned to the box's corner while the picture overflows it and has not been moved. */
+.pan-hint { display: none; position: sticky; left: 0; top: 0; height: 0; z-index: 1; pointer-events: none; }
+.pan-hint span { position: absolute; left: 8px; top: 8px; width: max-content; padding: 3px 9px; border-radius: 999px; background: rgb(0 0 0 / 0.6); color: #fff; font-size: 13px; }
+.pan.can-pan:not(.panned) > .pan-hint { display: block; }
+.pan:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.pan > canvas, .pan > img { display: block; max-width: none; }
+@media (max-width: 640px) { .pan { max-height: 60vh; } }
+
+/* One or two panels; side by side when there is room, else stacked. */
+.lab-panels { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 300px), 1fr)); gap: 12px; }
+.lab-panels.column { grid-template-columns: 1fr; }
+.lab-panel { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+.lab-panel .pan { width: fit-content; max-width: 100%; margin: 0; }
+.lab-panels.column .pan { max-height: min(45vh, 768px); }
+.lab-panel-label { margin: 0; font-family: var(--font-mono); font-size: var(--t-xs); color: var(--muted); }
+.pan canvas.tappable { cursor: crosshair; }
+.frame-key { display: flex; align-items: center; gap: 8px; font-size: 13px; color: var(--muted); }
+.frame-key i { flex: 1; height: 8px; border-radius: 3px; max-width: 240px; }
+.lab-row { display: flex; flex-wrap: wrap; align-items: center; gap: 6px var(--s4); }
+.lab-row-label { min-width: 6.5em; font-size: var(--t-sm); color: var(--muted); }
+
+/* The level mixer: the result beside the pyramid of switches, a row per level, the coarsest (narrowest) on top. */
+.mixer-top { display: grid; grid-template-columns: minmax(0, 1fr) max-content; gap: 16px; align-items: start; }
+.mixer-top > * { min-width: 0; }
+.mixer-pyramid { display: flex; flex-direction: column; gap: 6px; }
+.mixer-row { display: grid; grid-template-columns: 64px 126px 126px; gap: 6px; align-items: center; justify-items: center; font-size: var(--t-xs); color: var(--muted); }
+.mixer-row > span:first-child { justify-self: start; font-family: var(--font-mono); }
+.mixer-head { align-items: end; text-align: center; line-height: 1.25; color: var(--fg); font-weight: 600; font-size: var(--t-sm); white-space: pre-line; }
+.lab[data-lab="mixer"] { max-width: 860px; }
+.mixer-tile { padding: 0; border: 2px solid transparent; border-radius: var(--radius); background: none; cursor: pointer; line-height: 0; opacity: 0.55; }
+.mixer-tile canvas { display: block; border-radius: 3px; }
+.mixer-tile:hover { opacity: 0.85; }
+.mixer-tile[aria-pressed="true"] { border-color: var(--accent); opacity: 1; }
+.mixer-tile:focus-visible { outline: 2px solid var(--fg); outline-offset: 1px; }
+@media (max-width: 760px) {
+  .mixer-top { grid-template-columns: minmax(0, 1fr); justify-items: center; }
+  .mixer-top .lab-panel { width: 100%; }
+}
+@media (max-width: 400px) {
+  .mixer-pyramid { width: 100%; }
+  .mixer-row { grid-template-columns: minmax(0, 52px) minmax(0, 1fr) minmax(0, 1fr); }
+  .mixer-tile { max-width: 100%; }
+  .mixer-tile canvas { max-width: 100%; height: auto; }
+}
+
+/* A row of choices, one pressed: a joined segmented control. 44 px tall, to be easy to hit on a phone. */
+.lab-stops { display: inline-flex; flex-wrap: wrap; gap: 2px; padding: 3px; border: 1px solid var(--line); border-radius: calc(var(--radius) + 3px); background: var(--sunken); }
+.lab-stops button {
+  min-height: 40px;
+  padding: 0 14px;
+  border: 0;
+  border-radius: var(--radius);
+  background: transparent;
+  color: var(--body);
+  font: inherit;
+  font-size: var(--t-sm);
+  font-weight: 500;
+  cursor: pointer;
+  transition: background 100ms, color 100ms;
+}
+.lab-stops button:hover { background: var(--hover); color: var(--fg); }
+.lab-stops button[aria-pressed="true"] { background: var(--panel); color: var(--fg); box-shadow: 0 0 0 1px var(--line-strong), 0 1px 2px rgb(0 0 0 / 0.12); }
+.lab-stops button[aria-pressed="true"]::before { content: ""; display: inline-block; width: 6px; height: 6px; margin-right: 8px; border-radius: 50%; background: var(--accent); vertical-align: 0.1em; }
+.lab-stops button:focus-visible { outline-offset: 1px; }
+.lab-stops button:disabled { opacity: 0.45; cursor: default; }
+@media (pointer: coarse) { .lab-stops button { min-height: 44px; } }
+
+.lab-scrub { display: flex; align-items: center; gap: var(--s3) var(--s4); flex-wrap: wrap; font-size: var(--t-sm); }
+.lab-scrub label { font-variant-numeric: tabular-nums; min-width: 9.5em; color: var(--muted); }
+.lab-scrub output { color: var(--fg); font-family: var(--font-mono); font-weight: 500; }
+.lab-scrub input[type="range"] { flex: 1; min-width: 180px; min-height: 44px; accent-color: var(--accent); }
+
+/* A whole frame fitted to the width (`#moves`). */
+canvas.lab-fit { display: block; width: 100%; height: auto; border-radius: var(--radius); background: var(--viewer); }
+.lab-toggle { min-height: 40px; padding: 0 14px; border: 1px solid var(--line-strong); border-radius: var(--radius); background: var(--panel); color: var(--fg); font: inherit; font-size: var(--t-sm); font-weight: 500; cursor: pointer; }
+.lab-toggle:hover { background: var(--sunken); }
+.lab-toggle[aria-pressed="true"] { background: var(--accent-tint); border-color: var(--accent); color: var(--fg); }
+.lab-chart { margin: 0; }
+.lab-chart figcaption { font-size: 13px; color: var(--muted); }
+.move-chart { display: block; width: 100%; height: auto; }
+.move-chart .axis { stroke: var(--line); }
+.move-chart .tick { font-size: 11px; fill: var(--muted); }
+.move-chart .series { fill: none; stroke-width: 2; }
+.move-chart .s0, .key.s0 { stroke: var(--accent); color: var(--accent); }
+.move-chart .s1, .key.s1 { stroke: var(--series-1); color: var(--series-1); }
+.move-chart .marker { stroke: var(--fg); stroke-width: 1.5; }
+
+@media (max-width: 640px) {
+  /* Phones: the figure runs edge to edge, the bands keep the page's gutter. */
+  .lab { margin-left: calc(-1 * var(--gutter)); margin-right: calc(-1 * var(--gutter)); border-radius: 0; border-left: 0; border-right: 0; }
+  .lab > :last-child { border-radius: 0; }
+  .lab-body { padding: var(--s4) var(--gutter); }
+  .lab figcaption, .lab-why { padding-left: var(--gutter); padding-right: var(--gutter); }
+  .lab-row-label, .lab-scrub label { min-width: 0; width: 100%; }
+  .lab-stops { display: flex; width: 100%; }
+  .lab-stops button { flex: 1 1 auto; }
+}

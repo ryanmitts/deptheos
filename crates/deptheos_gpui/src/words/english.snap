@@ -1,0 +1,2088 @@
+button-cancel
+    Cancel
+button-choose
+    Choose…
+unit-percent
+    <value>%
+unit-px
+    <value> px
+frames-count (n=0)
+    0 frames
+frames-count (n=1)
+    1 frame
+frames-count (n=2)
+    2 frames
+frames-count (n=1000)
+    1000 frames
+renders-count (n=0)
+    0 renders
+renders-count (n=1)
+    1 render
+renders-count (n=2)
+    2 renders
+renders-count (n=1000)
+    1000 renders
+stacks-count (n=0)
+    0 stacks
+stacks-count (n=1)
+    1 stack
+stacks-count (n=2)
+    2 stacks
+stacks-count (n=1000)
+    1000 stacks
+window-title
+    Deptheos
+gpu-fault-reason
+    <reason> The details are in the log.
+gpu-start-failed
+    Deptheos couldn't start its GPU engine. <why> Choose another GPU, or Software rendering, in Settings ▸ Advanced.
+gpu-fallback-notice
+    <gpu> couldn't start, so Deptheos is using the fastest GPU it found. You can choose another in Settings ▸ Advanced.
+
+    <reason>
+settings-reset-notice-kept
+    Your settings couldn't be read, so Deptheos is using the defaults. The old file was kept as <path>.
+settings-reset-notice
+    Your settings couldn't be read, so Deptheos is using the defaults.
+gpu-subject-automatic
+    The fastest GPU
+gpu-subject-software
+    The software renderer
+gpu-subject-named
+    The chosen GPU (<name>)
+settings-saved-in
+    Settings are saved in <path>.
+open-settings
+    Open Settings
+window-failed
+    Deptheos couldn't open its window.
+
+    <error>
+start-title
+    Deptheos can't open its Library
+start-folder
+    Library folder: <folder>
+start-no-folder
+    There's no folder to keep the Library in. Choose a folder for it.
+start-try-again
+    Try Again
+start-trying
+    Opening…
+start-choose
+    Choose Another Library…
+start-quit
+    Quit
+start-get-latest
+    Get the Latest Version
+window-title-open
+    <open> — Deptheos
+app-stacking-canceled
+    Stacking canceled
+app-stacked-export
+    Export…
+app-show-in-stacking
+    Show in Stacking
+app-stacked-in
+    Stacked in <seconds> s
+app-stacked-in-left-out
+    Stacked in <seconds> s. <left_out>.
+app-stacked-in-numbered
+    Stacked in <seconds> s · #<number>
+app-stacked-in-numbered-left-out
+    Stacked in <seconds> s · #<number>. <left_out>.
+app-stacked-in-no-thumbnail
+    Stacked in <seconds> s. It wasn't kept in the Library, because its thumbnail couldn't be made. Export it to keep it.
+app-stacked-in-left-out-no-thumbnail
+    Stacked in <seconds> s. <left_out>. It wasn't kept in the Library, because its thumbnail couldn't be made. Export it to keep it.
+app-export-failed-to
+    The render couldn't be exported to "<folder>".
+app-export-failed
+    The render couldn't be exported.
+app-frame-not-shown
+    The frame couldn't be shown. <reason>
+app-compare-not-shown
+    The render couldn't be shown for comparing. <reason>
+app-drop-while-stack
+    Frames can be added once the stack finishes
+app-drop-while-batch
+    Frames can be added once the batch finishes
+app-drop-while-sequence
+    Frames can be added once the sequence finishes
+app-drop-frames
+    Drop frames or a folder to add them
+app-drop-folders-one-stack
+    One Stack
+app-drop-folders-one-stack-detail (n=0)
+    The 0 folders' frames, stacked together
+app-drop-folders-one-stack-detail (n=1)
+    The folder's frames, stacked together
+app-drop-folders-one-stack-detail (n=2)
+    The 2 folders' frames, stacked together
+app-drop-folders-one-stack-detail (n=1000)
+    The 1000 folders' frames, stacked together
+app-drop-folders-batch
+    A Stack per Folder (Batch…)
+app-drop-folders-batch-detail (n=0)
+    0 stacks, set up in New Batch
+app-drop-folders-batch-detail (n=1)
+    1 stack, set up in New Batch
+app-drop-folders-batch-detail (n=2)
+    2 stacks, set up in New Batch
+app-drop-folders-batch-detail (n=1000)
+    1000 stacks, set up in New Batch
+app-untitled-stack
+    Untitled stack
+viewer-zoom-fit
+    Fit
+viewer-result
+    Result
+viewer-color-management-on
+    Color management on
+viewer-color-management-off
+    Color management off: the window shows the pictures' values unconverted. Wide-gamut pictures change the next time they are shown.
+viewer-loading
+    Loading <name>…
+viewer-loading-depth-map
+    Loading the depth map…
+menu-app
+    Deptheos
+menu-about
+    About Deptheos
+menu-check-for-updates
+    Check for Updates…
+menu-settings
+    Settings…
+menu-install-command-line-tool
+    Install Command Line Tool…
+menu-services
+    Services
+menu-hide-app
+    Hide Deptheos
+menu-hide-others
+    Hide Others
+menu-show-all
+    Show All
+menu-quit
+    Quit Deptheos
+menu-file
+    File
+menu-new-stack
+    New Stack
+menu-new-batch
+    New Batch…
+menu-add-frames
+    Add Frames…
+menu-add-folder
+    Add Folder…
+menu-export
+    Export…
+menu-export-again
+    Export Again
+menu-export-grow-sequence
+    Export Grow Sequence…
+menu-show-frames-in-finder
+    Show Frames in Finder
+menu-close-window
+    Close Window
+menu-edit
+    Edit
+menu-undo
+    Undo
+menu-undo-step
+    Undo <step>
+menu-redo
+    Redo
+menu-redo-step
+    Redo <step>
+menu-cut
+    Cut
+menu-copy
+    Copy
+menu-paste
+    Paste
+menu-select-all-frames
+    Select All Frames
+menu-rename-stack
+    Rename Stack…
+menu-rename-render
+    Rename Render…
+menu-remove-all-frames
+    Remove All Frames
+menu-view
+    View
+menu-result
+    Result
+menu-painted
+    Painted
+menu-split
+    Split
+menu-side-by-side
+    Side by Side
+menu-top-and-bottom
+    Top and Bottom
+menu-flicker
+    Flicker
+menu-swap-sides
+    Swap Sides
+menu-show-depth-map
+    Show Depth Map
+menu-hide-depth-map
+    Hide Depth Map
+menu-show-contribution
+    Show Contribution
+menu-hide-contribution
+    Hide Contribution
+menu-zoom-in
+    Zoom In
+menu-zoom-out
+    Zoom Out
+menu-zoom-to-fit
+    Zoom to Fit
+menu-actual-size
+    Actual Size
+menu-stacking
+    Stacking
+menu-library
+    Library
+menu-show-frames
+    Show Frames
+menu-hide-frames
+    Hide Frames
+menu-show-inspector
+    Show Inspector
+menu-hide-inspector
+    Hide Inspector
+menu-focus-mode
+    Focus Mode
+menu-enter-full-screen
+    Enter Full Screen
+menu-exit-full-screen
+    Exit Full Screen
+menu-stack
+    Stack
+menu-run-stack
+    Stack
+menu-cancel-stack
+    Cancel Stack
+menu-cancel-batch
+    Cancel Batch
+menu-cancel-sequence
+    Cancel Sequence
+menu-revert
+    Revert
+menu-revert-to
+    Revert to #<number>
+menu-render-info
+    Render Info
+menu-retouch
+    Retouch
+menu-done-retouching
+    Done Retouching
+menu-star-render
+    Star Render
+menu-unstar-render
+    Unstar Render
+menu-exclude-selected-frames
+    Exclude Selected Frames
+menu-include-selected-frames
+    Include Selected Frames
+menu-include-only-selected-frames
+    Include Only Selected Frames
+menu-include-all-frames
+    Include All Frames
+menu-previous-frame
+    Previous Frame
+menu-next-frame
+    Next Frame
+menu-window
+    Window
+menu-minimize
+    Minimize
+menu-zoom
+    Zoom
+menu-bring-all-to-front
+    Bring All to Front
+menu-help
+    Help
+menu-app-help
+    Deptheos Help
+menu-keyboard-shortcuts
+    Keyboard Shortcuts
+menu-choosing-a-method
+    Choosing a Method
+menu-try-sample
+    Try a Sample Stack
+menu-report-a-problem
+    Report a Problem…
+menu-save-diagnostics
+    Save Diagnostics…
+menu-show-log-folder
+    Show Log Folder
+menu-release-notes
+    Release Notes
+window-menu-tooltip
+    Menu (Alt)
+menu-show-frames-in-explorer
+    Show Frames in Explorer
+menu-show-frames-in-file-manager
+    Show Frames in File Manager
+menu-exit
+    Exit
+shortcuts-title
+    Keyboard Shortcuts
+shortcuts-stacking
+    Stacking
+shortcut-stack
+    Stack
+shortcut-add
+    Add Frames… / Add Folder…
+shortcut-export
+    Export… / Export Again
+shortcut-render-info
+    Render Info: the record of the render shown
+shortcut-new-batch
+    New Batch…
+shortcut-exclude
+    Exclude or include the selected frames
+shortcut-exclude-delete
+    In the Frames list: exclude the selected frames
+shortcut-star
+    Star or unstar the render shown
+shortcut-cancel
+    Cancel the stack or batch
+shortcuts-viewing
+    Viewing
+shortcut-layouts
+    Result, Split, Side by Side, Top and Bottom
+shortcut-flicker
+    Flicker between the two sides
+shortcut-swap-sides
+    Swap Sides
+shortcut-map
+    Depth Map / Contribution
+shortcut-frames
+    Previous Frame / Next Frame
+shortcut-fine-scrub
+    Along the focus rail, one frame at a time
+shortcut-zoom-to-fit
+    Zoom to Fit
+shortcut-actual-size
+    Actual Size
+shortcut-fit-or-actual-size
+    Switch between Zoom to Fit and Actual Size
+shortcut-zoom-in-out
+    Zoom In / Zoom Out, a step at a time
+shortcut-double-click
+    Double-click
+shortcut-double-click-zoom
+    Switch between Zoom to Fit and Actual Size at the pointer
+shortcut-key-scroll
+    <key>-scroll
+shortcut-scroll-zoom
+    Zoom at the pointer
+shortcut-stop-compare
+    Stop comparing
+shortcut-focus-mode
+    Focus Mode
+shortcut-screens
+    Stacking / Library
+shortcut-panels
+    Frames / Inspector
+shortcuts-retouch
+    Retouch
+shortcut-retouch
+    Retouch / Done Retouching
+shortcut-tools
+    Brush / Eraser
+shortcut-brush-size
+    Brush size
+shortcut-hardness
+    Hardness
+shortcut-opacity
+    Opacity, 10% to 100%
+shortcut-sharpest
+    Paint from the sharpest frame there
+shortcut-see-source
+    See the source
+shortcut-undo
+    Undo / Redo
+shortcut-key-held
+    <key> (held)
+shortcut-key-click
+    <key>-click
+shortcut-key-drag
+    <key>-drag
+shortcut-pan
+    Pan without painting
+shortcuts-library
+    Library
+shortcut-library-open
+    Open the selected stack
+shortcut-library-move
+    Select the stack beside, above or below
+shortcut-library-extend
+    Select the stacks up to the one beside, above or below
+shortcut-library-preview
+    Show the selected stack large, or close it
+shortcut-library-select-all
+    Select every stack
+shortcut-library-search
+    Search the stacks
+shortcut-library-delete
+    Move the selected stacks, or the render selected, to Recently Deleted
+shortcut-library-deselect
+    Close the stack shown large, or select nothing
+choosing-a-method-title
+    Choosing a Method
+choosing-a-method-hint
+    Not sure? Stack with Pyramid, then again with Depth, and compare the two renders with Split.
+age-today
+    Today
+age-yesterday
+    Yesterday
+age-day-time
+    <day>, <time>
+age-just-now
+    just now
+age-minutes (n=0)
+    0 minutes ago
+age-minutes (n=1)
+    1 minute ago
+age-minutes (n=2)
+    2 minutes ago
+age-minutes (n=1000)
+    1000 minutes ago
+age-hours (n=0)
+    0 hours ago
+age-hours (n=1)
+    1 hour ago
+age-hours (n=2)
+    2 hours ago
+age-hours (n=1000)
+    1000 hours ago
+age-days (n=0)
+    0 days ago
+age-days (n=1)
+    1 day ago
+age-days (n=2)
+    2 days ago
+age-days (n=1000)
+    1000 days ago
+age-weeks (n=0)
+    0 weeks ago
+age-weeks (n=1)
+    1 week ago
+age-weeks (n=2)
+    2 weeks ago
+age-weeks (n=1000)
+    1000 weeks ago
+age-months (n=0)
+    0 months ago
+age-months (n=1)
+    1 month ago
+age-months (n=2)
+    2 months ago
+age-months (n=1000)
+    1000 months ago
+age-years (n=0)
+    0 years ago
+age-years (n=1)
+    1 year ago
+age-years (n=2)
+    2 years ago
+age-years (n=1000)
+    1000 years ago
+render-frames-of (total=0)
+    <stacked> of 0 frames
+render-frames-of (total=1)
+    <stacked> of 1 frame
+render-frames-of (total=2)
+    <stacked> of 2 frames
+render-frames-of (total=1000)
+    <stacked> of 1000 frames
+render-grid-search
+    Grid search
+render-uncropped
+    uncropped
+render-unaligned
+    not aligned
+renders-strip-heading
+    Renders
+renders-strip-none
+    None yet
+renders-strip-saving
+    Saving…
+tile-opening
+    Opening…
+tile-tip
+    <range> · <frames> · <age>
+tile-tip-left-out
+    <tip>
+    <note>
+tile-tip-compact
+    <method> · <settings>
+    <tip>
+tile-tag-a
+    A
+tile-tag-a-tip
+    Compared render
+tile-tag-b
+    B
+tile-tag-b-tip
+    Shown result
+tile-edited
+    Edited
+tile-stacking
+    Stacking…
+render-open
+    Open
+render-info
+    Render Info
+render-revert-to
+    Revert to #<number>
+render-info-date
+    <day> at <time>
+render-info-starred
+    <stacked> ★
+render-compare-mac
+    Compare with Result (⌘-click)
+render-compare
+    Compare with Result (Ctrl-click)
+render-export-grow-sequence
+    Export Grow Sequence…
+render-rename
+    Rename Render…
+render-star
+    Star
+render-unstar
+    Unstar
+render-delete
+    Delete Render
+render-delete-others (n=0)
+    Delete Other Renders
+render-delete-others (n=1)
+    Delete 1 Other Render
+render-delete-others (n=2)
+    Delete 2 Other Renders
+render-delete-others (n=1000)
+    Delete 1000 Other Renders
+render-show-in-finder
+    Show in Finder
+render-show-in-explorer
+    Show in Explorer
+render-show-in-file-manager
+    Show in File Manager
+renders-list-failed
+    The Library folder couldn't be read.
+render-open-failed
+    The render couldn't be opened.
+render-rename-failed
+    The render's new name couldn't be saved.
+render-stack-rename-failed
+    The stack's new name couldn't be saved.
+render-save-failed
+    The render couldn't be saved.
+render-star-failed
+    The render couldn't be starred.
+render-unstar-failed
+    The render couldn't be unstarred.
+render-failure-save-failed
+    The failed stack couldn't be kept in the Library.
+render-unstacked-save-failed
+    The batch's stacks couldn't be kept in the Library to try again later.
+render-failures-read-failed
+    The batch's failed stacks couldn't be read again.
+render-relink-failed
+    The renders couldn't be pointed at the new folder.
+render-find-again-failed
+    The folders of frames that moved couldn't be looked for.
+renders-delete-stacks-failed
+    Not every stack could be deleted.
+renders-delete-stacks-unsure
+    The stacks may not all have been deleted.
+renders-delete-failed
+    Not every render could be deleted.
+renders-delete-unsure
+    The renders may not all have been deleted.
+renders-delete-busy
+    Nothing was deleted, because a stack, batch or sequence is running. Delete again when it finishes.
+renders-delete-saving
+    Nothing was deleted, because a render is still being saved. Delete again when it is saved.
+renders-delete-deleting
+    Nothing was deleted, because another delete is still running. Delete again when it finishes.
+renders-deleted-undo
+    Undo
+library-search
+    Search
+library-show
+    Show
+library-show-all
+    All stacks
+library-show-starred
+    Starred
+library-show-failed
+    Failed
+library-delete-all-failed
+    Delete All Failed Stacks
+library-recently-deleted
+    Recently Deleted
+library-deleted-restore
+    Restore
+library-deleted-empty
+    Empty Recently Deleted…
+library-deleted-reading
+    Reading Recently Deleted…
+library-deleted-detail
+    <days> · <size>
+library-jump-to
+    Jump to
+library-reading
+    Reading the Library…
+library-unread
+    The Library couldn't be read.
+library-empty
+    No stacks yet. New Stack starts one, and each is kept here.
+library-no-match-search
+    No stack, render or batch name has "<query>" in it. Clear the search to see every stack.
+library-no-match-starred
+    No starred renders. Star a render to keep it here.
+library-no-match-failed
+    No failed stacks. Choose All stacks to see the rest.
+library-unstacked-heading
+    Not stacked yet
+library-tile-failed
+    Failed
+library-tile-unstacked
+    Not stacked yet
+library-tile-failed-detail
+    Open to see why and retry
+library-tile-detail
+    <render> · <settings>
+library-batch-about (n=0)
+    Batch · 0 stacks · <time>
+library-batch-about (n=1)
+    Batch · 1 stack · <time>
+library-batch-about (n=2)
+    Batch · 2 stacks · <time>
+library-batch-about (n=1000)
+    Batch · 1000 stacks · <time>
+library-batch-about-failed (n=0)
+    Batch · 0 stacks · <time> · <failed> failed
+library-batch-about-failed (n=1)
+    Batch · 1 stack · <time> · <failed> failed
+library-batch-about-failed (n=2)
+    Batch · 2 stacks · <time> · <failed> failed
+library-batch-about-failed (n=1000)
+    Batch · 1000 stacks · <time> · <failed> failed
+library-batch-delete-failed (n=0)
+    Delete Failed Stacks
+library-batch-delete-failed (n=1)
+    Delete Failed Stack
+library-batch-delete-failed (n=2)
+    Delete 2 Failed Stacks
+library-batch-delete-failed (n=1000)
+    Delete 1000 Failed Stacks
+library-batch-delete (n=0)
+    Delete Batch (0 Stacks)
+library-batch-delete (n=1)
+    Delete Batch (1 Stack)
+library-batch-delete (n=2)
+    Delete Batch (2 Stacks)
+library-batch-delete (n=1000)
+    Delete Batch (1000 Stacks)
+library-menu-open
+    Open
+library-menu-open-to-retry
+    Open to Retry
+library-menu-export
+    Export…
+library-menu-export-number
+    Export #<number>…
+library-menu-star-number
+    Star #<number>
+library-menu-unstar-number
+    Unstar #<number>
+library-menu-rename
+    Rename Stack…
+library-menu-keep-starred
+    Keep Only Starred
+library-menu-keep-starred-delete (n=0)
+    Delete 0 Unstarred Renders
+library-menu-keep-starred-delete (n=1)
+    Delete 1 Unstarred Render
+library-menu-keep-starred-delete (n=2)
+    Delete 2 Unstarred Renders
+library-menu-keep-starred-delete (n=1000)
+    Delete 1000 Unstarred Renders
+library-menu-delete-stack
+    Delete Stack
+library-menu-delete-failed
+    Delete Failed Stack
+library-menu-delete-stacks (n=0)
+    Delete 0 Stacks
+library-menu-delete-stacks (n=1)
+    Delete 1 Stack
+library-menu-delete-stacks (n=2)
+    Delete 2 Stacks
+library-menu-delete-stacks (n=1000)
+    Delete 1000 Stacks
+library-rename-title
+    Rename Stack
+library-rename-text
+    Every render of this stack takes the new name. Leave it empty to use the folder's name.
+library-rename-placeholder
+    The folder's name
+library-rename-ok
+    Rename
+library-details-none
+    Select a stack to see its renders.
+library-details-selected (n=0)
+    0 stacks selected
+library-details-selected (n=1)
+    1 stack selected
+library-details-selected (n=2)
+    2 stacks selected
+library-details-selected (n=1000)
+    1000 stacks selected
+library-details-renders (n=0)
+    No renders
+library-details-renders (n=1)
+    1 render
+library-details-renders (n=2)
+    2 renders
+library-details-renders (n=1000)
+    1000 renders
+library-details-renders-size (n=0)
+    No renders · <size>
+library-details-renders-size (n=1)
+    1 render · <size>
+library-details-renders-size (n=2)
+    2 renders · <size>
+library-details-renders-size (n=1000)
+    1000 renders · <size>
+library-details-delete
+    Delete
+library-details-unstacked
+    Not stacked yet. Its frames and settings are kept. Open the stack to go on.
+library-details-frames
+    Frames
+library-details-folder
+    Folder
+library-details-tried
+    Tried
+library-details-batch
+    Batch
+library-details-newest
+    Newest
+library-details-frames-of
+    <stacked> of <total>
+library-details-failed
+    This stack didn't finish. <error>
+library-details-open
+    Open
+library-details-open-to-retry
+    Open to Retry
+library-details-rename
+    Rename…
+library-details-rename-tip
+    Rename this stack: every render of it takes the name
+library-details-export
+    Export #<number>…
+library-details-export-tip
+    Choose where to export the render shown above
+library-export-reading
+    Reading #<number>…
+library-export-read-failed
+    The render couldn't be read to export it.
+library-details-renders-heading
+    Renders
+library-working
+    Working version
+library-working-kept
+    Working version kept
+library-working-edited
+    <edited>. Open the stack to go on.
+library-working-started
+    Started from #<number>. Open the stack to go on.
+library-working-never-stacked
+    Frames never stacked.
+render-title
+    <stack> <render>
+render-label
+    <title> · <settings>
+sidebar-frames
+    Frames
+sidebar-frames-locked
+    Locked while stacking
+sidebar-frames-included
+    <included> of <total>
+sidebar-add
+    Add
+sidebar-add-frames
+    Add Frames…
+sidebar-add-folder
+    Add Folder…
+sidebar-left-out-show
+    Show
+sidebar-left-out-show-tooltip
+    Select the frames left out in the Frames list
+sidebar-missing-title (n=0)
+    0 frames can't be found
+sidebar-missing-title (n=1)
+    1 frame can't be found
+sidebar-missing-title (n=2)
+    2 frames can't be found
+sidebar-missing-title (n=1000)
+    1000 frames can't be found
+sidebar-missing-text (n=0)
+    They were moved or renamed. Locate them, or remove them from the list.
+sidebar-missing-text (n=1)
+    It was moved or renamed. Locate it, or remove it from the list.
+sidebar-not-connected-title (n=0)
+    0 frames not connected
+sidebar-not-connected-title (n=1)
+    1 frame not connected
+sidebar-not-connected-title (n=2)
+    2 frames not connected
+sidebar-not-connected-title (n=1000)
+    1000 frames not connected
+sidebar-not-connected-text (n=0)
+    They're on a drive or share that isn't connected. Connect it, Locate them elsewhere, or remove them from the list.
+sidebar-not-connected-text (n=1)
+    It's on a drive or share that isn't connected. Connect it, Locate it elsewhere, or remove it from the list.
+sidebar-locate
+    Locate…
+sidebar-locate-tooltip (n=0)
+    Choose the folder the frames were moved to
+sidebar-locate-tooltip (n=1)
+    Choose the folder the frame was moved to
+sidebar-remove-missing
+    Remove
+sidebar-remove-missing-tooltip
+    Take the missing frames out of the list
+sidebar-selected
+    <count> selected · right-click for actions
+sidebar-pairs
+    RAW + JPEG pairs
+sidebar-pair-raw-tooltip
+    Stack the RAW of each RAW + JPEG pair
+sidebar-pair-jpeg-tooltip
+    Stack the JPEG of each RAW + JPEG pair, for a faster stack
+sidebar-order-more
+    <note> (and <more> more)
+sidebar-order-wrong
+    <note>. Out-of-order frames can stack badly and make a sequence jump. Sort by Capture Time to fix it.
+sidebar-order-more-wrong
+    <note> (and <more> more). Out-of-order frames can stack badly and make a sequence jump. Sort by Capture Time to fix it.
+sidebar-cancel-sequence-tooltip
+    Cancel the sequence and keep the frames written so far
+sidebar-stack-uses (total=0)
+    Stack will use 0 frames
+sidebar-stack-uses (total=1)
+    Stack will use 1 frame
+sidebar-stack-uses (total=2)
+    Stack will use 2 frames
+sidebar-stack-uses (total=1000)
+    Stack will use 1000 frames
+sidebar-stack-uses-some
+    Stack will use <included> of <total> frames
+sidebar-settings-unlock
+    Settings unlock when this stack finishes or is canceled.
+sidebar-brush
+    Brush
+sidebar-brush-tooltip
+    Paint from the source
+sidebar-eraser
+    Eraser
+sidebar-eraser-tooltip
+    Bring back the stacked result
+sidebar-paint-tools-note
+    Brush paints from the source. Eraser brings back the stacked result.
+sidebar-size
+    Size
+sidebar-hardness
+    Hardness
+sidebar-opacity
+    Opacity
+sidebar-flow
+    Flow
+sidebar-size-tooltip
+    The brush's radius, in pixels of the picture
+sidebar-hardness-tooltip
+    How sharp the brush's edge is: lower fades from the center, to blend a fix in softly
+sidebar-opacity-tooltip
+    The most a stroke changes a pixel toward the source, however often you go over it
+sidebar-flow-tooltip
+    How much each pass adds, up to the opacity: below 100%, a stroke builds up as you go over a spot again
+sidebar-colors-match
+    Only where colors match
+sidebar-colors-match-note
+    Skips pixels where the source differs a lot from the result, so halos and shifted edges don't get painted in.
+sidebar-within
+    Within
+sidebar-within-tooltip
+    How far the source's color may differ from the result's and still be painted
+sidebar-keys
+    Keys
+sidebar-key-size
+    brush size
+sidebar-key-hardness
+    brush hardness
+sidebar-key-pick-frame
+    click to paint from the sharpest frame there
+sidebar-key-frame
+    previous or next frame
+sidebar-key-opacity
+    opacity, 10% to 100%
+sidebar-key-peek
+    see the source
+sidebar-key-pan
+    held, drag to pan
+sidebar-key-done
+    Done Retouching
+sidebar-paint-opening
+    Opening the render…
+sidebar-paint-loading
+    Loading the source…
+sidebar-paint-try-again
+    Try Again
+sidebar-paint-done
+    Done
+sidebar-paint-nothing
+    Nothing painted yet
+sidebar-paint-strokes-from (frames=0, renders=0, strokes=0)
+    0 strokes from 0 frames
+sidebar-paint-strokes-from (frames=1, renders=1, strokes=1)
+    1 stroke from 1 frame and 1 render
+sidebar-paint-strokes-from (frames=2, renders=2, strokes=2)
+    2 strokes from 2 frames and 2 renders
+sidebar-paint-strokes-from (frames=1000, renders=1000, strokes=1000)
+    1000 strokes from 1000 frames and 1000 renders
+sidebar-paint-reset
+    Reset…
+sidebar-paint-reset-tooltip
+    Go back to the stacked result and clear the undo history
+sidebar-reset-title
+    Reset to the original?
+sidebar-reset-text
+    Every painted pixel goes back to the original and the undo history is cleared. This can't be undone.
+sidebar-reset-confirm
+    Reset
+sidebar-clear-title
+    Remove all frames?
+sidebar-clear-text
+    These frames were never stacked, so the list can't be brought back. The files stay on disk.
+sidebar-clear-confirm
+    Remove All
+files-include
+    Include
+files-exclude
+    Exclude
+files-include-only
+    Include Only These
+files-exclude-after-this
+    Exclude Frames After This
+files-exclude-after-these
+    Exclude Frames After These
+files-remove-from-list
+    Remove from List
+files-remove-frames-from-list
+    Remove Frames from List
+files-include-all
+    Include All
+files-exclude-all
+    Exclude All
+files-sort-by-name
+    Sort by Name
+files-sort-by-capture-time
+    Sort by Capture Time
+files-remove-all-frames
+    Remove All Frames
+files-eye-missing
+    Can't be found: Locate it or remove it
+files-eye-not-connected
+    On a drive or share that isn't connected: connect it, Locate it or remove it
+files-eye-locked
+    Locked while stacking
+files-eye-exclude
+    Exclude from the stack (X)
+files-eye-include
+    Include in the stack (X)
+files-missing
+    Missing
+files-not-connected
+    Not Connected
+files-empty-title
+    No frames yet
+files-empty-text
+    Drop frames or a folder here, or click Add.
+files-summary-none
+    No frames
+files-summary-some (included=0, total=0)
+    0 frames, all excluded
+files-summary-some (included=1, total=1)
+    1 of 1 frames
+files-summary-some (included=2, total=2)
+    2 of 2 frames
+files-summary-some (included=1000, total=1000)
+    1000 of 1000 frames
+list-add-prompt
+    Add
+list-add-frames-title
+    Add Frames
+list-images-filter
+    Images
+list-add-folder-title
+    Add Folder
+list-not-added-running-stack
+    The frames weren't added, because a stack is running. Add them when it finishes.
+list-not-added-running-batch
+    The frames weren't added, because a batch is running. Add them when it finishes.
+list-not-added-running-sequence
+    The frames weren't added, because a sequence is being written. Add them when it finishes.
+list-new-stack-instead
+    New Stack Instead
+list-converter-suggestion
+    Deptheos reads RAW files on its own. The free Adobe DNG Converter adds Adobe's camera profiles and a second RAW decoder. Restart Deptheos after installing it. Settings ▸ RAW has this link too.
+list-get-it
+    Get It
+list-locate-title
+    Locate "<folder>"
+list-located-all (n=0)
+    Found all 0 frames in "<folder>".
+list-located-all (n=1)
+    Found the frame in "<folder>".
+list-located-all (n=2)
+    Found all 2 frames in "<folder>".
+list-located-all (n=1000)
+    Found all 1000 frames in "<folder>".
+list-located-none (n=0)
+    None of the 0 frames were found in "<folder>" as they were. They may have been moved, renamed or changed.
+list-located-none (n=1)
+    The frame wasn't found in "<folder>" as it was. It may have been moved, renamed or changed.
+list-located-none (n=2)
+    None of the 2 frames were found in "<folder>" as they were. They may have been moved, renamed or changed.
+list-located-none (n=1000)
+    None of the 1000 frames were found in "<folder>" as they were. They may have been moved, renamed or changed.
+list-located-some (of=0)
+    Found <found> of 0 frames in "<folder>". The rest may have been moved, renamed or changed.
+list-located-some (of=1)
+    Found <found> of 1 frame in "<folder>".
+list-located-some (of=2)
+    Found <found> of 2 frames in "<folder>". The rest may have been moved, renamed or changed.
+list-located-some (of=1000)
+    Found <found> of 1000 frames in "<folder>". The rest may have been moved, renamed or changed.
+history-not-switched
+    The other stack wasn't opened, because this stack's working version couldn't be saved.
+history-title-stacking (n=0)
+    Stacking #<number> · <method> · 0 frames
+history-title-stacking (n=1)
+    Stacking #<number> · <method> · 1 frame
+history-title-stacking (n=2)
+    Stacking #<number> · <method> · 2 frames
+history-title-stacking (n=1000)
+    Stacking #<number> · <method> · 1000 frames
+history-title-working (n=0)
+    <method> · 0 frames
+history-title-working (n=1)
+    <method> · 1 frame
+history-title-working (n=2)
+    <method> · 2 frames
+history-title-working (n=1000)
+    <method> · 1000 frames
+history-edited-since
+    Edited since #<number>
+history-title-render
+    <render> · <method> · <frames>
+history-title-edited
+    Edited
+history-title-not-stacked
+    Not stacked yet
+revert-alert-revert
+    Revert
+settings-method
+    Method
+settings-alignment
+    Alignment
+settings-alignment-cropped
+    · <aligner>, cropped
+settings-alignment-uncropped
+    · <aligner>, uncropped
+settings-method-pyramid-note
+    The all-around choice; front edges can glow
+settings-method-depth-note
+    Clean backgrounds and edges; softer hairs
+settings-method-wavelet-note
+    For fine crossing detail; grainier backgrounds
+settings-smoothness
+    Smoothness
+settings-smoothing
+    Smoothing
+settings-denoise
+    Denoise
+settings-radius
+    Radius
+settings-blend-range
+    Blend Range
+settings-crisp
+    Crisp, more noise
+settings-calm
+    Calm, softer
+settings-all-detail
+    All detail
+settings-less-noise
+    Less noise
+settings-narrow-outlines
+    Narrow outlines
+settings-even-backgrounds
+    Even backgrounds
+settings-thin-detail
+    Thin detail
+settings-steadier
+    Steadier
+settings-one-frame
+    One frame per spot
+settings-mixed
+    Mixed, softer
+settings-advanced
+    Advanced
+settings-advanced-hidden
+    · Blend Range
+settings-slider-reset-tooltip
+    Double-click to reset to <value>
+settings-reset-defaults
+    Reset to Defaults
+settings-reset-defaults-tooltip
+    Set <method>'s sliders back to their defaults
+settings-crop
+    Crop to the area every frame covers
+settings-decoder
+    RAW decoder
+settings-revert
+    Revert
+settings-revert-tooltip
+    Make the frames and settings those of #<number>
+view-bar-home-result
+    Result
+view-bar-home-tooltip
+    Show the result alone
+view-bar-home-menu
+    The renders of this stack
+view-bar-paint-from
+    Paint From
+view-bar-paint-from-frames
+    Frames
+view-bar-paint-from-original
+    Original
+view-bar-original
+    Original (paint it back)
+view-bar-rail-frame-share
+    Frame <number> · <name> · <share>
+view-bar-rail-frame
+    Frame <number> · <name>
+view-bar-rail-frame-left-out
+    Frame <number> · <name> · left out
+view-bar-rail-under-one
+    <1
+view-bar-rail-position
+    <number>/<count>
+view-bar-rail-position-tooltip
+    The frame on screen, of the stack's frames. <key>-drag along the rail to move one frame at a time.
+view-bar-rail-running-tooltip
+    The frames stacked so far, of the stack's frames. Each takes its color on the depth map as the stack reaches it. Locked while stacking.
+view-bar-compare
+    Compare
+view-bar-compare-toggle
+    Compare the result with a frame or another render, in the layout used last
+view-bar-compare-toggle-retouch
+    Compare the painted result with its source, in the layout used last
+view-bar-layouts
+    Choose how to compare
+view-bar-layout-result
+    Result
+view-bar-layout-painted
+    Painted
+view-bar-layout-split
+    Split
+view-bar-layout-side-by-side
+    Side by Side
+view-bar-layout-top-and-bottom
+    Top and Bottom
+view-bar-layout-flicker
+    Flicker
+view-bar-swap
+    Show the compared render, and compare with this one
+view-bar-contribution
+    Contribution: what the result took from this frame, shown as it is, the rest dimmed
+view-bar-contribution-unavailable
+    Contribution: show a frame this stack used, of a render that records where its detail came from
+view-bar-contribution-retouch
+    Contribution: off in Retouch, which shows the source painted from as it is
+view-bar-depth-map
+    Depth Map: which frame each part of the result came from
+view-bar-depth-map-key
+    Depth Map: the frames on the rail are in its colors; press one, or click the map, to show what that frame supplied
+view-bar-depth-map-key-retouch
+    Depth Map: the frames on the rail are in its colors; the map shows what the frame painted from supplied, and a press on the rail or a click on the map picks another
+view-bar-depth-map-unavailable
+    Depth Map: this render doesn't record which frame each part of the result came from
+view-bar-zoom-field
+    Zoom: type a percentage
+view-bar-zoom-presets
+    Choose a zoom
+view-bar-zoom-to-fit
+    Zoom to Fit
+view-bar-actual-size
+    Actual Size
+view-bar-zoom-out
+    Zoom Out
+view-bar-zoom-in
+    Zoom In
+view-bar-focus-mode
+    Focus Mode: only the picture and the bars
+toolbar-toggle-sidebar
+    Show or Hide Frames
+toolbar-library
+    Library
+toolbar-library-tooltip
+    Go back to the Library, where every stack is
+toolbar-new-stack-title
+    New stack
+toolbar-retouch
+    Retouch
+toolbar-retouch-tooltip
+    Paint over the result from a frame or another render
+toolbar-export
+    Export
+toolbar-export-tooltip
+    Export the result: format, name and folder
+toolbar-stack
+    Stack
+toolbar-stack-tooltip
+    Make a render from the working version
+toolbar-toggle-inspector
+    Show or Hide Inspector
+toolbar-library-title
+    Library
+toolbar-new-batch
+    New Batch…
+toolbar-new-batch-tooltip
+    Stack many folders at once, or sort them into stacks by capture time
+toolbar-new-stack
+    New Stack
+toolbar-new-stack-tooltip
+    Start a new stack, then add its frames
+toolbar-open
+    Open
+toolbar-open-tooltip
+    Open the selection in Stacking
+compare-result
+    Result
+compare-a
+    A · <name>
+compare-b
+    B · <name>
+form-reveal-macos
+    Show in Finder when done
+form-reveal-windows
+    Show in Explorer when done
+form-reveal-other
+    Show in File Manager when done
+batch-dialog-title
+    New Batch
+batch-folders-heading
+    Folders
+batch-add-folders
+    Add Folders…
+batch-add-subfolders
+    Add Subfolders of…
+batch-add-subfolders-tooltip
+    Add each folder inside the one you choose, without the frames in that folder itself
+batch-use-list
+    Add the Frames List
+batch-use-list-tooltip
+    Add the frames included in the Frames list, as one more source
+batch-frames-list
+    Frames list
+batch-include-deeper
+    Include deeper folders
+batch-remove
+    Remove
+batch-no-folders
+    No folders yet
+batch-split-heading
+    How to split
+batch-split-per-folder
+    One stack per folder
+batch-split-auto-sort
+    Auto sort: split each folder into stacks by capture time
+batch-pairs
+    RAW + JPEG pairs
+batch-pairs-raw
+    Use RAW
+batch-pairs-jpeg
+    Use JPEG
+batch-order
+    Frame order
+batch-order-name
+    Name
+batch-order-capture-time
+    Capture time
+batch-raw-decoder
+    RAW decoder
+batch-after-heading
+    After stacking
+batch-start
+    Start Batch
+batch-export-quality
+    Quality <quality>
+batch-export-each
+    Export each render
+batch-export-sixteen-bit
+    16 bits per channel
+batch-export-note
+    Each file is named after its stack and written as soon as its render is made. DNG is for RAW stacks; other stacks are written as TIFF.
+batch-choose-folder
+    Choose Folder…
+batch-no-folder-chosen
+    No folder chosen
+batch-turntable
+    Turntable sequence
+batch-turntable-needs-per-folder
+    Needs one stack per folder
+batch-turntable-needs-pyramid
+    Grow across stacks and Both need Pyramid. With this method the sequence is Full: one finished render per angle.
+batch-direction-back-to-front
+    Back to front
+batch-direction-front-to-back
+    Front to back
+batch-length
+    Length
+batch-length-stack-depth
+    Same as stack depth
+batch-length-per-step (n=0)
+    0 frames, one per focus step
+batch-length-per-step (n=1)
+    1 frame, one per focus step
+batch-length-per-step (n=2)
+    2 frames, one per focus step
+batch-length-per-step (n=1000)
+    1000 frames, one per focus step
+batch-length-per-step-unknown
+    One frame per focus step
+batch-length-spread
+    The whole turn and the growing focus are spread over this many frames
+batch-turntable-note
+    Folders stack in name order, aligned and cropped to the area every frame covers. A stack that looks like it began with a stray frame is stacked again without that frame.
+batch-summary-listing
+    Looking in the folders…
+batch-summary-empty
+    Add the folders to stack
+batch-summary-working
+    Working out the stacks…
+batch-summary-failed
+    The stacks couldn't be worked out. Deptheos ran into an unexpected problem. Help ▸ Save Diagnostics… gathers the details to email to <address>.
+batch-closing-reasons
+    <short>. <why>
+batch-show-failed
+    Show Failed
+batch-summary-range
+    <summary> · <first> to <last>
+batch-summary-turntable-grow (n=0)
+    <summary> · turntable Grow across stacks, 0 frames
+batch-summary-turntable-grow (n=1)
+    <summary> · turntable Grow across stacks, 1 frame
+batch-summary-turntable-grow (n=2)
+    <summary> · turntable Grow across stacks, 2 frames
+batch-summary-turntable-grow (n=1000)
+    <summary> · turntable Grow across stacks, 1000 frames
+batch-summary-turntable-full (n=0)
+    <summary> · turntable Full, 0 frames
+batch-summary-turntable-full (n=1)
+    <summary> · turntable Full, 1 frame
+batch-summary-turntable-full (n=2)
+    <summary> · turntable Full, 2 frames
+batch-summary-turntable-full (n=1000)
+    <summary> · turntable Full, 1000 frames
+batch-summary-turntable-both (full=0, grow=0)
+    <summary> · turntable Grow across stacks, 0 frames, and Full, 0 frames
+batch-summary-turntable-both (full=1, grow=1)
+    <summary> · turntable Grow across stacks, 1 frame, and Full, 1 frame
+batch-summary-turntable-both (full=2, grow=2)
+    <summary> · turntable Grow across stacks, 2 frames, and Full, 2 frames
+batch-summary-turntable-both (full=1000, grow=1000)
+    <summary> · turntable Grow across stacks, 1000 frames, and Full, 1000 frames
+batch-summary-note
+    <summary> · <note>
+batch-summary-notes
+    <summary> · <note> (and <more> more)
+batch-settings-pairs-raw
+    <settings> · RAW + JPEG pairs: Use RAW
+batch-settings-pairs-jpeg
+    <settings> · RAW + JPEG pairs: Use JPEG
+batch-settings
+    Uses the inspector's settings: <summary>
+batch-settings-grid
+    Uses the inspector's settings: <summary> · Grid search
+batch-settings-uncropped
+    Uses the inspector's settings: <summary> · uncropped
+batch-settings-grid-uncropped
+    Uses the inspector's settings: <summary> · Grid search · uncropped
+batch-busy-stack
+    A batch can't start while a stack runs. Wait for it to finish.
+batch-busy-sequence
+    A batch can't start while a sequence is written. Wait for it to finish.
+batch-busy-batch
+    A batch is already running. Wait for it to finish, or cancel it.
+batch-nothing-to-stack
+    The batch has nothing to stack.
+batch-cant-start
+    The batch can't start. <why>
+batch-stack-didnt-start
+    It couldn't start.
+batch-stack-no-render
+    It made no render.
+batch-stack-no-thumbnail
+    Its thumbnail couldn't be made.
+batch-turntable-fault
+    The turntable sequence wasn't written. <fault>
+export-format
+    Format
+export-format-note-tiff
+    TIFF keeps 16 bits per channel, lossless.
+export-format-note-jpeg
+    JPEG is 8 bits per channel, at the quality set in Settings ▸ Export: for sharing.
+export-format-note-png
+    PNG keeps 16 bits per channel too, lossless, in larger files than TIFF.
+export-format-note-dng
+    DNG keeps the linear camera data, for your RAW editor to develop.
+export-no-dng
+    DNG is only for stacks of RAW or DNG frames.
+export-bit-depth
+    Bit depth
+export-sixteen-bits
+    16 bits per channel
+export-eight-bits
+    8 bits per channel
+export-sixteen-bits-tooltip
+    Keeps the full range of tones the result has, for further editing
+export-eight-bits-tooltip
+    Smaller files that every app opens, for sharing
+export-color
+    Color
+export-color-dng
+    Linear camera color, with the frames' camera profile
+export-color-developed
+    sRGB, developed through the frames' camera profile
+export-color-srgb
+    sRGB, like the frames
+export-color-profile
+    <profile>, like the frames
+export-color-unnamed-profile
+    An unnamed color profile, like the frames
+export-name
+    Name
+export-name-note
+    Starts from the file name set in Settings ▸ Export.
+export-save-to
+    Export to
+export-place-frames
+    Next to the frames
+export-place-last
+    Last folder used
+export-again-note
+    Export Again (<keys>) reuses these choices.
+export-button
+    Export
+export-title
+    Export
+export-title-numbered
+    Export #<number>
+export-unnamed-stack
+    stack
+export-subtitle
+    <stack> · <settings>
+export-subtitle-retouched
+    <stack> · <settings> · retouched
+export-done
+    Exported <name>
+export-exporting
+    Exporting <name>…
+grow-dialog-title
+    Export Grow Sequence
+grow-intro
+    Each frame of the sequence stacks one more of <name>'s frames than the frame before it, so the picture comes into focus as it plays. The last frame is the render.
+grow-direction-heading
+    Direction
+grow-direction-back-to-front
+    Back to front: focus arrives from behind
+grow-direction-front-to-back
+    Front to back: nearest first
+grow-frames-heading
+    Frames
+grow-no-retouching
+    Retouching isn't included, because the sequence is stacked again from the frames.
+grow-summary (n=0)
+    0 frames · <size> · about <bytes>
+grow-summary (n=1)
+    1 frame · <size> · about <bytes>
+grow-summary (n=2)
+    2 frames · <size> · about <bytes>
+grow-summary (n=1000)
+    1000 frames · <size> · about <bytes>
+grow-written
+    Written as numbered frames in a new folder, for a video editor such as DaVinci Resolve to import as one clip.
+grow-export
+    Export…
+grow-full-size
+    Full size
+grow-long-edge
+    <pixels> px long edge
+grow-sixteen-bit
+    16 bits per channel (TIFF and PNG)
+sequence-grow-starting
+    Grow sequence · starting
+sequence-turntable-starting
+    Turntable sequence · starting
+sequence-exported
+    Exported sequence: <made>
+sequence-canceled
+    Sequence canceled. The frames already written are kept.
+sequence-didnt-finish
+    The sequence didn't finish.
+sequence-pyramid-only
+    Only a Pyramid render can make a grow sequence.
+sequence-missing-name
+    "<name>"
+sequence-missing-names
+    <names> and <last>
+sequence-missing-names-more
+    <names> and <more> more
+sequence-missing (n=0)
+    The sequence needs this render's frames, and 0 of them can't be found: <listed>.
+sequence-missing (n=1)
+    The sequence needs this render's frames, and 1 of them can't be found: <listed>.
+sequence-missing (n=2)
+    The sequence needs this render's frames, and 2 of them can't be found: <listed>.
+sequence-missing (n=1000)
+    The sequence needs this render's frames, and 1000 of them can't be found: <listed>.
+sequence-locate
+    Locate…
+run-stacking-numbered
+    Stacking #<number>
+run-stacking
+    Stacking
+run-step-reading
+    Reading the frames
+run-step-aligning
+    Aligning <loaded> of <total>
+run-step-restarting
+    The frames were in reverse order. Aligning again
+run-step-aligned
+    Aligned
+run-step-blending
+    Blending
+run-step-canceling
+    Canceling…
+run-pill-reading
+    Reading · <percent>%
+run-pill-aligning
+    Aligning · <percent>%
+run-pill-restarting
+    Restarting · <percent>%
+run-pill-blending
+    Blending · <percent>%
+run-pill-finishing
+    Finishing · <percent>%
+run-pill-canceling
+    Canceling…
+run-pill-batch
+    <status> · <step>
+run-phase-reading
+    Reading
+run-phase-aligning
+    Aligning
+run-phase-restarting
+    Restarting
+run-phase-blending
+    Blending
+run-phase-finishing
+    Finishing
+run-cancel-stack-tooltip
+    Cancel the stack
+run-cancel-batch-tooltip
+    Cancel the batch
+run-busy-stack
+    Not while a stack runs: wait for it to finish, or cancel it
+run-busy-batch
+    Not while a batch runs: wait for it to finish, or cancel it
+run-busy-sequence
+    Not while a sequence is written: wait for it to finish, or cancel it
+run-seconds-left
+    About <seconds> s left
+run-minutes-left
+    About <minutes> min left
+run-failure-lead-numbered
+    Stack #<number> didn't finish.
+run-failure-lead
+    The stack didn't finish.
+run-failure-title-numbered
+    Stack #<number> didn't finish
+run-failure-title
+    The stack didn't finish
+run-failure-dismiss
+    Dismiss
+run-try-again
+    Try Again
+run-copy-details
+    Copy Details
+away-stacked
+    Stack finished
+away-batch
+    Batch finished
+away-sequence
+    Sequence written
+away-sequence-failed
+    The sequence didn't finish
+error-with-lead
+    <lead> <why>
+error-fault-copy
+    <reason> Click Copy Details, then choose Help ▸ Report a Problem… and paste them into the report.
+error-fault-diagnostics
+    <reason> Help ▸ Save Diagnostics… gathers the details to email to <address>.
+error-not-allowed-advice-macos
+    Allow Deptheos to use that folder in System Settings ▸ Privacy & Security ▸ Files & Folders, then try again.
+error-not-allowed-advice
+    Check that you can open the file, then try again.
+error-save-diagnostics
+    Save Diagnostics…
+error-show-log-folder
+    Show Log Folder
+file-dialog-add-folders
+    Add Folders
+file-dialog-add-subfolders
+    Add Subfolders of
+file-dialog-batch-renders
+    Choose where the renders go
+file-dialog-batch-sequence
+    Choose where the sequence goes
+file-dialog-export-to
+    Export to
+file-dialog-grow-sequence
+    Choose where the sequence goes
+prefs-pane-general
+    General
+prefs-pane-export
+    Export
+prefs-pane-library
+    Library
+prefs-pane-alignment
+    Alignment
+prefs-pane-advanced
+    Advanced
+prefs-default
+    Default
+prefs-appearance
+    Appearance
+prefs-theme
+    Theme
+prefs-theme-description
+    Light or dark, or as the system is set, changing when it does.
+prefs-appearance-system
+    System
+prefs-appearance-light
+    Light
+prefs-appearance-dark
+    Dark
+prefs-updates
+    Updates
+prefs-check-for-updates
+    Check for updates
+prefs-check-for-updates-description
+    At startup, ask GitHub whether a newer version is out and offer its download page. Only the app's version is sent.
+prefs-export-defaults
+    Defaults for new exports
+prefs-format
+    Format
+prefs-format-description
+    The format Export starts with for a stack of JPEG, PNG or TIFF frames; the sheet remembers the last one used. DNG is for RAW and DNG stacks only.
+prefs-format-raw
+    Format for RAW stacks
+prefs-format-raw-description
+    The format Export starts with for a RAW or DNG stack; remembered the same way. DNG keeps the linear camera data for your RAW editor to develop.
+prefs-folder-and-name
+    Folder and file name
+prefs-export-to
+    Export to
+prefs-export-to-description
+    Where the Export sheet starts.
+prefs-reveal-export-description
+    Once a render is exported, its file is shown.
+prefs-renders
+    Renders
+prefs-library-folder
+    Library folder
+prefs-library-folder-description
+    Where every render is kept. Takes effect the next time Deptheos starts.
+prefs-delete-library
+    Delete Library
+prefs-delete-library-description
+    Deletes every stack, render and failed stack, with their retouching and the working version, leaving the Library empty. Your frames and exported files are left alone.
+prefs-delete-library-button
+    Delete Library…
+prefs-delete-library-empty
+    The Library is empty.
+prefs-delete-library-unopened
+    The Library folder couldn't be opened, so there is nothing to delete.
+prefs-delete-library-moved
+    Available once Deptheos restarts with the folder chosen above. The Library open now is in "<folder>".
+prefs-delete-library-listing
+    The Library is still being read.
+prefs-delete-library-running
+    Available once the stack, batch or sequence running finishes.
+prefs-delete-library-writing
+    Available once the files being written are saved.
+prefs-delete-library-deleting
+    Available once the delete running finishes.
+library-delete-unsure
+    The Library may not all have been deleted.
+library-delete-not-now
+    The Library wasn't deleted, because something is running or still being written. Delete it again when that finishes.
+prefs-decoding
+    Decoding
+prefs-default-decoder
+    Default RAW decoder
+prefs-default-decoder-description
+    What the inspector's RAW decoder starts with, and what batches use. Automatic is Adobe DNG Converter when it is installed, else LibRaw. The two crop and demosaic differently, so their frames of the same shot don't line up.
+prefs-decoder-automatic
+    Automatic
+prefs-camera-profile
+    Camera profile
+prefs-profile-adobe-standard
+    Adobe Standard
+prefs-profile-camera-standard
+    Camera Standard
+prefs-profile-none
+    None (the colors in the file)
+prefs-camera-profile-description
+    The installed Adobe profile that colors LibRaw-decoded RAW files. DNGs and Adobe-converted frames carry their own. Recorded with each render.
+prefs-profile-folders
+    Camera profile folders
+prefs-profile-folders-description
+    Searched for .dcp files before Adobe's folders. A profile is used when its file name starts with the camera's make and model, for example "Canon EOS R5 Adobe Standard.dcp".
+prefs-applies-when-run-ends
+    Stacking is under way: a change here applies once it ends.
+prefs-no-profile-folders
+    No folders added.
+prefs-remove-profile-folder
+    Remove
+prefs-add-profile-folder
+    Add Folder…
+prefs-adobe-profile-folders
+    Adobe profile folders found
+prefs-no-adobe-profile-folders
+    None found. Adobe's free DNG Converter installs these profiles.
+prefs-converter
+    Converter
+prefs-converter-description
+    Used by the Adobe DNG Converter RAW decoder. Choose the application if it isn't in its default location.
+prefs-converter-unavailable
+    Not available on this platform
+prefs-converter-found
+    Found
+prefs-converter-not-found
+    Not found. It is free from Adobe; restart Deptheos after installing it.
+prefs-converter-get
+    Get It
+prefs-converter-jobs
+    Parallel conversions
+prefs-converter-jobs-description
+    How many RAW files are converted at once. More is faster until the CPU or disk is saturated; each conversion also uses some memory.
+prefs-converter-uncompressed
+    Uncompressed conversions
+prefs-converter-uncompressed-description
+    Write the converted DNGs without compression. A stack of them runs about a quarter faster, but each takes twice the disk: about 270 MB for a 45 MP frame instead of 130 MB. The conversions are kept until the stack has read them for the last time, and Depth reads every frame twice, so a 200-frame Depth stack needs about 54 GB free instead of 26 GB.
+prefs-graphics
+    Graphics
+prefs-gpu
+    GPU
+prefs-gpu-description
+    The GPU that stacks, paints and prepares images. Software rendering runs on the CPU, as on a computer without a GPU: many times slower. Takes effect the next time Deptheos starts.
+prefs-gpu-automatic
+    Automatic (the fastest GPU)
+prefs-gpu-software
+    Software rendering (on the CPU, slow)
+prefs-gpu-dedicated
+    <name> (dedicated)
+prefs-gpu-integrated
+    <name> (integrated)
+prefs-gpu-cpu
+    <name> (software, on the CPU)
+prefs-gpu-not-found
+    <name> (not found)
+prefs-gpu-in-use
+    In use: <device>
+prefs-gpu-none-started
+    No GPU could be started.
+prefs-gpu-restart
+    Restart Deptheos to use it.
+prefs-gpu-forced
+    DEPTHEOS_SOFTWARE_GPU is set, which overrides this.
+prefs-gpu-failed
+    This choice couldn't start, so Deptheos is using the fastest GPU it found. <reason>
+prefs-gpu-missing
+    <name> wasn't found, so Deptheos is using the fastest GPU.
+prefs-memory
+    Memory
+prefs-read-ahead
+    Frame read-ahead (MB)
+prefs-read-ahead-description
+    Decoded JPEG, PNG and TIFF frames held in memory ahead of stacking. Lower it on a computer with little memory; above the default rarely helps.
+prefs-diagnostics
+    Diagnostics
+prefs-verbose-logging
+    Verbose logging
+prefs-verbose-logging-description
+    Until Deptheos quits. Adds detail to the log for bug reports (Help ▸ Save Diagnostics…).
+update-available-title
+    Update available
+update-available
+    Deptheos <version> is available. You have <current>.
+update-download
+    Download
+update-up-to-date
+    Deptheos <version> is the latest version.
+update-failed-unreachable
+    Deptheos couldn't check for updates. The release page couldn't be reached. Check the internet connection, then try again.
+update-failed-refused
+    Deptheos couldn't check for updates. The release page answered with an error. Try again later.
+update-failed-unreadable
+    Deptheos couldn't check for updates. The reply about the latest release couldn't be read.
+update-failed-not-a-version
+    Deptheos couldn't check for updates. The latest release is tagged "<tag>", which isn't a version number Deptheos recognizes.
+about-title
+    About Deptheos
+about-name
+    Deptheos
+about-version
+    Version <version> (<build>)
+about-copy-version
+    Copy Version
+about-copy-version-tooltip
+    Copy the version and build, with the system's and the GPU's names, for a bug report
+about-website
+    Website
+about-website-tooltip
+    Open Deptheos's website
+about-tagline
+    Focus stacking for macOS, Windows and Linux.
+about-license-text
+    Free software under the GNU General Public License version 3, with an additional permission for the Adobe DNG SDK and XMP Toolkit. It includes software by others under their own licenses, listed in the third-party notices.
+about-license
+    License
+about-notices
+    Third-Party Notices
+welcome-drop-library
+    Drop a focus bracket here
+welcome-drop-stack
+    Drop this stack's frames here
+welcome-drop-formats
+    A folder, or the frames themselves: RAW, DNG, JPEG, TIFF or PNG
+welcome-add-frames
+    Add Frames…
+welcome-add-folder
+    Add Folder…
+welcome-no-stack
+    No frames of your own yet?
+welcome-sample
+    Try a sample stack
+welcome-sample-handheld (count=0)
+    0 frames, handheld
+welcome-sample-handheld (count=1)
+    1 frame, handheld
+welcome-sample-handheld (count=2)
+    2 frames, handheld
+welcome-sample-handheld (count=1000)
+    1000 frames, handheld
+welcome-sample-tripod (count=0)
+    0 frames, on a tripod
+welcome-sample-tripod (count=1)
+    1 frame, on a tripod
+welcome-sample-tripod (count=2)
+    2 frames, on a tripod
+welcome-sample-tripod (count=1000)
+    1000 frames, on a tripod
+welcome-sample-copying
+    Copying the sample stack…
+welcome-step-add
+    Add frames
+welcome-step-add-text
+    The photos of one subject, each focused a little nearer or farther than the one before.
+welcome-step-stack
+    Stack
+welcome-step-stack-text
+    The inspector's settings suit most stacks as they are. Click Stack (<keys>).
+welcome-step-export
+    Retouch and export
+welcome-step-export-text
+    Paint fixes from any frame, then Export (<keys>).
+welcome-batch
+    Many folders to stack at once?
+welcome-batch-start-library
+    Start a batch
+welcome-batch-start-stack
+    Start a batch in the Library
+sample-copy-failed
+    The sample stack couldn't be copied into the Library folder.
+quit-batch-running
+    A batch is running. Quit anyway?
+quit-sequence-running
+    A grow sequence is being written. Quit anyway?
+quit-stack-running
+    A stack is running. Quit anyway?
+quit-description
+    Quitting cancels it. Every render already made is kept, with any files exported and sequence frames written so far.
+quit-button
+    Quit
+quit-waiting
+    Saving files. Deptheos quits once they are written.
+quit-saving-retouching
+    Saving your retouching. Deptheos quits once it is saved.
+quit-paint-unsaved
+    Your latest retouching couldn't be saved. Quit anyway?
+quit-paint-unsaved-description
+    Quitting loses the retouching not yet saved. To keep it, cancel, make room on the Library's disk or reconnect it, then quit again.
+quit-anyway-button
+    Quit Anyway
+diagnostics-no-log
+    This launch of Deptheos has no log to save.
+diagnostics-save-title
+    Save Diagnostics
+diagnostics-file-name
+    Deptheos Diagnostics <date>
+diagnostics-zip-archive
+    Zip archive
+diagnostics-saved
+    Saved <name>. Email it to <address>: it holds the logs and crash reports, so don't attach it to a public issue.
+diagnostics-save-failed
+    The diagnostics couldn't be saved.
+cli-tool-missing
+    This copy of Deptheos has no command line tool.
+cli-tool-not-installed
+    Move Deptheos to the Applications folder and open it from there, then install the command line tool.
+cli-tool-already-installed
+    The deptheos command is installed in <folder>. Type "deptheos --help" in Terminal to start.
+cli-tool-install-title
+    Install the command line tool?
+cli-tool-install-description
+    This puts the deptheos command in <link>, linked to the one inside Deptheos, so it runs in Terminal and is updated with the app. macOS may ask for an administrator password.
+cli-tool-install-description-replacing
+    This puts the deptheos command in <link>, linked to the one inside Deptheos, so it runs in Terminal and is updated with the app. macOS may ask for an administrator password. It replaces the deptheos command there now (<old>).
+cli-tool-outside-applications
+    Deptheos isn't in the Applications folder. If you move or delete it, the deptheos command stops working.
+cli-tool-taken
+    There is already a deptheos command at <link>, and it isn't Deptheos's. Remove it, then install the command line tool again.
+cli-tool-link-changed
+    What is at <link> changed after you were asked, so nothing was replaced. Install the command line tool again to see what it would replace.
+cli-tool-install
+    Install
+cli-tool-admin-prompt
+    Deptheos wants to install the deptheos command.
+cli-tool-installed
+    The deptheos command is installed. Type "deptheos --help" in Terminal to start.
+cli-tool-install-failed
+    The command line tool couldn't be installed.
+retouch-strokes (n=0)
+    0 strokes
+retouch-strokes (n=1)
+    1 stroke
+retouch-strokes (n=2)
+    2 strokes
+retouch-strokes (n=1000)
+    1000 strokes
+retouch-title-render
+    Retouching #<number>
+retouch-title
+    Retouching
+retouch-title-detail (strokes=0)
+    <stack> · 0 strokes
+retouch-title-detail (strokes=1)
+    <stack> · 1 stroke
+retouch-title-detail (strokes=2)
+    <stack> · 2 strokes
+retouch-title-detail (strokes=1000)
+    <stack> · 1000 strokes
+retouch-export-tooltip
+    Export the retouched result
+retouch-done
+    Done
+retouch-done-tooltip
+    Go back to Stacking
+retouch-undo-tooltip (n=0)
+    Undo <step> · 0 steps
+retouch-undo-tooltip (n=1)
+    Undo <step> · 1 step
+retouch-undo-tooltip (n=2)
+    Undo <step> · 2 steps
+retouch-undo-tooltip (n=1000)
+    Undo <step> · 1000 steps
+retouch-redo-tooltip (n=0)
+    Redo <step> · 0 steps
+retouch-redo-tooltip (n=1)
+    Redo <step> · 1 step
+retouch-redo-tooltip (n=2)
+    Redo <step> · 2 steps
+retouch-redo-tooltip (n=1000)
+    Redo <step> · 1000 steps
+retouch-nothing-to-undo
+    Nothing to undo
+retouch-nothing-to-redo
+    Nothing to redo
+retouch-paint-from
+    Paint from
+retouch-click-a-frame
+    Click a frame
+retouch-click-a-render
+    Click a render
+retouch-sources-frames
+    Frames
+retouch-sources-frames-tooltip
+    Paint from a frame of this stack
+retouch-sources-renders
+    Renders
+retouch-sources-renders-tooltip
+    Paint from another render of this stack
+retouch-sources-renders-none
+    This stack has no other render to paint from
+retouch-nothing-painted
+    Nothing painted yet
+retouch-painted-from (frames=0, renders=0)
+    Painted from · 0 frames
+retouch-painted-from (frames=1, renders=1)
+    Painted from · 1 frame and 1 render
+retouch-painted-from (frames=2, renders=2)
+    Painted from · 2 frames and 2 renders
+retouch-painted-from (frames=1000, renders=1000)
+    Painted from · 1000 frames and 1000 renders
+retouch-source-frame
+    Frame <number>
+retouch-source-none
+    Choose
+retouch-painted-render
+    Painted · #<number>
+retouch-hold-to-see-source
+    Hold <key> to see the source
+paint-source
+    Source · <name>
+paint-source-original
+    Original
+paint-source-render
+    Render
+paint-painted
+    Painted
+paint-blocked-no-result
+    Stack first: there is no result to retouch yet
+paint-blocked-saving
+    Retouch opens once the result is saved as a render
+paint-blocked-not-saved
+    The result wasn't saved as a render, so it can't be retouched

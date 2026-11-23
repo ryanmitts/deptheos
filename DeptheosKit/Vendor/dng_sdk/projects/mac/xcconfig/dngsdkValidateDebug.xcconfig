@@ -1,3 +1,0 @@
-#include "dngsdkRoot.xcconfig"
-#include "dngsdkValidateFlags.xcconfig"
-#include "dngsdkDebug.xcconfig"

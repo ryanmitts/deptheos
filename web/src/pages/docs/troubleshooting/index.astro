@@ -1,0 +1,187 @@
+---
+import Shot from "../../../components/Shot.astro";
+import DocsLayout from "../../../layouts/DocsLayout.astro";
+---
+
+<DocsLayout
+  docKey="troubleshooting"
+  title="Troubleshooting and timings"
+  description="What to do when a Deptheos stack fails or looks wrong, how to send a bug report with the log, and how to time stacks on your own machine with deptheos bench."
+>
+  <div class="prose">
+    <h1>Troubleshooting and timings</h1>
+    <p class="lede">
+      When a stack can't finish, Deptheos says why under "Stack #5 didn't finish", with <em>Try Again</em> and
+      <em>Copy Details</em>; a batch keeps the stack with its error. The messages below are the ones you are
+      most likely to meet, with what to try.
+    </p>
+  </div>
+  <figure class="shot"><Shot name="stack-failed" width="2880" height="1800" loading="lazy" alt="The notice after a stack fails, showing the reason with Try Again and Copy Details buttons." /><figcaption>A stack that didn't finish, and why.</figcaption></figure>
+
+  <section id="frames">
+    <div class="prose">
+      <h2>The frames</h2>
+      <h3>Frames were left out</h3>
+      <p>
+        A frame that can't be read or lined up is left out and the stack goes on; the notice when the stack
+        finishes says which frames and why ("Left out 2 frames: …"), and the render's tile in the strip is marked,
+        with the same words in its tooltip. When alignment is the reason,
+        set <em>Alignment</em> to <em>Grid search (similarity)</em> and stack again; if frames still drop, widen
+        its limits in Settings ▸ Alignment ▸ Grid search limits. <a href="/docs/alignment/">Aligning the
+        frames</a> explains when each aligner works.
+      </p>
+      <h3>Too many frames couldn't be stacked</h3>
+      <p>
+        The message counts the frames that couldn't be stacked, names the first and says why, then: "Check
+        that the list holds one focus bracket, shot with the same camera and settings, and exclude any frame
+        that doesn't belong." A stack stops when more than one frame in ten fails (at least one, at most three), since that usually
+        means the list holds more than one bracket or a stray frame from another shoot. Check the list, exclude
+        what doesn't belong, or split the folder with <a href="/docs/batch/#split">auto sort</a>.
+      </p>
+      <h3>"Every frame must be the size of the first."</h3>
+      <p>
+        The message first names the frame and gives both sizes. Every frame must be the same size. A frame that isn't is usually an earlier stacked or edited picture in
+        the same folder, a shot in another crop mode, or a frame converted another way. Exclude it.
+      </p>
+      <h3>"A stack must be all RAW and DNG files or all standard images, such as JPEG, PNG and TIFF."</h3>
+      <p>
+        A stack can't mix RAW files with JPEG, TIFF or PNG. For RAW + JPEG pairs, the <em>RAW + JPEG pairs</em> switch picks one
+        kind; otherwise exclude the odd ones. Frames in different color spaces are converted to the stack's,
+        and a notice says if colors outside it were clipped: to avoid that, export them from your editor with
+        the same profile.
+      </p>
+      <h3>"Can't be found: Locate it or remove it"</h3>
+      <p>
+        The frames were moved or renamed. Click <em>Locate…</em> above the list and pick the folder's new place;
+        every render that uses it is updated (see <a href="/docs/concepts/#locate">Moved frames</a>).
+      </p>
+      <h3>"Out-of-order frames can stack badly and make a sequence jump."</h3>
+      <p>
+        The file names and the capture times disagree, often after the camera's numbering wrapped round. Click
+        <em>Sort by Capture Time</em> in the warning.
+      </p>
+    </div>
+  </section>
+
+  <section id="gpu">
+    <div class="prose">
+      <h2>Memory and the GPU</h2>
+      <h3>The frames need more GPU memory than this device has</h3>
+      <p>
+        On a Mac, Deptheos checks before it starts whether the stack fits in the memory macOS lets the GPU use,
+        and says so when it won't, with the memory the frames need and the memory the GPU has. Elsewhere the same problem reads "The GPU ran out of memory. Close other apps, or stack smaller
+        frames." Close other apps that use the GPU and try again. On a machine with little
+        memory, lowering Settings ▸ Advanced ▸ <em>Frame read-ahead (MB)</em> also helps; on Windows or Linux with
+        small VRAM and plenty of system RAM, you can switch Settings ▸ Advanced ▸ <em>GPU</em> to <em>Software
+        rendering (on the CPU, slow)</em>.
+      </p>
+      <h3>"The GPU stopped responding or was reset. Quit and open Deptheos again."</h3>
+      <p>The graphics driver stopped the GPU. Quit and open Deptheos again; updating the driver can help.</p>
+      <h3>"Deptheos couldn't start its GPU engine."</h3>
+      <p>
+        No usable GPU was found. The window that says so has an <em>Open Settings</em> button: under
+        Advanced ▸ <em>GPU</em>, choose <em>Software rendering (on the CPU, slow)</em> and restart. It stacks on
+        the CPU, much more slowly, but it works. The same menu picks one GPU when a computer has two; a GPU
+        chosen there that can't start falls back to the fastest one, with a notice.
+      </p>
+      <p>
+        On Linux, Deptheos stacks and draws with Vulkan: <code>mesa-vulkan-drivers</code> covers AMD, Intel,
+        and Raspberry Pi 5 graphics, while NVIDIA's driver includes its own Vulkan driver.
+        <code>vulkaninfo --summary</code> (from <code>vulkan-tools</code>) lists the GPUs Vulkan finds. In a
+        virtual machine, enable virtual GPU acceleration; without it, Vulkan falls back to Mesa's CPU renderer
+        and stacks slowly.
+      </p>
+    </div>
+  </section>
+
+  <section id="look">
+    <div class="prose">
+      <h2>The result looks wrong</h2>
+      <ul>
+        <li>
+          <strong>A soft glow or halo where a near edge meets a far background:</strong> Pyramid's weak spot.
+          Stack again with Depth, compare the two in <a href="/docs/compare/#split">Split</a>, and keep the
+          better one or paint one onto the other (<a href="/docs/retouching/">Retouching</a>).
+        </li>
+        <li>
+          <strong>Grain in plain areas:</strong> raise Pyramid's Smoothness or Depth's Smoothing, or Wavelet's
+          Denoise. See <a href="/docs/pyramid/">Pyramid</a>, <a href="/docs/depth-map/">Depth</a>, and
+          <a href="/docs/wavelet/">Wavelet</a>.
+        </li>
+        <li>
+          <strong>Ghosting or a doubled edge from wind or subject movement:</strong> if only one or two frames
+          moved, exclude them (<kbd>X</kbd>) and stack again; otherwise paint the clean area in from a single
+          sharp frame (⌥-click finds it).
+        </li>
+        <li>
+          <strong>Out-of-focus stripes across the subject:</strong> focus steps were too large while shooting,
+          leaving a depth no frame captured sharply. Retouching can't invent missing detail; use smaller steps on
+          the next bracket.
+        </li>
+        <li>
+          <strong>RAW colors look flatter or different from Lightroom or camera JPEGs:</strong> Deptheos stacks
+          linear RAW data with no auto-tone, sharpening, or contrast curve. Export as 16-bit linear DNG to
+          develop normally in your RAW editor, or switch Settings ▸ RAW ▸ <em>Camera profile</em> between Adobe
+          Standard and Camera Standard (<a href="/docs/raw/#settings">RAW settings</a>).
+        </li>
+        <li>
+          <strong>Darkened stack or uneven brightness with the grid search:</strong> check that
+          <em>Exposure compensation</em> in Settings ▸ Alignment is off, as it is by default. It applies only to
+          the grid search, and on a fixed-exposure bracket it measures vignetting instead and darkens the stack.
+          Turn it on only when exposure actually varied between shots.
+        </li>
+        <li>
+          <strong>Unexpectedly cropped edges:</strong> focus breathing shrinks or grows the frame through the
+          bracket, and <em>Crop to the area every frame covers</em> trims the uneven border. Turn it off under
+          Alignment if you want the full frame.
+        </li>
+        <li>
+          <strong>Banding in smooth gradients:</strong> stack from RAW or 16-bit TIFF rather than 8-bit JPEG, and
+          export as 16-bit TIFF or linear DNG.
+        </li>
+      </ul>
+    </div>
+  </section>
+
+  <section id="report">
+    <div class="prose">
+      <h2>Sending a bug report</h2>
+      <p>
+        Deptheos writes a log file each time it starts, kept on your computer: it records what the app did and
+        the errors it met, with your home folder written as <code>~</code>, and no photo metadata such as GPS
+        positions.
+      </p>
+      <ul>
+        <li>macOS: <code>~/Library/Logs/Deptheos</code></li>
+        <li>Windows: <code>%LOCALAPPDATA%\Deptheos\logs</code></li>
+        <li>Linux: <code>$XDG_STATE_HOME/Deptheos</code> (<code>~/.local/state/Deptheos</code> when that isn't set)</li>
+      </ul>
+      <ol class="steps">
+        <li>To capture more detail, turn on Settings ▸ Advanced ▸ <em>Verbose logging</em> (it lasts until Deptheos quits), and do what went wrong again.</li>
+        <li>Choose Help ▸ <em>Report a Problem…</em>, which opens a new issue on <a href="https://github.com/ryanmitts/deptheos/issues">GitHub</a>. Say what you did, what you expected and what happened. Issues are public, so attach no diagnostics or photos you don't want seen.</li>
+        <li>Choose Help ▸ <em>Save Diagnostics…</em>. It saves the logs as one zip file, with Deptheos's recent crash reports. Email it to <a href="mailto:support@deptheos.com">support@deptheos.com</a> with a link to the issue. Help ▸ <em>Show Log Folder</em> opens the log folder instead.</li>
+      </ol>
+    </div>
+  </section>
+
+  <section id="timings">
+    <div class="prose">
+      <h2>Timings</h2>
+      <p>
+        To see how fast Deptheos stacks on your computer, run <code>deptheos bench</code> on a folder of your own
+        frames (<a href="/docs/cli/#install">The command line</a> says where it is):
+      </p>
+      <p><code class="cmd">deptheos bench ~/shots/bee</code></p>
+      <p>
+        It times whole stacks, from reading and decoding the frames to the finished result (writing the file is
+        left out, and the GPU is warmed up first), with Pyramid and Depth, each with the ECC aligner, the grid
+        aligner and no alignment, and prints a table of the times. <code>--stacker pyramid,depth,wavelet</code>
+        adds Wavelet, <code>--live</code> stacks as the app does, with its live preview, <code>--repeat 5</code>
+        runs each one five times and reports the median, <code>--cool 30</code> waits 30 seconds before each run so a laptop doesn't slow as it heats up, and <code>--json bench.json</code> saves every time
+        with a description of the machine. With <code>--raw-backend adobe-dng</code>, camera RAW files are
+        converted to DNG first, and the DNGs are what is timed. The home page's <a href="/#speed">stacking
+        times</a> were made with <code>--live --repeat 5 --cool 30</code>.
+      </p>
+    </div>
+  </section>
+</DocsLayout>

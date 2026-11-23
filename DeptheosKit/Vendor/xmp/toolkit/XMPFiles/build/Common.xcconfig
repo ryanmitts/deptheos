@@ -1,6 +1,0 @@
-
-// Common.xcconfig for XMPFiles
-
-OTHER_CFLAGS = $(OTHER_CFLAGS) -fno-define-target-os-macros
-
-

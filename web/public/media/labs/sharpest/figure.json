@@ -1,0 +1,273 @@
+{
+  "id": "sharpest",
+  "kind": "frames",
+  "frames": 66,
+  "width": 768,
+  "height": 768,
+  "files": [
+    {
+      "file": "frame-01.jpg",
+      "bytes": 57679
+    },
+    {
+      "file": "frame-02.jpg",
+      "bytes": 51528
+    },
+    {
+      "file": "frame-03.jpg",
+      "bytes": 51685
+    },
+    {
+      "file": "frame-04.jpg",
+      "bytes": 53611
+    },
+    {
+      "file": "frame-05.jpg",
+      "bytes": 52662
+    },
+    {
+      "file": "frame-06.jpg",
+      "bytes": 52281
+    },
+    {
+      "file": "frame-07.jpg",
+      "bytes": 53434
+    },
+    {
+      "file": "frame-08.jpg",
+      "bytes": 51888
+    },
+    {
+      "file": "frame-09.jpg",
+      "bytes": 51979
+    },
+    {
+      "file": "frame-10.jpg",
+      "bytes": 52301
+    },
+    {
+      "file": "frame-11.jpg",
+      "bytes": 52406
+    },
+    {
+      "file": "frame-12.jpg",
+      "bytes": 52294
+    },
+    {
+      "file": "frame-13.jpg",
+      "bytes": 52259
+    },
+    {
+      "file": "frame-14.jpg",
+      "bytes": 52513
+    },
+    {
+      "file": "frame-15.jpg",
+      "bytes": 52751
+    },
+    {
+      "file": "frame-16.jpg",
+      "bytes": 52959
+    },
+    {
+      "file": "frame-17.jpg",
+      "bytes": 52652
+    },
+    {
+      "file": "frame-18.jpg",
+      "bytes": 52958
+    },
+    {
+      "file": "frame-19.jpg",
+      "bytes": 53264
+    },
+    {
+      "file": "frame-20.jpg",
+      "bytes": 53206
+    },
+    {
+      "file": "frame-21.jpg",
+      "bytes": 53566
+    },
+    {
+      "file": "frame-22.jpg",
+      "bytes": 54511
+    },
+    {
+      "file": "frame-23.jpg",
+      "bytes": 54883
+    },
+    {
+      "file": "frame-24.jpg",
+      "bytes": 55875
+    },
+    {
+      "file": "frame-25.jpg",
+      "bytes": 56213
+    },
+    {
+      "file": "frame-26.jpg",
+      "bytes": 56174
+    },
+    {
+      "file": "frame-27.jpg",
+      "bytes": 57065
+    },
+    {
+      "file": "frame-28.jpg",
+      "bytes": 57026
+    },
+    {
+      "file": "frame-29.jpg",
+      "bytes": 57382
+    },
+    {
+      "file": "frame-30.jpg",
+      "bytes": 58180
+    },
+    {
+      "file": "frame-31.jpg",
+      "bytes": 59132
+    },
+    {
+      "file": "frame-32.jpg",
+      "bytes": 60224
+    },
+    {
+      "file": "frame-33.jpg",
+      "bytes": 61488
+    },
+    {
+      "file": "frame-34.jpg",
+      "bytes": 62404
+    },
+    {
+      "file": "frame-35.jpg",
+      "bytes": 62567
+    },
+    {
+      "file": "frame-36.jpg",
+      "bytes": 62598
+    },
+    {
+      "file": "frame-37.jpg",
+      "bytes": 62509
+    },
+    {
+      "file": "frame-38.jpg",
+      "bytes": 63493
+    },
+    {
+      "file": "frame-39.jpg",
+      "bytes": 64012
+    },
+    {
+      "file": "frame-40.jpg",
+      "bytes": 65097
+    },
+    {
+      "file": "frame-41.jpg",
+      "bytes": 65006
+    },
+    {
+      "file": "frame-42.jpg",
+      "bytes": 64741
+    },
+    {
+      "file": "frame-43.jpg",
+      "bytes": 64392
+    },
+    {
+      "file": "frame-44.jpg",
+      "bytes": 64183
+    },
+    {
+      "file": "frame-45.jpg",
+      "bytes": 64556
+    },
+    {
+      "file": "frame-46.jpg",
+      "bytes": 65405
+    },
+    {
+      "file": "frame-47.jpg",
+      "bytes": 66701
+    },
+    {
+      "file": "frame-48.jpg",
+      "bytes": 68619
+    },
+    {
+      "file": "frame-49.jpg",
+      "bytes": 70046
+    },
+    {
+      "file": "frame-50.jpg",
+      "bytes": 71187
+    },
+    {
+      "file": "frame-51.jpg",
+      "bytes": 72388
+    },
+    {
+      "file": "frame-52.jpg",
+      "bytes": 72428
+    },
+    {
+      "file": "frame-53.jpg",
+      "bytes": 72744
+    },
+    {
+      "file": "frame-54.jpg",
+      "bytes": 72622
+    },
+    {
+      "file": "frame-55.jpg",
+      "bytes": 72648
+    },
+    {
+      "file": "frame-56.jpg",
+      "bytes": 71973
+    },
+    {
+      "file": "frame-57.jpg",
+      "bytes": 71434
+    },
+    {
+      "file": "frame-58.jpg",
+      "bytes": 71323
+    },
+    {
+      "file": "frame-59.jpg",
+      "bytes": 70172
+    },
+    {
+      "file": "frame-60.jpg",
+      "bytes": 68765
+    },
+    {
+      "file": "frame-61.jpg",
+      "bytes": 66920
+    },
+    {
+      "file": "frame-62.jpg",
+      "bytes": 64795
+    },
+    {
+      "file": "frame-63.jpg",
+      "bytes": 63530
+    },
+    {
+      "file": "frame-64.jpg",
+      "bytes": 62337
+    },
+    {
+      "file": "frame-65.jpg",
+      "bytes": 61342
+    },
+    {
+      "file": "frame-66.jpg",
+      "bytes": 60309
+    }
+  ]
+}

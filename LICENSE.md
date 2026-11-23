@@ -1,3 +1,62 @@
+Deptheos
+Copyright (C) 2026 Ryan Mitts
+
+This program is free software: you can redistribute it and/or modify it
+under the terms of the GNU General Public License as published by the Free
+Software Foundation, version 3, reproduced below.
+
+This program is distributed in the hope that it will be useful, but WITHOUT
+ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
+FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for
+more details.
+
+Additional permissions under GNU GPL version 3 section 7
+
+1. The Adobe DNG SDK and XMP Toolkit.
+
+If you modify this Program, or any covered work, by linking or combining
+it with the Adobe DNG SDK or the Adobe XMP Toolkit (or a modified version
+of those libraries), containing parts covered by the terms of the Adobe DNG
+SDK License Agreement, the licensors of this Program grant you additional
+permission to convey the resulting work. Corresponding Source for a
+non-source form of such a combination shall include the source code for
+the parts of the Adobe DNG SDK and Adobe XMP Toolkit used as well as that
+of the covered work.
+
+2. LibRaw.
+
+If you modify this Program, or any covered work, by linking or combining
+it with LibRaw (or a modified version of that library), used under the
+terms of the Common Development and Distribution License version 1.0,
+the licensors of this Program grant you additional permission to convey
+the resulting work. Corresponding Source for a non-source form of such a
+combination shall include the source code for the parts of LibRaw used as
+well as that of the covered work.
+
+3. App stores.
+
+The licensors of this Program grant you additional permission to convey a
+covered work in non-source form through Apple's App Store, or through
+another app distribution platform, even where that platform's terms of
+service or technical measures place restrictions on the people who receive
+the work from it that this License would otherwise not allow. This
+permission applies only if the Corresponding Source of the work conveyed is
+available to anyone, at no charge, under this License, and the work or its
+listing on the platform says where to get it.
+
+The name "Deptheos" and the Deptheos logo are not licensed under the GNU
+General Public License; see TRADEMARKS.md. The third-party software that
+Deptheos includes is listed, with its licenses, in THIRD_PARTY_NOTICES.txt.
+
+The photographs in samples/, web/public/media/ and the test images under
+crates/ are Copyright (C) 2026 Ryan Mitts, all rights reserved, except
+where a README beside them names another source. They are not licensed
+under the GNU General Public License. You may copy and distribute them
+unmodified as part of Deptheos or of a work based on it, and use them to
+build and test it; any other use needs permission.
+
+--------------------------------------------------------------------------------
+
                     GNU GENERAL PUBLIC LICENSE
                        Version 3, 29 June 2007
 

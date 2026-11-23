@@ -1,0 +1,120 @@
+---
+import BaseLayout from "../../layouts/BaseLayout.astro";
+---
+
+<BaseLayout
+  navKey="privacy"
+  title="Privacy"
+  description="Deptheos collects no telemetry or analytics: your photos stay on your device, the only network request is the desktop update check, and nothing tracks you."
+>
+  <div class="prose">
+    <h1>Privacy</h1>
+    <p class="lede">
+      Deptheos collects nothing about you. Your photos, renders, and logs stay on your own computer, iPhone, or
+      iPad. This page says exactly what the apps send over the network—at most one request, the desktop update
+      check—and what happens to diagnostics when you choose to send them.
+    </p>
+    <p>
+      This policy covers the Deptheos desktop app for macOS, Windows and Linux, the command line tool
+      (<code>deptheos</code>), the iPhone and iPad app, and this website. Last updated 20 November 2026.
+    </p>
+  </div>
+
+  <section id="photos">
+    <div class="prose">
+      <h2>Your photos never leave your device</h2>
+      <p>
+        Stacking, retouching and exporting all happen on your own device, on its GPU. Your frames are read where
+        they are and never uploaded anywhere. The Library (your stacks, renders and retouching), the app's
+        settings and its logs are kept in folders on the same device. There is no account to sign in to and no
+        cloud service behind the apps.
+      </p>
+    </div>
+  </section>
+
+  <section id="network">
+    <div class="prose">
+      <h2>What goes over the network</h2>
+      <h3 id="update-check">The desktop app: the update check</h3>
+      <p>
+        The desktop app makes one kind of request: it asks GitHub whether a newer version of Deptheos has been
+        released. It asks once each time it starts, unless you turn off Settings ▸ General ▸
+        <em>Check for updates</em>, and whenever you choose Check for Updates… (in the Deptheos menu on a Mac,
+        the Help menu on Windows and Linux).
+      </p>
+      <p>
+        The request is one HTTPS request for Deptheos's latest release:
+      </p>
+      <p><code class="cmd">GET https://api.github.com/repos/ryanmitts/deptheos/releases/latest</code></p>
+      <p>
+        It carries the app's version in its User-Agent header (<code>Deptheos/0.2.0</code>, for example, as
+        GitHub requires every request to name its client) and nothing else: no identifier, no system details,
+        nothing about your photos or how you use the app. The app reads only the latest release's version
+        number from the reply. Nothing is downloaded or installed: when a newer version is out, Download opens
+        its release page in your browser. As with any request, GitHub sees the address it came from;
+        <a href="https://docs.github.com/en/site-policy/privacy-policies/github-general-privacy-statement">GitHub's
+        privacy statement</a> covers what GitHub does with that.
+      </p>
+      <h3 id="ios-network">The iPhone and iPad app</h3>
+      <p>
+        The iPhone and iPad app makes no network requests of its own. When you add photos that are kept in
+        iCloud, iOS downloads them to your device for the app, as it would for any app.
+      </p>
+      <h3 id="cli-network">The command line tool</h3>
+      <p>The command line tool makes no network requests at all.</p>
+      <h3 id="links">Links</h3>
+      <p>
+        Menu items and buttons that name a web page (the docs, the release notes, the source code, Report a
+        Problem…) open that page in your browser. The app itself sends nothing when it does.
+      </p>
+    </div>
+  </section>
+
+  <section id="diagnostics">
+    <div class="prose">
+      <h2>Diagnostics, only when you send them</h2>
+      <p>
+        The apps keep a log on your device to help with bug reports. It names the files and folders the app
+        read, as a log must to be any use, with your home folder written as <code>~</code>. It is never sent
+        anywhere by the app.
+      </p>
+      <p>
+        When you choose Help ▸ <em>Save Diagnostics…</em> on the desktop, or Settings ▸ Diagnostics ▸
+        <em>Send Diagnostics…</em> on iPhone and iPad, the app makes one zip file of its recent logs, and on the
+        desktop its crash reports from the last 30 days. Your home folder is written as <code>~</code> in the logs
+        and a Mac's crash reports, whose machine identifiers are blanked out too. A crash dump on Windows is a
+        copy of part of the app's memory at the moment it crashed, which can't be cleaned that way. The file is
+        yours: it goes only where you send it. If you email it to <a href="mailto:support@deptheos.com">support@deptheos.com</a>, it is used only
+        to look into the problem you reported, and is not shared with anyone. <a href="/support/">Support</a>
+        says how to send it.
+      </p>
+    </div>
+  </section>
+
+  <section id="tracking">
+    <div class="prose">
+      <h2>No tracking</h2>
+      <p>
+        The apps have no analytics, no advertising, no crash reporting service and no third-party code that
+        sends data. The App Store lists the iPhone and iPad app as <em>Data Not Collected</em>.
+      </p>
+      <p>
+        This website sets no cookies and runs no analytics or tracking scripts; its fonts are served from the
+        site itself. It is hosted on Cloudflare, which keeps the usual records of the requests it serves, as any
+        web host does.
+      </p>
+    </div>
+  </section>
+
+  <section id="changes">
+    <div class="prose">
+      <h2>Changes and questions</h2>
+      <p>
+        If a later version of Deptheos changes anything here, this page changes with it before that version is
+        released, and its date above changes too. Deptheos is open source, so what the apps send can be checked
+        in <a href="https://github.com/ryanmitts/deptheos">the source code</a>. Questions about privacy go to
+        <a href="mailto:support@deptheos.com">support@deptheos.com</a>.
+      </p>
+    </div>
+  </section>
+</BaseLayout>

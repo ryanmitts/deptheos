@@ -1,0 +1,34 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- AppStream metadata: what software centers (GNOME Software, Discover)
+     show for the installed app. Check with `appstreamcli validate`. -->
+<component type="desktop-application">
+  <id>com.deptheos.Deptheos</id>
+  <metadata_license>CC0-1.0</metadata_license>
+  <project_license>GPL-3.0-only</project_license>
+  <name>Deptheos</name>
+  <summary>Focus stacking for macro photography, on the GPU</summary>
+  <description>
+    <p>
+      Deptheos is a free, open-source focus stacker for macro photography.
+      The stacking runs on the GPU, so a stack of 200 frames at 45 MP is
+      aligned and stacked in seconds.
+    </p>
+    <p>
+      Three methods (pyramid, depth map and wavelet), RAW in, linear DNG out,
+      batch with auto sort, and a history that keeps every render. The deptheos
+      command stacks from the terminal.
+    </p>
+  </description>
+  <developer id="com.deptheos">
+    <name>Ryan Mitts</name>
+  </developer>
+  <url type="homepage">https://deptheos.com</url>
+  <url type="bugtracker">https://github.com/ryanmitts/deptheos/issues</url>
+  <url type="vcs-browser">https://github.com/ryanmitts/deptheos</url>
+  <launchable type="desktop-id">com.deptheos.Deptheos.desktop</launchable>
+  <provides>
+    <binary>deptheos</binary>
+    <binary>deptheos-gui</binary>
+  </provides>
+  <content_rating type="oars-1.1"/>
+</component>

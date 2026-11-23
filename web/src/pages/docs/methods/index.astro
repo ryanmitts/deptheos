@@ -1,0 +1,154 @@
+---
+import DocsLayout from "../../../layouts/DocsLayout.astro";
+import Measured from "../../../components/Measured.astro";
+---
+
+<DocsLayout
+  docKey="methods"
+  title="Choosing a method"
+  description="Which of Deptheos's three stacking methods, Pyramid, Depth or Wavelet, to use for a stack, with the three compared on the same places at 100%."
+  hasLabs
+>
+  <div class="prose">
+    <h1>Choosing a method</h1>
+    <p class="lede">
+      Deptheos has three stacking methods: Pyramid, Depth and Wavelet. Each does best on some subjects and
+      worst on others. The table is the short answer; the figure under it shows the three on the same places.
+    </p>
+  </div>
+
+  <section id="table">
+    <div class="table-wrap">
+      <table class="choose">
+        <thead>
+          <tr><th></th><th>Pyramid</th><th>Depth</th><th>Wavelet</th></tr>
+        </thead>
+        <tbody>
+          <tr><th>Hairs and fine detail over a far background</th><td class="best">Crisp</td><td class="weak">Soft</td><td class="best">Crisp</td></tr>
+          <tr><th>Plain, out-of-focus backgrounds</th><td class="weak">Grainy at low Smoothness</td><td class="best">Smooth</td><td class="weak">Grainy, blotchy</td></tr>
+          <tr><th>Something bright against something dark</th><td class="weak">Some glow</td><td class="best">Clean</td><td class="weak">Can streak</td></tr>
+          <tr><th>A jump in depth, one part in front of another</th><td class="best">Crisp</td><td class="weak">Soft along the step</td><td class="weak">Can streak</td></tr>
+          <tr><th>Colors</th><td>Blended from several frames</td><td>True to the source frames</td><td>Each pixel from one frame</td></tr>
+          <tr><th>Frames out of focus order</th><td>Fine</td><td class="weak">Needs them in order</td><td>Fine</td></tr>
+          <tr><th>Passes over the frames (I/O)</th><td>Once</td><td>Twice</td><td>Twice</td></tr>
+          <tr>
+            <th>
+              Time for <Measured path="benchmarks.m5-max-pcb1-jpeg.stack.frames" /> JPEG frames of
+              <Measured path="benchmarks.m5-max-pcb1-jpeg.stack.megapixels" digits={0} /> MP on an
+              <Measured path="benchmarks.m5-max-pcb1-jpeg.label" />, aligned with ECC
+            </th>
+            <td><Measured path="benchmarks.m5-max-pcb1-jpeg.runs.pyramid.ecc.seconds" digits={1} /> s</td>
+            <td><Measured path="benchmarks.m5-max-pcb1-jpeg.runs.depth.ecc.seconds" digits={1} /> s</td>
+            <td><Measured path="benchmarks.m5-max-pcb1-jpeg.runs.wavelet.ecc.seconds" digits={1} /> s</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="prose">
+      <p>
+        Start with <strong>Pyramid</strong>, the default. Try <strong>Depth</strong> when a plain
+        background comes out grainy or a dark area beside something bright comes out hazy. Reach for
+        <strong>Wavelet</strong> when you want each pixel's color taken whole from a single frame rather than
+        blended across frames (or if you're used to <code>focus-stack</code> and microscopy workflows). Where one
+        method does better in one part of the picture and another elsewhere, stack with both and
+        <a href="/docs/retouching/">paint</a> from the better render over the other.
+      </p>
+    </div>
+  </section>
+
+  <section id="compare">
+    <div class="prose">
+      <h2>The three on the same places</h2>
+      <p>
+        Results the app made from the hornet, spider and circuit-board sample stacks at full resolution, at
+        100%, each method at its default settings. Choose a place, then flick between the methods.
+      </p>
+    </div>
+    <figure
+      class="lab"
+      id="methods-figure"
+      data-lab="stops"
+      data-assets="methods"
+      data-stops="pyramid=Pyramid|depth=Depth|wavelet=Wavelet|wavelet-c2=Wavelet, filters on"
+      data-stops-label="Method"
+      data-start="pyramid"
+      data-places="hairs=Hairs|green=Plain background|leg=Spider's leg|antenna=Antenna tip|board=Circuit board"
+      data-places-label="Place"
+      data-panels="{stop}-{place}.jpg=The result"
+      data-center="384,256|384,256|300,256|384,256|384,256"
+      data-why-by="place"
+    >
+      <div class="lab-body">
+        <div class="pan"><img src="/media/labs/methods/pyramid-hairs.jpg" width="768" height="512" alt="Hairs on the hornet's head against the green, stacked with the pyramid method" /></div>
+      </div>
+      <figcaption>
+        Five places, each stacked with every method. <em>Wavelet, filters on</em> is the wavelet with its
+        consistency filters, which only the <a href="/docs/cli/">command line</a> can turn on
+        (<code>--consistency 2</code>).
+      </figcaption>
+      <div class="lab-why" data-for="hairs">
+        <p>
+          <strong>Hairs: the pyramid or the wavelet.</strong> Both choose separately for each size of detail,
+          and their hairs are crisp. Depth's are softer, with a haze between them: each hair is thinner
+          than the patch the map decides its depth over, so it is taken partly from frames where it is blurred.
+        </p>
+      </div>
+      <div class="lab-why" data-for="green" hidden>
+        <p>
+          <strong>A plain background: Depth.</strong> Nothing here is sharp in any frame. Depth
+          gives the whole area one depth, so it comes from one or two frames and is smooth. The pyramid lets the
+          sharpest frame at each spot dominate, and in a plain area that is whichever frame's noise scores
+          highest, so it is grainy; the wavelet switches frames from pixel to pixel and is grainy too.
+        </p>
+      </div>
+      <div class="lab-why" data-for="leg" hidden>
+        <p>
+          <strong>Bright against dark: Depth.</strong> In the pyramid the dark background beside the
+          spider's pale leg is lifted to a haze: the leg's out-of-focus glow, let in through the coarse levels.
+          Depth takes the background from frames where the leg is not spread over it, and it stays
+          dark. The wavelet is blotchy there, with a fringe of the leg's color along its edge.
+        </p>
+      </div>
+      <div class="lab-why" data-for="antenna" hidden>
+        <p>
+          <strong>The antenna's tip: Pyramid or Depth.</strong> Both keep it crisp. In the wavelet
+          the lower half of the tip is washed pale, with or without its filters. It gives each pixel the color
+          of the frame whose brightness is closest to its gray picture, and that need not be a frame where the
+          tip is sharp.
+        </p>
+      </div>
+      <div class="lab-why" data-for="board" hidden>
+        <p>
+          <strong>A circuit board: the pyramid.</strong> The bright metal sits at a jump in depth, beside a
+          capacitor's tall black body. Depth softens it along the capacitor's edge, where its map runs
+          from one depth to the other; the wavelet streaks gray into the black beside the bright metal, where
+          neighboring pixels take their color from different frames.
+        </p>
+      </div>
+    </figure>
+  </section>
+
+  <section id="set-up">
+    <div class="prose">
+      <h2>How each works and its settings</h2>
+      <ul>
+        <li>
+          <strong><a href="/docs/pyramid/">Pyramid</a>:</strong> splits each frame into levels of detail and
+          blends them separately, giving the most weight to the sharpest. One setting: <em>Smoothness</em>, from
+          crisp and noisier to calm and softer.
+        </li>
+        <li>
+          <strong><a href="/docs/depth-map/">Depth</a>:</strong> picks one depth per spot and takes each spot
+          from the frame at that depth (which is why frames must be in focus order: blending frames 10 and 30
+          lands on frame 20). Settings: <em>Smoothing</em>, <em>Radius</em>, and under Advanced,
+          <em>Blend Range</em>.
+        </li>
+        <li>
+          <strong><a href="/docs/wavelet/">Wavelet</a>:</strong> merges the strongest detail at every scale into
+          a sharp gray image, then gives each pixel the color of the frame whose brightness matches best. One
+          setting: <em>Denoise</em>.
+        </li>
+      </ul>
+    </div>
+  </section>
+</DocsLayout>

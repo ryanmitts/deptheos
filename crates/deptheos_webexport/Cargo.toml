@@ -1,0 +1,16 @@
+[package]
+name = "deptheos_webexport"
+description = "Writes the app's parameters for the website's text"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+authors.workspace = true
+license.workspace = true
+repository.workspace = true
+homepage.workspace = true
+publish = false
+
+[dependencies]
+deptheos_aligner = { workspace = true }
+deptheos_core = { workspace = true }
+serde_json = { workspace = true }

@@ -1,0 +1,191 @@
+{
+  "version": "0.2.0",
+  "commit": "e1f4e113",
+  "date": "2026-11-21",
+  "label": "Apple M5 Max (32-core GPU)",
+  "machine": {
+    "os": "macOS 27.2",
+    "cpu": "Apple M5 Max",
+    "threads": 18,
+    "memory_gb": 36.0,
+    "gpu": "Apple M5 Max",
+    "gpu_backend": "Metal",
+    "gpu_cores": 32,
+    "power": "AC Power",
+    "power_mode": "automatic"
+  },
+  "stack": {
+    "name": "pcb1",
+    "frames": 200,
+    "width": 8192,
+    "height": 5464,
+    "megapixels": 44.761088,
+    "format": "JPEG",
+    "bytes": 411747799
+  },
+  "path": "live",
+  "runs": {
+    "depth": {
+      "ecc": {
+        "fastest": 5.315326,
+        "left_out": 0,
+        "mpx_per_s": 1658.795163404703,
+        "ms_per_frame": 26.98409604,
+        "phases": {
+          "blend": 2.246177459000001,
+          "complete": 0.096984958,
+          "finalize": 0.022173375,
+          "pass1": 3.0025757500000023
+        },
+        "repeats": [
+          5.48867325,
+          5.483115542,
+          5.315326,
+          5.347797416,
+          5.396819208
+        ],
+        "result": [
+          8192,
+          5464
+        ],
+        "reversed": false,
+        "seconds": 5.396819208,
+        "slowest": 5.48867325
+      },
+      "grid": {
+        "fastest": 5.788015958,
+        "left_out": 0,
+        "mpx_per_s": 1544.5220875351108,
+        "ms_per_frame": 28.980542500000002,
+        "phases": {
+          "blend": 2.2867301250000005,
+          "complete": 0.106803458,
+          "finalize": 0.027131875,
+          "pass1": 3.350889959000001
+        },
+        "repeats": [
+          6.014567792,
+          5.788279125,
+          5.788015958,
+          5.8488398329999995,
+          5.7961085
+        ],
+        "result": [
+          8191,
+          5463
+        ],
+        "reversed": false,
+        "seconds": 5.7961085,
+        "slowest": 6.014567792
+      }
+    },
+    "pyramid": {
+      "ecc": {
+        "fastest": 5.15883275,
+        "left_out": 0,
+        "mpx_per_s": 1722.0130187663833,
+        "ms_per_frame": 25.993466664999996,
+        "phases": {
+          "blend": 0.0,
+          "complete": 0.078223375,
+          "finalize": 0.000235208,
+          "pass1": 5.091203042000001
+        },
+        "repeats": [
+          5.198693333,
+          5.193676833,
+          5.218815,
+          5.208688416,
+          5.15883275
+        ],
+        "result": [
+          8192,
+          5464
+        ],
+        "reversed": false,
+        "seconds": 5.198693333,
+        "slowest": 5.218815
+      },
+      "grid": {
+        "fastest": 5.27191525,
+        "left_out": 0,
+        "mpx_per_s": 1684.6409636864737,
+        "ms_per_frame": 26.57010542,
+        "phases": {
+          "blend": 0.0,
+          "complete": 0.077300708,
+          "finalize": 0.000249167,
+          "pass1": 5.2083895410000025
+        },
+        "repeats": [
+          5.339349375,
+          5.314021084,
+          5.320129625,
+          5.27191525,
+          5.28147275
+        ],
+        "result": [
+          8191,
+          5463
+        ],
+        "reversed": false,
+        "seconds": 5.314021084,
+        "slowest": 5.339349375
+      }
+    },
+    "wavelet": {
+      "ecc": {
+        "fastest": 6.448998583,
+        "left_out": 0,
+        "mpx_per_s": 1379.0549842698633,
+        "ms_per_frame": 32.45779792,
+        "phases": {
+          "blend": 2.318411457999999,
+          "complete": 0.120499584,
+          "finalize": 0.038775333,
+          "pass1": 3.9874395000000007
+        },
+        "repeats": [
+          6.502820666,
+          6.697218959,
+          6.448998583,
+          6.478397084,
+          6.491559584
+        ],
+        "result": [
+          8192,
+          5464
+        ],
+        "reversed": false,
+        "seconds": 6.491559584,
+        "slowest": 6.697218959
+      },
+      "grid": {
+        "fastest": 6.657509584,
+        "left_out": 0,
+        "mpx_per_s": 1338.8465174339583,
+        "ms_per_frame": 33.43257604,
+        "phases": {
+          "blend": 2.2864577909999997,
+          "complete": 0.115075084,
+          "finalize": 0.042188292,
+          "pass1": 4.215438333
+        },
+        "repeats": [
+          6.928363375,
+          6.712621291,
+          6.6752165,
+          6.657509584,
+          6.686515208
+        ],
+        "result": [
+          8191,
+          5463
+        ],
+        "reversed": false,
+        "seconds": 6.686515208,
+        "slowest": 6.928363375
+      }
+    }
+  }
+}

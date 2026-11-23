@@ -1,0 +1,35 @@
+{
+  "version": "0.2.0",
+  "date": "2026-11-22",
+  "label": "iPad Pro 13\" (M5)",
+  "machine": {
+    "os": "iPadOS 27.2.1",
+    "cpu": "Apple M5",
+    "threads": 9,
+    "memory_gb": 12.0,
+    "gpu": "Apple M5 GPU",
+    "gpu_backend": "Metal"
+  },
+  "stack": {
+    "name": "hornet",
+    "frames": 66,
+    "width": 8192,
+    "height": 5464,
+    "megapixels": 44.761088,
+    "format": "JPEG",
+    "bytes": 263576049
+  },
+  "path": "live",
+  "runs": {
+    "pyramid": {
+      "ecc": {
+        "fastest": 5.96,
+        "left_out": 0,
+        "mpx_per_s": 458.0,
+        "ms_per_frame": 97.7,
+        "seconds": 6.45,
+        "slowest": 10.08
+      }
+    }
+  }
+}

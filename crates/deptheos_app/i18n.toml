@@ -1,0 +1,7 @@
+# The shared layer's sentences: i18n/<language>/deptheos_app.ftl, read by
+# `deptheos_app::words` (ADR-161). English is the language every message
+# falls back to.
+fallback_language = "en-US"
+
+[fluent]
+assets_dir = "i18n"

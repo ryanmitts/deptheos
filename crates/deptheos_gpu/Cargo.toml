@@ -1,0 +1,39 @@
+[package]
+name = "deptheos_gpu"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+authors.workspace = true
+license.workspace = true
+repository.workspace = true
+homepage.workspace = true
+publish = false
+
+[dependencies]
+wgpu = { workspace = true }
+naga_oil = { workspace = true }
+encase = { workspace = true }
+thiserror = { workspace = true }
+tracing = { workspace = true }
+pollster = { workspace = true }
+wgpu-profiler = { workspace = true }
+
+# The Metal device's memory figures (`GpuContext::memory_budget`), at the
+# versions wgpu's Metal backend already links.
+[target.'cfg(target_vendor = "apple")'.dependencies]
+objc2-metal = { version = "0.3.2", default-features = false, features = ["std", "MTLDevice", "MTLAllocation"] }
+
+[features]
+# The example (`gpu_info`) builds only with this on, so `cargo test` does
+# not compile and link it:
+#   cargo run --release -p deptheos_gpu --features examples --example <name>
+examples = []
+
+[[example]]
+name = "gpu_info"
+required-features = ["examples"]
+
+# The D3D12 memory budget, logged at startup: the `windows` version wgpu's
+# D3D12 backend already links.
+[target.'cfg(windows)'.dependencies]
+windows = { version = "0.62.2", default-features = false, features = ["Win32_Graphics_Dxgi"] }

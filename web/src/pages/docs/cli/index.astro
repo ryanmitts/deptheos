@@ -1,0 +1,194 @@
+---
+import DocsLayout from "../../../layouts/DocsLayout.astro";
+import Param from "../../../components/Param.astro";
+---
+
+<DocsLayout
+  docKey="cli"
+  title="The command line"
+  description="The deptheos CLI for macOS, Windows, and Linux: stacking, batch processing, aligned frame export, grow and turntable sequences, benchmarks, and exit codes."
+>
+  <div class="prose">
+    <h1>The command line</h1>
+    <p class="lede">
+      The desktop app comes with <code>deptheos</code>, a command that stacks from a terminal with the same
+      engine, methods and export formats. It suits scripts, a folder watched by another tool, or a machine you
+      reach over SSH. It lists the files it writes on standard output, one path per line, and its progress and
+      errors on standard error.
+    </p>
+  </div>
+
+  <section id="install">
+    <div class="prose">
+      <h2>Where it is</h2>
+      <ul>
+        <li>
+          <strong>macOS</strong>: inside Deptheos.app. Choose Deptheos ▸ Install Command Line Tool… to link it
+          into <code>/usr/local/bin</code>, which may ask for your password. Do it once the app is in
+          Applications, not while it runs from the disk image. The link follows the app when it updates.
+        </li>
+        <li>
+          <strong>Windows</strong>: <code>deptheos.exe</code> beside the app, in the folder Deptheos is installed
+          in. The installer's <em>Add the deptheos command to PATH, for the command line</em> option, on by default, lets a new
+          terminal find it.
+        </li>
+        <li>
+          <strong>Linux</strong>: the .deb and .rpm install it as <code>/usr/bin/deptheos</code>. In the
+          tarball it is <code>bin/deptheos</code>; its <code>install.sh</code> copies it into
+          <code>~/.local/bin</code>, or under <code>PREFIX</code> if you set one.
+        </li>
+      </ul>
+      <p>Its help lists every command, and <code>deptheos &lt;command&gt; --help</code> each command's options:</p>
+      <p><code class="cmd">deptheos --help</code></p>
+    </div>
+  </section>
+
+  <section id="stack">
+    <div class="prose">
+      <h2>Stacking one bracket: pyramid, depth, wavelet</h2>
+      <p>
+        Each method is a command. Give it the frames, or their folder, and the result's file with
+        <code>-o</code>; the extension picks the format (<code>.tif</code>, <code>.png</code>,
+        <code>.jpg</code>, or <code>.dng</code> for camera RAW input).
+      </p>
+      <p><code class="cmd">deptheos pyramid ~/shots/bee -o bee.tif</code></p>
+      <p><code class="cmd">deptheos depth IMG_*.CR3 -o bee.dng --radius 12</code></p>
+      <p><code class="cmd">deptheos wavelet ~/shots/bee -o bee.tif --denoise 2</code></p>
+      <div class="table-wrap">
+        <table class="choose">
+          <thead><tr><th scope="col">Option</th><th scope="col">Default</th><th scope="col">What it does</th></tr></thead>
+          <tbody>
+            <tr><th scope="row"><code>--smoothness</code></th><td><Param path="defaults.pyramid.smoothness" /></td><td>Pyramid's Smoothness, <Param path="ranges.pyramid.smoothness.min" /> to <Param path="ranges.pyramid.smoothness.max" />.</td></tr>
+            <tr><th scope="row"><code>--radius</code>, <code>--smoothing</code>, <code>--blend-range</code></th><td><Param path="defaults.depth.radius" />, <Param path="defaults.depth.smoothing" />, <Param path="defaults.depth.blend_range" /></td><td>Depth's settings.</td></tr>
+            <tr><th scope="row"><code>--denoise</code></th><td>1</td><td>Wavelet's Denoise, 0 to 10.</td></tr>
+            <tr><th scope="row"><code>--consistency</code></th><td>0</td><td>Wavelet's consistency filter, 0 to 2 (0 off, 1 mild, 2 stronger).</td></tr>
+            <tr><th scope="row"><code>-a</code>, <code>--align</code></th><td>ecc</td><td><code>ecc</code> (ECC: lines each frame up with the one before it), <code>grid</code> (Grid search: shift, rotation and magnification only), or <code>none</code> (no alignment, for frames already lined up).</td></tr>
+            <tr><th scope="row"><code>--no-crop</code></th><td></td><td>Keep the full frame instead of cropping to the area every frame covers.</td></tr>
+            <tr><th scope="row"><code>--order</code></th><td>name</td><td><code>name</code>, or <code>time</code> for capture time.</td></tr>
+            <tr><th scope="row"><code>--bit-depth</code></th><td>16 where the stack has 16</td><td>8 or 16, for TIFF and PNG.</td></tr>
+            <tr><th scope="row"><code>--tiff-compression</code></th><td>zip</td><td><code>zip</code>, <code>lzw</code>, or <code>none</code>, for TIFF.</td></tr>
+            <tr><th scope="row"><code>--jpeg-quality</code></th><td>92</td><td>1 to 100.</td></tr>
+            <tr><th scope="row"><code>--raw-backend</code></th><td>libraw</td><td><code>libraw</code>, or <code>adobe-dng</code> to decode through Adobe DNG Converter.</td></tr>
+            <tr><th scope="row"><code>--camera-profile</code></th><td>adobe</td><td>The Adobe camera profile that colors camera RAW decoded by LibRaw: <code>adobe</code>, <code>camera</code> or <code>none</code> (below).</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p>
+        With <code>--align grid</code>, set search limits with <code>--grid-shift-x</code> and
+        <code>--grid-shift-y</code> (% of the frame's longer side), <code>--grid-rotation</code> (degrees),
+        <code>--grid-magnification</code> (%), and the flag <code>--grid-brightness</code> (exposure
+        compensation), matching the app's Settings:
+      </p>
+      <p><code class="cmd">deptheos pyramid ~/shots/handheld -o handheld.tif --align grid --grid-shift-x 15 --grid-brightness</code></p>
+      <p id="camera-profile">
+        <code>--camera-profile</code> picks the installed <a href="/docs/raw/#settings">Adobe camera profile</a>
+        that colors camera RAW frames decoded by LibRaw: <code>adobe</code> for Adobe Standard (the default),
+        <code>camera</code> for Camera Standard, the camera maker's look, or <code>none</code> for the colors in
+        the file, with no profile. When no profile for the camera is installed, LibRaw's own color matrices are
+        used. <code>--camera-profile-folder</code> adds a folder of <code>.dcp</code> profiles to look in
+        before Adobe's own, as the app's Camera profile folders setting does; give it once for each folder.
+        Neither applies with <code>--raw-backend adobe-dng</code>, whose converted files carry their own
+        profile, and DNG frames always use the profile stored in them.
+      </p>
+    </div>
+  </section>
+
+  <section id="batch">
+    <div class="prose">
+      <h2>batch</h2>
+      <p>
+        Many folders at once, each folder one stack, written into the folder given to <code>-o</code> and named
+        after its folder. An existing file is never replaced.
+      </p>
+      <p><code class="cmd">deptheos batch pyramid ~/shots/* -o ~/stacked</code></p>
+      <p>
+        <code>--split auto</code> splits each folder into stacks by capture time, as the app's
+        <a href="/docs/batch/#split">auto sort</a> does. <code>--format</code> chooses <code>tif</code> (the
+        default), <code>png</code>, <code>jpg</code> or <code>dng</code>; with <code>dng</code>, stacks that
+        aren't camera RAW are written as TIFF. <code>--source raw</code> or <code>standard</code> picks which
+        file of a RAW + JPEG pair to stack.
+      </p>
+    </div>
+  </section>
+
+  <section id="align">
+    <div class="prose">
+      <h2>align</h2>
+      <p>
+        Aligns the frames without stacking them, and writes each one into the folder given to <code>-o</code>,
+        named after its frame: <code>IMG_0001.CR3</code> becomes <code>IMG_0001.tif</code>. The frames are
+        aligned exactly as a stack of them would be, with the same aligner, the same
+        <a href="/docs/alignment/#settings">reverse check</a> and the same crop to the area every frame covers, so the
+        files are all one size and line up pixel for pixel, ready to stack or retouch in another program. A
+        frame that can't be aligned is left out, with a warning.
+      </p>
+      <p><code class="cmd">deptheos align ~/shots/bee -o ~/bee-aligned</code></p>
+      <p><code class="cmd">deptheos align IMG_*.CR3 -o aligned --format dng</code></p>
+      <p><code class="cmd">deptheos align frames/ -o aligned --align grid --no-crop --format png</code></p>
+      <p>
+        It takes the stacking commands' input, alignment and RAW options: <code>--order</code>,
+        <code>--align ecc</code> or <code>grid</code> with the grid's limits, <code>--no-crop</code>,
+        <code>--raw-backend</code> and <code>--camera-profile</code>. <code>--format</code> chooses
+        <code>tif</code> (the default), <code>png</code>, <code>jpg</code> or <code>dng</code>, for camera RAW
+        frames only, with <code>--bit-depth</code>, <code>--jpeg-quality</code> and
+        <code>--tiff-compression</code> as for a stack.
+      </p>
+      <p>
+        Each file carries its color the way a stack's result in that format does: camera RAW rendered through
+        the reference frame's color, or as a linear DNG with its color profile, and JPEG, PNG and TIFF frames in
+        their own color space, with its profile embedded. Each keeps its own frame's camera, lens, exposure and
+        capture time. Nothing is replaced: if a file it would write is already in the folder, it stops before
+        reading any frame. The frames are read twice, once to align them all and once to write each, and only
+        one aligned frame is held in memory at a time.
+      </p>
+    </div>
+  </section>
+
+  <section id="sequence">
+    <div class="prose">
+      <h2>sequence grow, sequence turntable</h2>
+      <p>
+        Exports numbered frames for a video editor into a new folder under <code>-o</code>, with a
+        <code>manifest.json</code>: <code>grow</code> renders a progressive focus-sweep reveal as frames are
+        added to the stack, and <code>turntable</code> stacks one bracket per angle for a rotating 360° view.
+      </p>
+      <p><code class="cmd">deptheos sequence grow ~/shots/bee -o ~/sequences</code></p>
+      <p><code class="cmd">deptheos sequence turntable ~/turn/s* -o ~/sequences --mode both</code></p>
+      <p>
+        <code>grow</code> takes a bracket's frames and builds
+        from the back unless you add <code>--front-to-back</code>; <code>--every 2</code> writes every second
+        frame. <code>turntable</code> takes one folder per angle; <code>--mode</code> is <code>grow</code> (the
+        default), <code>full</code> or <code>both</code>. <code>--long-edge</code> scales the frames down.
+      </p>
+    </div>
+  </section>
+
+  <section id="bench">
+    <div class="prose">
+      <h2>bench</h2>
+      <p>
+        Times the methods and aligners on your own frames, whole stacks each (Pyramid and Depth, each with every aligner, unless <code>--stacker</code> and <code>--align</code> choose), and prints a Markdown table of the times. Add <code>--live</code> to stack as the app does, with its live preview.
+        <a href="/docs/troubleshooting/#timings">Timings</a> says more.
+      </p>
+      <p><code class="cmd">deptheos bench ~/shots/bee --live --stacker pyramid --align ecc --repeat 5 --cool 30</code></p>
+    </div>
+  </section>
+
+  <section id="exit">
+    <div class="prose">
+      <h2>Exit status</h2>
+      <div class="table-wrap">
+        <table class="choose">
+          <thead><tr><th scope="col">Code</th><th scope="col">Means</th></tr></thead>
+          <tbody>
+            <tr><th scope="row">0</th><td>Everything was made and written.</td></tr>
+            <tr><th scope="row">1</th><td>An error stopped the run, or every stack of a turntable failed.</td></tr>
+            <tr><th scope="row">2</th><td>The command line was refused, or a batch or turntable finished with one or more stacks that failed or could not be written.</td></tr>
+            <tr><th scope="row">130</th><td>Interrupted (Ctrl-C, on macOS and Linux); what was written is kept.</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p><code>-q</code> prints only warnings and errors; <code>-v</code> adds the engine's steps.</p>
+    </div>
+  </section>
+</DocsLayout>

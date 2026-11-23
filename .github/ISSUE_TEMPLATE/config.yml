@@ -1,0 +1,15 @@
+# What the New issue page offers beside the forms in this folder: no blank
+# issue, questions to Discussions, private matters to the support address
+# (SUPPORT_ADDRESS in crates/deptheos_gpui/src/app/diagnostics.rs) and
+# security problems to the private report (SECURITY.md).
+blank_issues_enabled: false
+contact_links:
+  - name: A question about using Deptheos
+    url: https://github.com/ryanmitts/deptheos/discussions
+    about: Ask in Discussions. The docs at deptheos.com/docs/ answer the common ones.
+  - name: Diagnostics, or anything private
+    url: https://deptheos.com/support/
+    about: Email support@deptheos.com. Diagnostics and crash reports never go on a public issue.
+  - name: A security problem
+    url: https://github.com/ryanmitts/deptheos/security/advisories/new
+    about: Report it privately, as SECURITY.md says.

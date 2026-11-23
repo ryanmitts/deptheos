@@ -1,0 +1,137 @@
+---
+import Shot from "../../../components/Shot.astro";
+import DocsLayout from "../../../layouts/DocsLayout.astro";
+---
+
+<DocsLayout
+  docKey="retouching"
+  title="Retouching"
+  description="How to fix a stacked result in Deptheos by painting from a source frame or another render: the brush settings, Only where colors match, undo and what is saved."
+>
+  <div class="prose">
+    <h1>Retouching</h1>
+    <p class="lede">
+      Every stacking method gets some places wrong: a soft patch where two depths cross, a halo along an edge,
+      a hair that comes out twice. Retouching fixes them by painting pixels onto the result from an image that
+      has them right, usually the one frame where that spot is sharp. The frames are already lined up with the
+      result, so what you paint lands in place.
+    </p>
+  </div>
+
+  <section id="open">
+    <div class="prose">
+      <h2>Opening Retouch</h2>
+      <p>
+        With a result on screen, click <em>Retouch</em> in the title bar, press <em>P</em>, or choose Stack ▸
+        Retouch. The title bar then shows "Retouching #4" with Undo, Redo, Export and <em>Done</em>; the
+        inspector holds the brush, and the list's header reads <em>Paint from · Click a frame</em>, with a
+        <em>Frames | Renders</em> switch under it. Done, Esc
+        or <em>P</em> again leaves Retouch. A result has to be saved as a render before it can be painted,
+        which happens on its own a moment after a stack finishes.
+      </p>
+    </div>
+    <figure class="shot"><Shot name="paint-edge" width="2880" height="1800" loading="lazy" alt="Retouch at 100%: source frames in the left list, Brush and Eraser sliders in the inspector, and the hornet result in the viewer." /><figcaption>Retouch: the source frame is chosen in the list, the brush in the inspector.</figcaption></figure>
+  </section>
+
+  <section id="sources">
+    <div class="prose">
+      <h2>What you can paint from</h2>
+      <ul>
+        <li>
+          <strong>A source frame.</strong> Click it in the list, drag along the focus rail in the view bar, or
+          step with ← and → while watching the spot. ⌥-click (Alt-click) on the picture picks the frame the
+          result took that pixel from, and the rail's marker moves to it; a dot over a tick marks each frame
+          you have painted from. Inside the brush ring you see the source, so you can tell before you paint
+          whether it is sharp there. <em>Compare</em> in the view bar sets the source beside the painted
+          result: its menu lists Painted, Split, Side by Side and Top and Bottom. The depth map
+          (<em>M</em>) can be shown over the picture too, lit for the frame you are painting from; while it
+          is, a drag moves around instead of painting, and a click on the map paints from the frame under it.
+          Contribution is off in Retouch, where the source is shown as it is.
+        </li>
+        <li>
+          <strong>Another render of the same stack.</strong> Switch the list to <em>Renders</em> and click one,
+          or pick it from the menu beside the render shown in the view bar, for example to paint a Depth render's clean edge onto a
+          Pyramid result. It is lined up through a frame the two share and matched in brightness, and you paint
+          from it as it was stacked, without its own retouching. A RAW stack's render and a JPEG stack's render
+          can't be mixed.
+        </li>
+        <li>
+          <strong>The original result.</strong> <em>Eraser</em> (<em>E</em>) paints the result as it was stacked
+          back over your strokes. <em>Brush</em> (<em>B</em>) goes back to the source you were using, and
+          <em>X</em> flips between the two. Clicking the render's name at the start of the view bar makes the
+          original the brush's source, so the brush paints it back as well.
+        </li>
+      </ul>
+      <p>Hold <em>\</em> to see the whole source in place of the painted result.</p>
+    </div>
+  </section>
+
+  <section id="brush">
+    <div class="prose">
+      <h2>The brush</h2>
+      <div class="table-wrap">
+        <table class="choose">
+          <thead><tr><th scope="col">Setting</th><th scope="col">Starts at</th><th scope="col">What it does</th></tr></thead>
+          <tbody>
+            <tr><th scope="row">Size</th><td>30 px</td><td>The radius, in pixels of the picture. <em>[</em> and <em>]</em> make it smaller and larger.</td></tr>
+            <tr><th scope="row">Hardness</th><td>80%</td><td>How sharp the brush's edge is: high paints nearly evenly out to the ring, low fades gradually from the center, which blends a fix in softly. ⇧[ and ⇧] change it.</td></tr>
+            <tr><th scope="row">Opacity</th><td>100%</td><td>The most a stroke changes a pixel toward the source, however many times you go over it. Keys 1 to 0 set 10% to 100%.</td></tr>
+            <tr><th scope="row">Flow</th><td>100%</td><td>How much each pass adds, up to the opacity. Below 100% a stroke builds up as you go over a spot again.</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <h3>Only where colors match</h3>
+      <p>
+        This switch, off at first, makes the brush skip pixels where the source differs a lot from the result.
+        Its <em>Within</em> slider (10% when turned on) sets how big a difference is allowed, taken per
+        color channel relative to the brighter of the two, so it reads the same in shadows and highlights. Use
+        it when painting near an edge: the sharp detail you want matches the result closely, while the halo or
+        the shifted edge of a frame that is out of focus there does not, so it stays out.
+      </p>
+    </div>
+  </section>
+
+  <section id="undo">
+    <div class="prose">
+      <h2>Undo, Reset and what is saved</h2>
+      <p>
+        ⌘Z undoes a stroke and ⇧⌘Z redoes it (Ctrl+Y also redoes on Windows and Linux), back through the strokes made
+        since Deptheos started; the undo history is not kept after quitting. <em>Reset…</em>, under the brush, takes the render back to the
+        stacked result and clears the undo history; it asks first, as it can't be undone.
+      </p>
+      <p>
+        Painting is saved with the render from the first stroke, and is still there when you open the render
+        again, after a restart too. Exports of the render include it. Grow and turntable sequences don't: they
+        are made from the stack itself.
+      </p>
+      <p>
+        On iPad, with the iPhone and iPad app (coming soon), Apple Pencil pressure sets how much each stroke
+        paints.
+      </p>
+    </div>
+  </section>
+
+  <section id="ios">
+    <div class="prose">
+      <h2>On iPhone and iPad</h2>
+      <p>
+        The iPhone and iPad app (coming soon) keeps what the brush paints from along the bottom of the photo:
+        the render you are retouching (a button that paints the original back when the stack has only one render,
+        or a menu starting with Original and listing the stack's other renders); the focus rail, where a drag
+        paints from the frame it rests on; the eye, which shows
+        the source in place of the painted result (tap it, or touch and hold it while you look); and
+        <em>Sharpest Frame</em>, after which a tap on the photo paints from the frame the result took that
+        spot from. A tap with two fingers does the same.
+      </p>
+      <p>
+        The view menu sets the source beside your work: Painted, Split, Side by Side or Top and Bottom, the
+        two pictures moving and zooming together, with the brush ring on both. You paint on the painted side
+        only. The same menu shows the depth map, lit for the frame you are painting from; a tap on the map
+        paints from the frame under it. With a keyboard, the keys are the desktop's: ← and → step what the
+        brush paints from, <em>[</em> and <em>]</em> size the brush, ⇧[ and ⇧] set its hardness, and
+        <em>\</em> shows the source. A squeeze of Apple Pencil
+        Pro can switch to the eraser or show the source, once per squeeze; choose which in Settings.
+      </p>
+    </div>
+  </section>
+</DocsLayout>

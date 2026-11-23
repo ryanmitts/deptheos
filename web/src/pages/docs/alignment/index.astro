@@ -1,0 +1,221 @@
+---
+import DocsLayout from "../../../layouts/DocsLayout.astro";
+import Param from "../../../components/Param.astro";
+import Measured from "../../../components/Measured.astro";
+---
+
+<DocsLayout
+  docKey="alignment"
+  title="Aligning the frames"
+  description="Deptheos's two aligners, ECC and grid search: which to use, how far each lets a frame move, and what happens to a frame that can't be aligned."
+  hasLabs
+>
+  <div class="prose">
+    <h1>Aligning the frames</h1>
+    <p class="lede">
+      Before stacking, Deptheos lines each frame up with the one before it, so the subject stays in place while
+      the focus moves through it. There are two aligners, <strong>ECC</strong> (Enhanced Correlation
+      Coefficient), the default, and the <strong>grid search</strong>, chosen for each stack under Alignment in
+      the inspector.
+    </p>
+  </div>
+
+  <section id="which">
+    <div class="prose">
+      <h2>Which one to use</h2>
+      <p>
+        Use <strong>ECC</strong> unless a frame moves further between shots than ECC allows:
+        <Param path="constants.ecc.max_shift_pct" />&nbsp;% of the frame in shift,
+        <Param path="constants.ecc.max_scale_pct" />&nbsp;% in size or
+        <Param path="constants.ecc.max_rotation_deg" />° of rotation. A stack shot on a tripod or a
+        focus rail moves far less than that from frame to frame, a fraction of a percent, and ECC finds that
+        motion to a fraction of a pixel.
+      </p>
+      <p>Switch to the <strong>grid search</strong> when:</p>
+      <ul>
+        <li>
+          Frames jump between shots: a stack shot by hand, a rail that slipped, or large focus steps with a lens
+          whose magnification changes a lot as it focuses. When ECC leaves frames out for moving too far, the
+          notice after the stack says so. If the grid search still leaves frames out, raise its limits in
+          Settings ▸ Alignment.
+        </li>
+        <li>
+          The exposure changes through the stack. Turn on <em>Exposure compensation</em> in Settings ▸
+          Alignment as well, so each frame is brought to the first frame's brightness.
+        </li>
+      </ul>
+    </div>
+  </section>
+
+  <section id="compare">
+    <div class="prose">
+      <h2>How the two compare</h2>
+      <p>
+        Both align each frame to the one before it and chain the steps together, so the last frame's position
+        is the sum of every step before it. They differ in how they search for each step and how far they let
+        a frame move.
+      </p>
+    </div>
+    <div class="table-wrap">
+      <table class="choose">
+        <thead>
+          <tr><th></th><th>ECC</th><th>Grid search</th></tr>
+        </thead>
+        <tbody>
+          <tr>
+            <th>How it searches</th>
+            <td>Starts from no motion and improves its guess step by step, on small copies of the frames first, then larger ones</td>
+            <td>Scores a spread of guesses across its limits, then finer ones around the best</td>
+          </tr>
+          <tr>
+            <th>What it finds</th>
+            <td class="best">Shift, rotation, size, stretch and slant (a full affine transform), to a fraction of a pixel</td>
+            <td>Shift, rotation and size only. Stretch and slant are small in a focus bracket, but grow toward the corners, where missing them can soften fine detail</td>
+          </tr>
+          <tr>
+            <th>How far a frame can move from the one before</th>
+            <td class="weak">
+              <Param path="constants.ecc.max_shift_pct" />&nbsp;% of the frame's width or height in
+              shift, <Param path="constants.ecc.max_scale_pct" />&nbsp;% in size,
+              <Param path="constants.ecc.max_rotation_deg" />° of rotation. Fixed; a frame that moves
+              more is left out
+            </td>
+            <td class="best">
+              <Param path="defaults.grid.horizontal_pct" />&nbsp;% of the frame's longer side in
+              shift, <Param path="defaults.grid.magnification_pct" />&nbsp;% in size,
+              <Param path="defaults.grid.rotation_deg" />° of rotation by default; Settings raise
+              these up to <Param path="ranges.grid.shift_pct.max" />&nbsp;%,
+              <Param path="ranges.grid.magnification_pct.max" />&nbsp;% and
+              <Param path="ranges.grid.rotation_deg.max" />°. It can also follow a match past the
+              edge of its search
+            </td>
+          </tr>
+          <tr>
+            <th>Brightness changing between frames</th>
+            <td>A change across the whole frame is ignored; uneven changes, such as light that moved, are not</td>
+            <td>Allowed for while it searches. <em>Exposure compensation</em> also applies it to the stack, for stacks shot at varying exposure</td>
+          </tr>
+          <tr>
+            <th>A frame it can't align</th>
+            <td>
+              Left out when the frames correlate poorly (below
+              <Param path="constants.ecc.min_correlation" />, where 1 is a perfect match) or overlap on
+              less than a quarter of the frame, or when the motion exceeds its limits
+            </td>
+            <td>
+              Left out when its best match is hardly better than two unrelated pictures would give. After a
+              featureless frame it has nothing to judge by and keeps the frame, so check the result
+            </td>
+          </tr>
+          <tr>
+            <th>What it needs</th>
+            <td>Detail in the frames; a plain, smooth subject gives it little to follow</td>
+            <td>The same</td>
+          </tr>
+          <tr>
+            <th>Settings</th>
+            <td>None</td>
+            <td>Its limits and <em>Exposure compensation</em>, in Settings ▸ Alignment</td>
+          </tr>
+          <tr>
+            <th>Time</th>
+            <td>
+              <Measured path="benchmarks.m5-max-pcb1-jpeg.runs.pyramid.ecc.seconds" digits={1} />&nbsp;s
+              for <Measured path="benchmarks.m5-max-pcb1-jpeg.stack.frames" /> JPEGs, aligned and
+              stacked with the pyramid
+            </td>
+            <td>
+              <Measured path="benchmarks.m5-max-pcb1-jpeg.runs.pyramid.grid.seconds" digits={1} />&nbsp;s
+              for the same, at its default limits; wider limits take longer
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="prose">
+      <p class="meta">
+        Times on an <Measured path="benchmarks.m5-max-pcb1-jpeg.label" />, with the circuit-board
+        sample stack at <Measured path="benchmarks.m5-max-pcb1-jpeg.stack.megapixels" digits={0} /> MP.
+      </p>
+    </div>
+  </section>
+
+  <section id="settings">
+    <div class="prose">
+      <h2>Frames left out, the stack's direction, and the crop</h2>
+      <h3>A frame that can't be aligned</h3>
+      <p>
+        A frame either aligner can't place is left out, and the stack is made without it. The next frame is
+        aligned to the last frame that did align, so one bad frame does not throw off the rest. After the stack,
+        a notice names each frame left out and why, and the Library shows the render's frame count as, for
+        example, "44 of 46". If many frames are left out for moving too far, try the grid search.
+      </p>
+      <h3>Which end of the stack leads</h3>
+      <p>
+        The frame the others are aligned to sets the result's size. If it were the least magnified end of the
+        stack, every other frame would have to be shrunk into it, so when the second frame comes out magnified
+        relative to the first, Deptheos starts again with the frames in reverse order. The most magnified frame
+        then leads, every frame is enlarged into it, and the crop loses nothing. The check is always on, in
+        every app and the command line.
+      </p>
+      <h3>Crop to the area every frame covers</h3>
+      <p>
+        An aligned frame has no picture along some of its edges, where it moved away. With
+        <em>Crop to the area every frame covers</em> on, the default, the result keeps only the area where every
+        frame has picture. With it off, the result keeps the full frame, and toward the edges each spot comes
+        only from the frames that reach it, so the edges can be less sharp.
+      </p>
+      <h3>What alignment can't fix</h3>
+      <p>
+        Alignment moves each frame as a whole. A leg or a leaf that moved on its own, a subject that changed
+        shape, or parallax between near and far parts can't be lined up this way; paint those parts in from one
+        frame (see <a href="/docs/retouching/">Retouching</a>). Moving the camera on a physical focus rail
+        introduces more parallax than stepping focus with the lens's own focus ring, especially at high
+        magnification.
+      </p>
+      <h3>Settings and the command line</h3>
+      <p>
+        Settings ▸ Alignment holds the grid search's limits (horizontal and vertical
+        shift, rotation, magnification; 0 turns rotation or magnification off) and <em>Exposure
+        compensation</em>. Leave <em>Exposure compensation</em> off for an ordinary stack: with the exposure
+        fixed, it measures the vignetting and the brightness changes of focusing instead, and darkens the
+        result. Each render records the limits it was made with. On iPhone and iPad, Settings ▸ Alignment has the
+        same four limit sliders and Exposure compensation.
+      </p>
+      <p>
+        On the <a href="/docs/cli/">command line</a>, <code>--align ecc</code>, <code>grid</code> or
+        <code>none</code> picks the aligner; <code>--grid-shift-x</code>, <code>--grid-shift-y</code>,
+        <code>--grid-rotation</code>, <code>--grid-magnification</code> and <code>--grid-brightness</code> (exposure
+        compensation) set the grid search; <code>--no-crop</code> turns the crop off.
+      </p>
+    </div>
+  </section>
+
+  <section id="moves-section">
+    <div class="prose">
+      <h2>Why frames move</h2>
+      <p>
+        Moving the focus changes a lens's magnification slightly (focus breathing), so the subject grows or
+        shrinks from frame to frame, and a camera on a rail drifts by a fraction of a millimeter. Each step is
+        small, but over a whole stack the steps add up to many pixels.
+      </p>
+    </div>
+    <figure class="lab lab-wide" id="moves" data-lab="moves" data-assets="moves">
+      <div class="lab-body">
+        <img class="lab-poster" src="/media/labs/moves/frame-01.jpg" width="1024" height="683" alt="Frame 1 of the spider stack, as shot" />
+      </div>
+      <figcaption>
+        A jumping spider's 46 frames as shot, beside the same frames aligned: in the aligned ones the spider
+        stays still and only the part in focus moves through it. The charts follow the motion ECC found at the
+        middle of the frame. The picture shrinks as the focus moves: focus breathing.
+      </figcaption>
+      <div class="lab-why">
+        <p>
+          <em>Show what the stack keeps</em> outlines every aligned frame so far, in its frame's color, and
+          dashes the area inside all of them: what <em>Crop to the area every frame covers</em> keeps. The
+          figure aligns to frame 1; the app leads with the more magnified end of the stack, here the last frame.
+        </p>
+      </div>
+    </figure>
+  </section>
+</DocsLayout>

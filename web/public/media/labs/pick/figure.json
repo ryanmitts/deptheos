@@ -1,0 +1,26 @@
+{
+  "id": "pick",
+  "kind": "pick",
+  "sides": [
+    1,
+    8,
+    64
+  ],
+  "frames": 66,
+  "width": 768,
+  "height": 768,
+  "files": [
+    {
+      "file": "w1.jpg",
+      "bytes": 176933
+    },
+    {
+      "file": "w64.jpg",
+      "bytes": 107936
+    },
+    {
+      "file": "w8.jpg",
+      "bytes": 137239
+    }
+  ]
+}

@@ -1,0 +1,168 @@
+# nfpm config for the Linux .deb and .rpm, which script/bundle-linux.sh
+# runs. They install the tarball's tree (bin/ and share/) under /usr.
+#
+# Environment, set by the script:
+#   ARCH     amd64 or arm64 (Go's names; nfpm writes x86_64 or aarch64 into
+#            the .rpm, and amd64 or arm64 into the .deb)
+#   VERSION  the workspace version (script/version.sh)
+#   STAGE    the tarball's folder, with the stripped binaries in bin/
+#
+# The dependencies are the shared libraries the binaries link (the script
+# checks the binaries' NEEDED entries against this list before packaging)
+# plus the ones loaded at run time:
+#   libc, libgcc_s, libstdc++   Rust, and the C++ of LibRaw and the DNG SDK
+#   fontconfig, freetype        text (font-kit)
+#   xkbcommon, xkbcommon-x11    the keyboard (both linked, X11 or Wayland)
+#   libxcb                      the X11 connection (x11rb)
+#   libwayland-client           Wayland, opened at run time
+#   the Vulkan loader           the GPU (wgpu), opened at run time
+# zstd, zlib, libjpeg and LibRaw are built in. File dialogs go through the
+# XDG desktop portal (rfd), falling back to zenity; a desktop session runs
+# the portal already, so both are only recommended.
+#
+# libc6 >= 2.35 / glibc >= 2.35: the glibc of Ubuntu 22.04, which the
+# release is built on. The script fails if the binaries need a newer one.
+
+name: deptheos
+arch: ${ARCH}
+platform: linux
+version: ${VERSION}
+section: graphics
+priority: optional
+maintainer: Ryan Mitts <support@deptheos.com>
+vendor: Ryan Mitts
+homepage: https://deptheos.com
+license: GPL-3.0-only
+description: |-
+  Focus stacking for macro photography, on the GPU.
+  Deptheos aligns and stacks a focus series on the GPU: three methods
+  (pyramid, depth map and wavelet), RAW in, linear DNG out, batch with auto sort,
+  and a history that keeps every render. deptheos-gui is the desktop app
+  and deptheos the command line.
+
+overrides:
+  deb:
+    depends:
+      - libc6 (>= 2.35)
+      - libgcc-s1
+      - libstdc++6
+      - libgomp1
+      - libfontconfig1
+      - libfreetype6
+      - libxkbcommon0
+      - libxkbcommon-x11-0
+      - libxcb1
+      - libwayland-client0
+      - libvulkan1
+    recommends:
+      - mesa-vulkan-drivers | vulkan-icd
+      - xdg-desktop-portal
+    suggests:
+      - zenity
+  rpm:
+    depends:
+      - glibc >= 2.35
+      - libgcc
+      - libstdc++
+      - libgomp
+      - fontconfig
+      - freetype
+      - libxkbcommon
+      - libxkbcommon-x11
+      - libxcb
+      - libwayland-client
+      - vulkan-loader
+    recommends:
+      - mesa-vulkan-drivers
+      - xdg-desktop-portal
+    suggests:
+      - zenity
+
+contents:
+  # Each file named, not a tree: a tree would also claim /usr/share's
+  # folders, which the system's packages own.
+  - src: ${STAGE}/bin/deptheos-gui
+    dst: /usr/bin/deptheos-gui
+    expand: true
+    file_info:
+      mode: 0755
+  - src: ${STAGE}/bin/deptheos
+    dst: /usr/bin/deptheos
+    expand: true
+    file_info:
+      mode: 0755
+  - src: ${STAGE}/share/applications/com.deptheos.Deptheos.desktop
+    dst: /usr/share/applications/com.deptheos.Deptheos.desktop
+    expand: true
+    file_info:
+      mode: 0644
+  - src: ${STAGE}/share/metainfo/com.deptheos.Deptheos.metainfo.xml
+    dst: /usr/share/metainfo/com.deptheos.Deptheos.metainfo.xml
+    expand: true
+    file_info:
+      mode: 0644
+  - src: ${STAGE}/share/icons/hicolor/16x16/apps/com.deptheos.Deptheos.png
+    dst: /usr/share/icons/hicolor/16x16/apps/com.deptheos.Deptheos.png
+    expand: true
+    file_info:
+      mode: 0644
+  - src: ${STAGE}/share/icons/hicolor/32x32/apps/com.deptheos.Deptheos.png
+    dst: /usr/share/icons/hicolor/32x32/apps/com.deptheos.Deptheos.png
+    expand: true
+    file_info:
+      mode: 0644
+  - src: ${STAGE}/share/icons/hicolor/48x48/apps/com.deptheos.Deptheos.png
+    dst: /usr/share/icons/hicolor/48x48/apps/com.deptheos.Deptheos.png
+    expand: true
+    file_info:
+      mode: 0644
+  - src: ${STAGE}/share/icons/hicolor/64x64/apps/com.deptheos.Deptheos.png
+    dst: /usr/share/icons/hicolor/64x64/apps/com.deptheos.Deptheos.png
+    expand: true
+    file_info:
+      mode: 0644
+  - src: ${STAGE}/share/icons/hicolor/128x128/apps/com.deptheos.Deptheos.png
+    dst: /usr/share/icons/hicolor/128x128/apps/com.deptheos.Deptheos.png
+    expand: true
+    file_info:
+      mode: 0644
+  - src: ${STAGE}/share/icons/hicolor/256x256/apps/com.deptheos.Deptheos.png
+    dst: /usr/share/icons/hicolor/256x256/apps/com.deptheos.Deptheos.png
+    expand: true
+    file_info:
+      mode: 0644
+  - src: ${STAGE}/share/icons/hicolor/512x512/apps/com.deptheos.Deptheos.png
+    dst: /usr/share/icons/hicolor/512x512/apps/com.deptheos.Deptheos.png
+    expand: true
+    file_info:
+      mode: 0644
+  # The licenses: the About window opens these (deptheos_gpui::about finds
+  # them at ../share/doc/deptheos from /usr/bin).
+  - src: ${STAGE}/share/doc/deptheos/LICENSE.md
+    dst: /usr/share/doc/deptheos/LICENSE.md
+    expand: true
+    file_info:
+      mode: 0644
+  - src: ${STAGE}/share/doc/deptheos/TRADEMARKS.md
+    dst: /usr/share/doc/deptheos/TRADEMARKS.md
+    expand: true
+    file_info:
+      mode: 0644
+  - src: ${STAGE}/share/doc/deptheos/THIRD_PARTY_NOTICES.txt
+    dst: /usr/share/doc/deptheos/THIRD_PARTY_NOTICES.txt
+    expand: true
+    file_info:
+      mode: 0644
+  # The sample stacks, which Try a Sample Stack copies into the Library
+  # folder (deptheos_gpui's app/sample.rs finds them at
+  # ../share/deptheos/samples from /usr/bin): samples/hornet and
+  # samples/pcb, as script/bundle-linux.sh stages them, without samples'
+  # README. A tree: /usr/share/deptheos is the package's own, folders and
+  # all, so they go on removal.
+  - src: ${STAGE}/share/deptheos
+    dst: /usr/share/deptheos
+    type: tree
+    expand: true
+
+# No install scripts: dpkg's and rpm's file triggers (desktop-file-utils,
+# hicolor-icon-theme) refresh the menus and icon caches.

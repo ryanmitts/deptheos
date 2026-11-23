@@ -1,0 +1,226 @@
+---
+import Shot from "../../components/Shot.astro";
+import "../../site/home.css";
+import BaseLayout from "../../layouts/BaseLayout.astro";
+import Measured from "../../components/Measured.astro";
+---
+
+<BaseLayout
+  navKey="iphone"
+  title="Deptheos for iPhone and iPad"
+  description="The Deptheos GPU focus-stacking engine on iPhone and iPad: Pyramid, Depth, and Wavelet, automatic alignment, linear RAW/DNG, and Apple Pencil retouching."
+  ogImage="https://deptheos.com/media/shots/ipad-stacking.jpg"
+  ogImageAlt="Deptheos on iPad Pro showing a stacked hornet render with the Frames sidebar and view bar"
+  bodyClass="ios-page"
+>
+  <header class="ios-hero">
+    <div>
+      <p class="eyebrow">iPhone and iPad · coming soon</p>
+      <h1>The desktop stacking engine, on iPhone and iPad</h1>
+      <p class="lede">
+        Stack 45 MP brackets on the device, with nothing uploaded, on modern Apple silicon
+        with Pyramid, Depth, and Wavelet, automatic alignment, linear RAW to DNG, and Apple Pencil retouching on
+        iPad.
+      </p>
+      <p class="ios-badge-note">
+        Coming soon to the App Store, free like the desktop app. Requires iPhone 15 Pro or newer, or an iPad with
+        an M-series or A17 Pro chip (iOS 26 / iPadOS 26). Watch
+        <a href="https://github.com/ryanmitts/deptheos/releases">GitHub Releases</a> for launch updates.
+      </p>
+    </div>
+    <figure class="device-shot phone-frame">
+      <Shot name="iphone-result" width="1206" height="2622" fetchpriority="high" alt="Deptheos on iPhone showing the stacked hornet result with the focus rail and view bar along the bottom." />
+      <figcaption>Finished 66-frame hornet render on iPhone.</figcaption>
+    </figure>
+  </header>
+
+  <section class="ios-feature wide-shot" id="engine" aria-labelledby="engine-h">
+    <div>
+      <h2 id="engine-h">The same desktop engine</h2>
+      <p>
+        Pyramid, Depth, and Wavelet, the same automatic ECC and Grid alignment, full 32-bit float processing, and
+        non-destructive render history—all compiled natively for Metal on Apple silicon. Batch stacks an entire
+        folder of brackets in one run.
+      </p>
+      <p class="more"><a href="/docs/methods/">Choosing a method</a> · <a href="/docs/batch/">Batch</a></p>
+    </div>
+    <figure class="device-shot ipad-frame">
+      <Shot name="ipad-stacking" width="2752" height="2064" loading="lazy" alt="Deptheos on iPad Pro in landscape: Frames sidebar on the left, the stacked hornet in the viewer, and the focus rail and view controls along the bottom." />
+      <figcaption>The Stacking screen on iPad Pro in landscape.</figcaption>
+    </figure>
+  </section>
+
+  <section class="chapter" id="timings" aria-labelledby="timings-h">
+    <header class="chapter-head">
+      <p class="eyebrow">Timings</p>
+      <h2 id="timings-h">Full-resolution 45 MP stacks on mobile</h2>
+      <p>
+        End-to-end times on the exact same 45 MP Canon EOS R5 Mark II brackets used for the desktop benchmarks—from
+        reading frames off storage to the finished stack (Pyramid + ECC, live app path).
+      </p>
+    </header>
+    <div class="bench-wrap">
+      <table class="bench">
+        <caption class="visually-hidden">iPad and iPhone stacking times on 45 MP brackets</caption>
+        <thead>
+          <tr>
+            <th scope="col">Stack</th>
+            <th scope="col" class="n grp"><Measured path="benchmarks.ipad-pro-m5-pcb1-jpeg.label" /></th>
+            <th scope="col" class="n grp"><Measured path="benchmarks.iphone-duo-pcb1-jpeg.label" /></th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <th scope="row"><Measured path="benchmarks.ipad-pro-m5-hornet-jpeg.stack.frames" /> JPEG frames, handheld<span class="sub">Hornet · <Measured path="benchmarks.ipad-pro-m5-hornet-jpeg.stack.megapixels" digits={0} /> MP</span></th>
+            <td class="n grp"><Measured path="benchmarks.ipad-pro-m5-hornet-jpeg.runs.pyramid.ecc.seconds" digits={1} /> s <span class="sub"><Measured path="benchmarks.ipad-pro-m5-hornet-jpeg.runs.pyramid.ecc.mpx_per_s" digits={0} /> MP/s</span></td>
+            <td class="n grp"><Measured path="benchmarks.iphone-duo-hornet-jpeg.runs.pyramid.ecc.seconds" digits={1} /> s <span class="sub"><Measured path="benchmarks.iphone-duo-hornet-jpeg.runs.pyramid.ecc.mpx_per_s" digits={0} /> MP/s</span></td>
+          </tr>
+          <tr>
+            <th scope="row"><Measured path="benchmarks.ipad-pro-m5-pcb1-jpeg.stack.frames" /> JPEG frames, tripod<span class="sub">Circuit board · <Measured path="benchmarks.ipad-pro-m5-pcb1-jpeg.stack.megapixels" digits={0} /> MP</span></th>
+            <td class="n grp"><Measured path="benchmarks.ipad-pro-m5-pcb1-jpeg.runs.pyramid.ecc.seconds" digits={1} /> s <span class="sub"><Measured path="benchmarks.ipad-pro-m5-pcb1-jpeg.runs.pyramid.ecc.mpx_per_s" digits={0} /> MP/s</span></td>
+            <td class="n grp"><Measured path="benchmarks.iphone-duo-pcb1-jpeg.runs.pyramid.ecc.seconds" digits={1} /> s <span class="sub"><Measured path="benchmarks.iphone-duo-pcb1-jpeg.runs.pyramid.ecc.mpx_per_s" digits={0} /> MP/s</span></td>
+          </tr>
+          <tr>
+            <th scope="row"><Measured path="benchmarks.ipad-pro-m5-pcb1-cr3.stack.frames" /> RAW frames (CR3, LibRaw)<span class="sub">Circuit board · <Measured path="benchmarks.ipad-pro-m5-pcb1-cr3.stack.megapixels" digits={0} /> MP, no conversion step</span></th>
+            <td class="n grp"><Measured path="benchmarks.ipad-pro-m5-pcb1-cr3.runs.pyramid.ecc.seconds" digits={1} /> s <span class="sub"><Measured path="benchmarks.ipad-pro-m5-pcb1-cr3.runs.pyramid.ecc.mpx_per_s" digits={0} /> MP/s</span></td>
+            <td class="n grp"><Measured path="benchmarks.iphone-duo-pcb1-cr3.runs.pyramid.ecc.seconds" digits={1} /> s <span class="sub"><Measured path="benchmarks.iphone-duo-pcb1-cr3.runs.pyramid.ecc.mpx_per_s" digits={0} /> MP/s</span></td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+    <details class="fine-details">
+      <summary>How these were timed</summary>
+      <p>
+        Canon EOS R5 Mark II with the RF 100 mm macro, 8192 × 5464.
+        <Measured path="benchmarks.ipad-pro-m5-pcb1-jpeg.label" />,
+        <Measured path="benchmarks.ipad-pro-m5-pcb1-jpeg.machine.memory_gb" digits={0} /> GB,
+        <Measured path="benchmarks.ipad-pro-m5-pcb1-jpeg.machine.os" /> (timed
+        <Measured path="benchmarks.ipad-pro-m5-pcb1-jpeg.date" />);
+        <Measured path="benchmarks.iphone-duo-pcb1-jpeg.label" />,
+        <Measured path="benchmarks.iphone-duo-pcb1-jpeg.machine.os" /> (timed
+        <Measured path="benchmarks.iphone-duo-pcb1-jpeg.date" />).
+        Each time is the median of five runs on the live app path (Pyramid, aligned with ECC), from reading and
+        decoding the frames to the finished picture; saving is not timed. The RAW row decodes CR3 files directly
+        with built-in LibRaw.
+      </p>
+    </details>
+  </section>
+
+  <section class="ios-feature wide-shot" id="pencil" aria-labelledby="pencil-h">
+    <div>
+      <h2 id="pencil-h">Retouch with Apple Pencil</h2>
+      <p>
+        On iPad, paint clean detail onto your stacked result from any source frame or another render, with the
+        source shown beside your canvas and both locked to the same pan and zoom. <em>Sharpest Frame</em>
+        automatically picks the frame that was sharpest where you tap.
+      </p>
+      <p>
+        Apple Pencil pressure controls stroke opacity, and hover previews the brush before the tip touches.
+        Double-tap switches between brush and eraser, and Apple Pencil Pro squeeze toggles the eraser or source
+        preview. Turn on <em>Only Pencil paints</em> so fingers pan and zoom without stray strokes.
+      </p>
+      <p class="more"><a href="/docs/retouching/#ios">Retouching on iPhone and iPad</a></p>
+    </div>
+    <figure class="device-shot ipad-frame">
+      <Shot name="ipad-retouch" width="2752" height="2064" loading="lazy" alt="Retouch on iPad Pro showing the hornet with brush controls and the focus rail." />
+      <figcaption>Retouching with Apple Pencil on iPad Pro.</figcaption>
+    </figure>
+  </section>
+
+  <section class="ios-feature" id="frames" aria-labelledby="frames-h">
+    <div>
+      <h2 id="frames-h">Import from your camera, Photos, or Files</h2>
+      <p>
+        Stack brackets shot on a dedicated camera by importing from Photos, Files, or an external drive with
+        <em>Add Folder…</em>. Folders on a USB drive or in iCloud Drive are read in place without copying every
+        frame onto the device.
+      </p>
+      <p>
+        Choose built-in LibRaw to keep camera RAW and DNG brackets linear and export 16-bit linear DNGs, or
+        Apple's Core Image to render proprietary RAW files straight to 16-bit TIFF, PNG, or JPEG.
+      </p>
+      <p class="more"><a href="/docs/raw/#ios">RAW, DNG and color on iPhone and iPad</a></p>
+    </div>
+    <div class="ios-pair">
+      <figure class="device-shot phone-frame">
+        <Shot name="iphone-frames-sheet" width="1206" height="2622" loading="lazy" alt="The Frames sheet on iPhone showing 66 of 66 frames included over the hornet render." />
+        <figcaption>Frames and renders in one sheet.</figcaption>
+      </figure>
+      <figure class="device-shot phone-frame">
+        <Shot name="iphone-add" width="1206" height="2622" loading="lazy" alt="The Add menu on iPhone: Take Burst, Add from Photos, Add from Files, Add Folder." />
+        <figcaption>Add from camera, Photos, Files or a folder.</figcaption>
+      </figure>
+    </div>
+  </section>
+
+  <section class="ios-feature" id="check" aria-labelledby="check-h">
+    <div>
+      <h2 id="check-h">Compare at 100%</h2>
+      <p>
+        Scrub along the focus rail below the image to step through every aligned source frame, or compare your
+        stacked result against any frame or another render in Split, Side by Side, Top and Bottom, or Flicker view.
+      </p>
+      <p>
+        Double-tap to jump straight to 100% at the point you tapped, and pinch up to 800%. An optional Depth Map
+        overlay is also available when you want to see which frame contributed to a specific region.
+      </p>
+      <p class="more"><a href="/docs/compare/">Viewing and comparing</a></p>
+    </div>
+    <figure class="device-shot phone-frame">
+      <Shot name="iphone-depth-map" width="1206" height="2622" loading="lazy" alt="The depth map on iPhone lit for Frame 36, with the focus rail's ticks colored to match." />
+      <figcaption>Inspecting frame contributions along the focus rail.</figcaption>
+    </figure>
+  </section>
+
+  <section class="ios-feature" id="export" aria-labelledby="export-h">
+    <div>
+      <h2 id="export-h">Save to Photos, Share, or Files</h2>
+      <p>
+        Export as JPEG, PNG, 16-bit TIFF, or 16-bit linear DNG (for linear RAW and DNG stacks) straight to Photos,
+        Files, or the iOS share sheet. Everything runs locally on your device.
+      </p>
+    </div>
+    <figure class="device-shot phone-frame">
+      <Shot name="iphone-export" width="1206" height="2622" loading="lazy" alt="The Export sheet on iPhone showing JPEG, Quality 92, and buttons for Save to Photos, Share, and Save to Files." />
+      <figcaption>Exporting from iPhone.</figcaption>
+    </figure>
+  </section>
+
+  <section class="ios-feature" id="camera" aria-labelledby="camera-h">
+    <div>
+      <h2 id="camera-h">Built-in focus bracketing camera</h2>
+      <p>
+        Deptheos also includes a built-in capture tool for quick brackets directly on iPhone: <strong>Bracket</strong>
+        steps lens focus while the phone stays still, and <strong>Sweep</strong> shoots a burst as you move toward
+        the subject, with focus peaking on the live preview.
+      </p>
+      <p>
+        Tap to lock exposure for the full burst, choose your lens, add a 2- or 5-second timer, and capture in RAW
+        or HEIC.
+      </p>
+    </div>
+    <figure class="device-shot phone-frame">
+      <Shot name="iphone-library" width="1206" height="2622" loading="lazy" alt="The Library on iPhone showing the stacked hornet card with its method and frame count." />
+      <figcaption>Stacks kept in the Library, ready to open and export.</figcaption>
+    </figure>
+  </section>
+
+  <section class="chapter" id="devices">
+    <div class="prose">
+      <h2>Supported devices</h2>
+      <p>
+        Focus stacking holds several full-resolution frames in GPU memory at once, so Deptheos requires a modern
+        device: iPhone 15 Pro or newer, or an iPad with an M-series or A17 Pro chip or newer, running iOS 26 or
+        iPadOS 26. Stacks that exceed available memory are stopped cleanly before starting.
+      </p>
+    </div>
+
+    <div class="prose" id="desktop">
+      <h2>What the desktop app adds</h2>
+      <p>
+        Optional Adobe DNG Converter decoding, Adobe camera profiles for LibRaw, the <code>deptheos</code>
+        command-line tool, and grow and turntable sequences. <a href="/download/">Download for macOS, Windows, or Linux</a>
+      </p>
+    </div>
+  </section>
+</BaseLayout>

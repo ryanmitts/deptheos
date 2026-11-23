@@ -1,0 +1,35 @@
+{
+  "version": "0.2.0",
+  "date": "2026-11-22",
+  "label": "iPad Pro 13\" (M5)",
+  "machine": {
+    "os": "iPadOS 27.2.1",
+    "cpu": "Apple M5",
+    "threads": 9,
+    "memory_gb": 12.0,
+    "gpu": "Apple M5 GPU",
+    "gpu_backend": "Metal"
+  },
+  "stack": {
+    "name": "pcb1",
+    "frames": 200,
+    "width": 8192,
+    "height": 5464,
+    "megapixels": 44.761088,
+    "format": "JPEG",
+    "bytes": 411747799
+  },
+  "path": "live",
+  "runs": {
+    "pyramid": {
+      "ecc": {
+        "fastest": 20.64,
+        "left_out": 0,
+        "mpx_per_s": 306.0,
+        "ms_per_frame": 146.2,
+        "seconds": 29.24,
+        "slowest": 29.93
+      }
+    }
+  }
+}

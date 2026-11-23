@@ -1,0 +1,59 @@
+[package]
+name = "deptheos_core"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+authors.workspace = true
+license.workspace = true
+repository.workspace = true
+homepage.workspace = true
+publish = false
+
+[dependencies]
+deptheos_gpu = { workspace = true }
+deptheos_raw = { workspace = true }
+deptheos_dng = { workspace = true }
+wgpu = { workspace = true }
+encase = { workspace = true }
+glam = { workspace = true }
+nalgebra = { workspace = true }
+bytemuck = { workspace = true }
+image = { workspace = true, features = ["jpeg", "png", "tiff", "rayon"] }
+thiserror = { workspace = true }
+tracing = { workspace = true }
+rayon = { workspace = true }
+tiff = { workspace = true }
+png = { workspace = true }
+moxcms = { workspace = true }
+kamadak-exif = { workspace = true }
+# An export's EXIF date.
+chrono = { workspace = true }
+
+# Saves keep the extended attributes (Finder tags) of a file they replace,
+# and know the errors of a file system that can't flush a folder.
+[target.'cfg(unix)'.dependencies]
+libc = { workspace = true }
+
+# Saves replace a file through ReplaceFileW, keeping its attributes and ACL.
+[target.'cfg(windows)'.dependencies]
+windows = { version = "0.62.2", default-features = false, features = ["Win32_Storage_FileSystem"] }
+
+[dev-dependencies]
+deptheos_raw = { workspace = true, features = ["test-support"] }
+deptheos_dng = { workspace = true, features = ["test-support"] }
+deptheos_aligner = { workspace = true }
+tempfile = { workspace = true }
+
+[features]
+# The examples (web sample/lab generators) build only with this on, so
+# `cargo test` does not compile and link them:
+#   cargo run --release -p deptheos_core --features examples --example <name>
+examples = []
+
+[[example]]
+name = "web_sample_raw"
+required-features = ["examples"]
+
+[[example]]
+name = "web_lab"
+required-features = ["examples"]

@@ -1,0 +1,100 @@
+---
+import Shot from "../../../components/Shot.astro";
+import DocsLayout from "../../../layouts/DocsLayout.astro";
+---
+
+<DocsLayout
+  docKey="export"
+  title="Exporting"
+  description="Saving a Deptheos render as a file: TIFF, PNG, JPEG or a linear DNG, bit depth, color profile, the metadata kept, file names and where exports go."
+>
+  <div class="prose">
+    <h1>Exporting</h1>
+    <p class="lede">
+      A render lives in the Library until you export it as a file for an editor, a print or the web. Export…
+      (⌘E, or <em>Export</em> in the title bar) opens the Export sheet for the render on screen, retouching
+      included. From the Library, right-click a stack and choose Export…. Export Again (⇧⌘E) saves with the
+      last choices and no sheet.
+    </p>
+  </div>
+  <figure class="shot"><Shot name="export-dng" width="2880" height="1800" loading="lazy" alt="The Export sheet for a RAW CR3 stack with DNG selected, 16 bits per channel, and linear camera color." /><figcaption>The Export sheet for a RAW stack, with DNG chosen.</figcaption></figure>
+
+  <section id="formats">
+    <div class="prose">
+      <h2>Format and bit depth</h2>
+      <div class="table-wrap">
+        <table class="choose">
+          <thead><tr><th scope="col">Format</th><th scope="col">Bits</th><th scope="col">Use it for</th></tr></thead>
+          <tbody>
+            <tr><th scope="row">TIFF</th><td>16 or 8</td><td>Editing in Photoshop, Affinity or GIMP. Lossless.</td></tr>
+            <tr><th scope="row">PNG</th><td>16 or 8</td><td>Lossless too, and larger than TIFF.</td></tr>
+            <tr><th scope="row">JPEG</th><td>8</td><td>Sharing. The quality is set in Settings ▸ Export (92 at first).</td></tr>
+            <tr><th scope="row">DNG</th><td>16</td><td>RAW and DNG stacks only: a linear DNG, developed in your RAW editor like a RAW file.</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p>
+        <em>16 bits per channel</em> keeps 16 bits where the result has them: always for a RAW or DNG stack, and
+        for a stack of standard images when any frame was 16-bit. A stack of 8-bit JPEGs has 8 bits of data
+        either way. It is ticked or not as you last left it, in this sheet or the Batch dialog. The sheet starts on JPEG, or on DNG for a RAW or DNG stack, and after that on the format you last used
+        for that kind of stack; <em>Settings ▸ Export</em> sets both. DNG is dimmed for a stack of JPEG, TIFF
+        or PNG frames. <a href="/docs/raw/#keeps">RAW, DNG and color</a> explains what a DNG result
+        keeps from the original files and what it gives up.
+      </p>
+      <p>
+        TIFF compression is a setting, under Settings ▸ Export: ZIP (the default, the smallest files), LZW (read
+        by the oldest software) or None (the fastest to write and open, and the largest). All three are
+        lossless.
+      </p>
+    </div>
+  </section>
+
+  <section id="color">
+    <div class="prose">
+      <h2>Color</h2>
+      <p>The sheet's <em>Color</em> line says what the file's pixels will be:</p>
+      <ul>
+        <li><em>sRGB, like the frames</em>: standard frames in sRGB stay in sRGB.</li>
+        <li>
+          <em>Display P3, like the frames</em> (or another profile's name): frames in another color space keep
+          it, and its profile is embedded in the file.
+        </li>
+        <li><em>sRGB, developed through the frames' camera profile</em>: a RAW stack saved as TIFF, PNG or JPEG.</li>
+        <li><em>Linear camera color, with the frames' camera profile</em>: a RAW stack saved as DNG.</li>
+      </ul>
+    </div>
+  </section>
+
+  <section id="metadata">
+    <div class="prose">
+      <h2>Metadata</h2>
+      <p>
+        An export copies the camera, lens, exposure settings and capture time of the frame the others were lined
+        up to, along with the artist and copyright when the camera recorded them. It also records that Deptheos
+        made it and the method used, and lists the file names of the stacked frames (names only, not their folders)
+        in its XMP. GPS position, the owner's name, camera and lens serial numbers, maker notes and the focus
+        distance are left out.
+      </p>
+    </div>
+  </section>
+
+  <section id="naming">
+    <div class="prose">
+      <h2>Name and folder</h2>
+      <p>
+        The name starts as the stack's name and the render's number, such as <code>bee-3.tif</code>. Change the
+        pattern under Settings ▸ Export ▸ <em>File name</em>, where <code>{"{stack}"}</code>,
+        <code>{"{render}"}</code>, <code>{"{method}"}</code> and <code>{"{date}"}</code> are replaced and the rest stays as
+        typed. Export never replaces a file: if one with that name is already in the folder, it adds a number,
+        <code>bee-3-2.tif</code>.
+      </p>
+      <p>
+        <em>Export to</em> offers <em>Next to the frames</em> (the folder of the first frame), <em>Last folder
+        used</em>, or <em>Choose…</em>. With <em>Show in Finder when done</em> ticked (<em>Show in Explorer when
+        done</em> on Windows, <em>Show in File Manager when done</em> on Linux), the file is shown once it is saved; unticked, the notice that says it is saved has a
+        <em>Show in Finder</em> button. Settings ▸ Export sets
+        what the sheet starts with.
+      </p>
+    </div>
+  </section>
+</DocsLayout>

@@ -16,8 +16,8 @@
     {
       "layers" : [
         {
-          "image-name" : "deptheos_icon_3 5.svg",
-          "name" : "deptheos_icon_3 5"
+          "image-name" : "deptheos_icon.svg",
+          "name" : "deptheos_icon"
         }
       ],
       "shadow" : {

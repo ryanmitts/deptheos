@@ -1,0 +1,139 @@
+---
+import Shot from "../../../components/Shot.astro";
+import DocsLayout from "../../../layouts/DocsLayout.astro";
+---
+
+<DocsLayout
+  docKey="concepts"
+  title="Stacks, renders and the Library"
+  description="What Deptheos means by a stack, a render and the Library, how past renders relate to your settings, and what happens to your files."
+>
+  <div class="prose">
+    <h1>Stacks, renders and the Library</h1>
+    <p class="lede">
+      Deptheos keeps every result you make, with the frames and settings that made it, so you can try another
+      method, compare the two and go back to either. These are the words the app uses for the pieces.
+    </p>
+  </div>
+
+  <section id="bracket">
+    <div class="prose">
+      <h2>A focus bracket, and a stack</h2>
+      <p>
+        A <em>focus bracket</em> is the set of photos you shoot of one subject, each focused a little nearer or
+        farther than the one before, so that every part of the subject is sharp in at least one of them. Those
+        photos are the <em>frames</em>. Stacking lines the frames up and combines the sharp part of each into
+        one picture.
+      </p>
+      <p>
+        In the app, a <em>stack</em> is one subject's frames and everything made from them. It is named after
+        the frames' folder until you rename it (Edit ▸ Rename Stack…). A stack is one tile in the Library, and
+        the Stacking screen shows one stack at a time.
+      </p>
+    </div>
+  </section>
+
+  <section id="render">
+    <div class="prose">
+      <h2>A render</h2>
+      <p>
+        Each time you press Stack, the result is saved as a <em>render</em>, numbered within its stack: #1, #2
+        and so on. A render keeps the picture, its list of frames with which were included and which excluded,
+        the method and its settings, and any retouching painted on it. Renders are listed in the
+        <em>Renders</em> strip along the bottom of the Stacking screen. Stack again with another method and you
+        get #2 beside #1, ready to <a href="/docs/compare/">compare</a>. Rename Render… gives one a name of its
+        own after its number ("#4 · sharper"), and Star Render (<em>K</em>) marks the one you want to keep.
+      </p>
+    </div>
+  </section>
+
+  <section id="working">
+    <div class="prose">
+      <h2>Past renders and your current settings</h2>
+      <p>
+        Renders are read-only snapshots. The Frames list and the inspector always hold your current setup for
+        the next Stack, and you can edit them at any time. Once you change a frame or setting after stacking,
+        the line under the method counts the changes ("1 change to the settings since #4") with a
+        <em>Revert</em> button to restore #4's frames and settings (Stack ▸ Revert to #4 does the same). The
+        title bar names the render on screen ("#4 · Pyramid · 46 frames") with an <em>Edited</em> label under
+        it, and #4's tile in the strip is marked Edited too.
+      </p>
+      <p>
+        Click any past render in the strip to view its result. Your Frames list and settings stay untouched, so
+        clicking through earlier renders never loses unstacked tweaks, and pressing Stack still uses what is in
+        the inspector. The line under the method shows how your current settings differ from the render on
+        screen ("1 difference from #3 in the settings", or "Same frames and settings as #3"), and tick marks on
+        the sliders show #3's values.
+      </p>
+      <ul>
+        <li>
+          <em>Revert</em> beside that line (also Stack ▸ Revert to #3, or Revert to #3 in a render's right-click
+          menu) loads #3's frames and settings back into the list and inspector so you can tweak and stack from
+          there. If you have unstacked changes, Deptheos asks before replacing them; your saved renders are
+          always kept either way.
+        </li>
+        <li>
+          <em>Render Info</em> (<em>⌘I</em>, Stack ▸ Render Info, or a render's right-click menu) lists what made
+          the render: its method and sliders, alignment, RAW decoder and frames, with a dot beside any value
+          that differs from your current setup.
+        </li>
+      </ul>
+    </div>
+  </section>
+
+  <section id="library">
+    <div class="prose">
+      <h2>The Library</h2>
+      <p>
+        The Library is the home screen: every stack as a tile, newest day first, with the stacks a batch made in
+        a section of their own. A tile shows the stack's starred render, or else its newest, and how many renders
+        it has. The bar on the left shows <em>All stacks</em>, <em>Starred</em> or <em>Failed</em> and jumps to
+        Today, Yesterday, Previous 7 days or Earlier; the search field matches stack and render names and batch names.
+        Select a tile to list its renders in the inspector on the right, and double-click it (or press ↩) to open it in
+        Stacking. A render in the inspector works the same way: a click selects it, and a double-click or ↩
+        opens its stack showing that render. ⌥⌘2 and ⌥⌘1 switch between the Library and Stacking.
+      </p>
+      <p>
+        Right-click a tile to rename, star, export or delete. A delete moves the stack or render to
+        <em>Recently Deleted</em>, where it is kept for 30 days and can be restored; the notice after it has
+        Undo. <em>Keep Only Starred</em> deletes a stack's renders that aren't starred.
+      </p>
+    </div>
+    <figure class="shot"><Shot name="library" width="2880" height="1800" loading="lazy" alt="The Library showing stacked hornet and circuit board stacks, the left filter sidebar, and the selected stack's renders in the inspector." /><figcaption>The Library: stacks by day, renders in the inspector.</figcaption></figure>
+  </section>
+
+  <section id="files">
+    <div class="prose">
+      <h2>Where renders are kept, and your originals</h2>
+      <p>
+        Your frames are only ever read. Deptheos never changes, moves or deletes them, and deleting a render or
+        a stack leaves them alone. Renders are kept in the app's own folder, not beside your photos:
+      </p>
+      <ul>
+        <li>macOS: <code>~/Library/Application Support/Deptheos</code></li>
+        <li>Windows: <code>%LOCALAPPDATA%\Deptheos</code></li>
+        <li>Linux: <code>~/.local/share/Deptheos</code></li>
+      </ul>
+      <p>
+        Renders take room: each holds a full-size result. To keep them on another disk, choose a folder under
+        Settings ▸ Library ▸ <em>Library folder</em>; it takes effect the next time Deptheos starts.
+        <em>Delete Library…</em> in the same place deletes every stack and render, leaving your frames and
+        exported files alone. <a href="/docs/library/">Your Library and backups</a> says what the Library holds
+        and how to back it up.
+      </p>
+    </div>
+  </section>
+
+  <section id="locate">
+    <div class="prose">
+      <h2>Moved frames and Locate</h2>
+      <p>
+        A render remembers where its frames were. If you move or rename their folder, the list marks those
+        frames <em>Missing</em>, and a note over it offers <em>Locate…</em> and <em>Remove</em>. Locate… asks
+        where the folder went, and points the list and every render that uses it at the new place. Stacking,
+        retouching from a frame and comparing with a frame need the frames; looking at a render's result does
+        not.
+      </p>
+    </div>
+  </section>
+</DocsLayout>

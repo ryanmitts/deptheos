@@ -1,0 +1,33 @@
+{
+  "version": "0.2.0",
+  "date": "2026-11-22",
+  "label": "iPhone Duo",
+  "machine": {
+    "os": "iOS 27.2",
+    "cpu": "Apple Silicon",
+    "gpu": "Apple GPU",
+    "gpu_backend": "Metal"
+  },
+  "stack": {
+    "name": "pcb1",
+    "frames": 200,
+    "width": 8192,
+    "height": 5464,
+    "megapixels": 44.761088,
+    "format": "JPEG",
+    "bytes": 411747799
+  },
+  "path": "live",
+  "runs": {
+    "pyramid": {
+      "ecc": {
+        "fastest": 28.34,
+        "left_out": 0,
+        "mpx_per_s": 237.0,
+        "ms_per_frame": 188.8,
+        "seconds": 37.76,
+        "slowest": 38.66
+      }
+    }
+  }
+}

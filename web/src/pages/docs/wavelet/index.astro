@@ -1,0 +1,117 @@
+---
+import DocsLayout from "../../../layouts/DocsLayout.astro";
+---
+
+<DocsLayout
+  docKey="wavelet"
+  title="Wavelet"
+  description="Deptheos's wavelet method, after Petteri Aimonen's focus-stack and Forster et al.: where it comes from, when to choose it, and what its Denoise setting does."
+  hasLabs
+>
+  <div class="prose">
+    <h1>Wavelet</h1>
+    <p class="lede">
+      The wavelet method picks, from across the frames, the strongest detail of every size and direction,
+      rebuilds one sharp gray picture from the winners, and then gives each pixel the color of the frame that
+      matches the gray picture best there.
+    </p>
+  </div>
+
+  <section id="credit">
+    <div class="prose">
+      <h2>Where it comes from</h2>
+      <p>
+        The method is Brigitte Forster, Dimitri Van De Ville, Jesse Berent, Daniel Sage and Michael Unser's, from
+        <a href="https://bigwww.epfl.ch/publications/forster0404.html"><cite>Complex wavelets for extended
+        depth-of-field: a new method for the fusion of multichannel microscopy images</cite></a> (Microscopy
+        Research and Technique, 2004). Petteri Aimonen's open-source
+        <a href="https://github.com/PetteriAimonen/focus-stack">focus-stack</a> made a fast, practical program of
+        it, and Deptheos's wavelet method is adapted from it, on the GPU.
+      </p>
+      <p>
+        In short: each frame is reduced to gray and split by a complex wavelet transform into bands of detail,
+        one per size and direction. At every position of every band the frame with the strongest detail wins
+        outright, and only the broadest shading is averaged over the frames. The winners add back up into a
+        merged gray picture, sharp everywhere, and a second pass over the frames gives each pixel the whole
+        color of the frame whose gray value there is closest to it. Every pixel of the result exists in one
+        of the frames.
+      </p>
+      <p>
+        The consistency filters tidy stray choices, and change a choice only to the frame that came second
+        there. At <code>1</code>, where two of a place's three detail directions chose the same frame, the
+        third takes it too if that was its second choice. <code>2</code> adds a filter for a frame chosen
+        nearer or farther than all four neighbors': it takes its second choice if that matches theirs. They
+        are off by default and double the memory the merge's choices take; the
+        <a href="/docs/cli/">command line</a> turns them on with <code>--consistency</code>.
+      </p>
+    </div>
+  </section>
+
+  <section id="tradeoffs">
+    <div class="prose">
+      <h2>When to choose it</h2>
+      <p>
+        For fine crossing detail, such as hairs over a distant background, it is as crisp as the pyramid,
+        because it chooses separately for each size of detail. Each pixel's color comes whole from one frame,
+        and the order of the frames does not matter to it.
+      </p>
+      <p>
+        Smooth, blurred areas are its weak spot. There many frames are almost equally bright, the choice of
+        color flips from pixel to pixel, and the result is grain or blotches. Closest brightness also doesn't
+        guarantee the sharpest frame—a blurred frame that happens to match the target brightness can win a
+        pixel's color—and beside a bright edge, the out-of-focus glow can outweigh faint detail in an adjacent
+        dark area. For plain backgrounds, try <a href="/docs/depth-map/">Depth</a>;
+        <a href="/docs/methods/#methods-figure">Choosing a method</a> shows the wavelet beside the other two on
+        the same places.
+      </p>
+    </div>
+    <figure
+      class="lab"
+      id="grey"
+      data-lab="stops"
+      data-assets="wavelet"
+      data-stops="wavelet-hairs-grey=The merged gray picture|wavelet-hairs=The color result"
+      data-stops-label="Show"
+      data-start="wavelet-hairs-grey"
+      data-panels="{stop}.jpg=The hairs on top of the hornet's head"
+    >
+      <div class="lab-body">
+        <div class="pan"><img src="/media/labs/wavelet/wavelet-hairs-grey.jpg" width="768" height="512" alt="The merged gray picture of the hairs on the hornet's head: every hair sharp, no color" /></div>
+      </div>
+      <figcaption>
+        The app's wavelet method on the hornet stack, at 100%: the gray picture it rebuilds, and the result
+        after each pixel has taken a frame's color.
+      </figcaption>
+      <div class="lab-why" data-for="wavelet-hairs-grey">
+        <p>
+          Every hair is sharp at once, which no single frame has. The method's whole judgment of what is sharp
+          is in this picture.
+        </p>
+      </div>
+      <div class="lab-why" data-for="wavelet-hairs" hidden>
+        <p>
+          Each pixel now has the color of the frame whose brightness came closest to the gray picture's there.
+          The hairs keep their sharpness. In the plain green, many frames are almost equally bright, so
+          neighboring pixels can come from different frames, and their small differences show as grain.
+        </p>
+      </div>
+    </figure>
+  </section>
+
+  <section id="settings">
+    <div class="prose">
+      <h2>Denoise</h2>
+      <p>
+        <strong>What it does.</strong> Shrinks weak detail in the merged bands before the gray picture is
+        rebuilt, from 0 (off) to 10, default 1. The slider's ends read <em>All detail</em> and <em>Less noise</em>.
+        Higher values remove more noise, and more of the faintest texture
+        with it.
+      </p>
+      <p>
+        <strong>When to change it.</strong> Raise it a little at a time to remove noise, and stop when faint texture starts to go before the grain does. It cannot stop the color
+        choice switching frames from pixel to pixel, so a smooth background can stay grainy at any setting;
+        there, stack with Depth and <a href="/docs/retouching/">paint</a> from it.
+      </p>
+    </div>
+  </section>
+</DocsLayout>

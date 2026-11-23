@@ -1,0 +1,40 @@
+[package]
+name = "deptheos_dng"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+authors.workspace = true
+license.workspace = true
+repository.workspace = true
+homepage.workspace = true
+publish = false
+links = "deptheos_dng"
+
+[dependencies]
+deptheos_raw = { workspace = true }
+thiserror = { workspace = true }
+tracing = { workspace = true }
+
+[dev-dependencies]
+deptheos_raw = { workspace = true, features = ["test-support"] }
+image = { workspace = true, features = ["jpeg"] }
+# Reading back the tags a write wrote.
+kamadak-exif = { workspace = true }
+tracing-subscriber = { workspace = true }
+tempfile = { workspace = true }
+
+[build-dependencies]
+cc = { version = "1.2", features = ["parallel"] }
+native_build = { path = "../native_build" }
+
+[features]
+# The examples (benches, web golden/sample generators, probes) build only
+# with this on, so `cargo test` does not compile and link them:
+#   cargo run --release -p deptheos_dng --features examples --example <name>
+examples = []
+# `test_dng`, the hand-written test DNGs, for other crates' tests.
+test-support = []
+
+[[example]]
+name = "dng_info"
+required-features = ["examples"]

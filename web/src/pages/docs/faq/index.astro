@@ -1,0 +1,198 @@
+---
+import DocsLayout from "../../../layouts/DocsLayout.astro";
+---
+
+<DocsLayout
+  docKey="faq"
+  title="Questions and answers"
+  description="Answers to common questions about Deptheos: license, hardware, RAW and linear DNG, privacy, EXIF metadata, and the iOS app."
+>
+  <div class="prose">
+    <h1>Questions and answers</h1>
+    <p class="lede">
+      Short answers to the questions people ask most, each with a link to the page that says more.
+    </p>
+  </div>
+
+  <section id="before">
+    <div class="prose">
+      <h2>Before you install</h2>
+
+      <h3 id="free">Is it really free? What is the license?</h3>
+      <p>
+        Yes. Deptheos is free and open source under the GNU General Public License version 3, with added
+        permissions to combine it with the Adobe DNG SDK and XMP Toolkit and to distribute it through app
+        stores. The source and the full terms are on GitHub, in
+        <a href="https://github.com/ryanmitts/deptheos/blob/main/LICENSE.md">LICENSE.md</a>.
+      </p>
+
+      <h3 id="systems">Which systems does it run on? Is there a version for Intel Macs?</h3>
+      <p>
+        macOS 27 or later on Apple silicon, Windows 10 or later (64-bit), and, as a preview, Linux on x86-64 or ARM64 with a
+        Vulkan driver. There is no build for Intel Macs. <a href="/download/">Download</a> has the file
+        for each system, and <a href="/docs/install/">Installing</a> the steps.
+      </p>
+
+      <h3 id="gpu">Do I need a graphics card?</h3>
+      <p>
+        Stacking runs on the GPU: Metal on Apple devices, DirectX 12 or Vulkan on Windows, Vulkan on Linux.
+        Integrated graphics will do. A Windows or Linux computer with no GPU stacks on the CPU instead, much more
+        slowly. Where a GPU is there but doesn't work, choose software rendering in Settings ▸ Advanced.
+        <a href="/docs/troubleshooting/#gpu">Troubleshooting</a> explains how.
+      </p>
+
+      <h3 id="memory">How much memory does it need?</h3>
+      <p>
+        16 GB is recommended. The memory a stack needs grows with the size of the photos, not with the number
+        of frames. On a Mac, iPhone or iPad, Deptheos checks before it starts whether the stack fits in the memory
+        the GPU can use, and says so when it won't; <a href="/docs/troubleshooting/#gpu">Memory and the GPU</a>
+        has what to try.
+      </p>
+
+      <h3 id="privacy">Does it send my photos anywhere?</h3>
+      <p>
+        No. Stacking happens on your device, and your frames, renders and logs stay there. The desktop app's
+        one request over the network is the update check: at startup it asks GitHub (api.github.com) for
+        Deptheos's latest release, sending only the app's version, and you can turn it off under Settings ▸
+        General ▸ <em>Check for updates</em>. The command line makes no requests at all; the Help menu's pages
+        open in your browser. <a href="/privacy/">Privacy</a> says exactly what is sent.
+      </p>
+
+      <h3 id="ios">Is there an iPhone or iPad app?</h3>
+      <p>
+        It is coming soon, on the App Store, with the same engine, a camera for shooting brackets, and Apple
+        Pencil for retouching on iPad. It needs iPhone 15 Pro or newer, or an iPad with an M-series or A17 Pro
+        chip or newer, on iOS 26 or iPadOS 26. <a href="/iphone/">Deptheos for iPhone and iPad</a> has the
+        details.
+      </p>
+    </div>
+  </section>
+
+  <section id="stacking">
+    <div class="prose">
+      <h2>Stacking</h2>
+
+      <h3 id="frames">How many frames can it stack?</h3>
+      <p>
+        There is no set limit. Only a few frames are in memory at once, so memory use doesn't grow with the
+        number of frames, only with the size of each photo; more frames take longer, and need nothing more. The
+        home page's <a href="/#speed">stacking times</a> include stacks of 200 frames.
+      </p>
+
+      <h3 id="method">Which method should I use?</h3>
+      <p>
+        Start with Pyramid, the default, which keeps hairs and fine crossing detail crisp. Try Depth when a
+        plain background comes out grainy or a dark area beside something bright looks hazy. When each does
+        better in a different part of the picture, stack with both and paint from one onto the other.
+        <a href="/docs/methods/">Choosing a method</a> compares all three, Wavelet included.
+      </p>
+
+      <h3 id="handheld">Do I need a tripod, or can I stack handheld?</h3>
+      <p>
+        Deptheos aligns the frames before stacking, so a handheld stack can work. The default aligner, ECC, handles
+        a tripod, a focus rail and most handheld brackets; switch Alignment to <em>Grid search</em> when frames
+        jump further than ECC can track. Alignment moves each frame as a whole, so a subject that moved, or
+        parallax between near and far parts, has to be fixed by retouching. <a href="/docs/alignment/">Aligning
+        the frames</a> explains both aligners.
+      </p>
+
+      <h3 id="sharpen">Does it sharpen the result?</h3>
+      <p>
+        No. No sharpening or contrast is added after stacking, so the detail in the result is the detail in
+        your frames. Sharpen it in your editor if you want to, after exporting. <a href="/features/#stacking">Features</a>
+        lists what each method does.
+      </p>
+
+      <h3 id="left-out">Why were some frames left out?</h3>
+      <p>
+        A frame that can't be read or lined up with the others is left out, and the stack goes on without it.
+        The notice when the stack finishes names each one and why. When alignment is the reason, stack again
+        with the grid search. <a href="/docs/troubleshooting/#frames">Troubleshooting</a> covers the messages.
+      </p>
+    </div>
+  </section>
+
+  <section id="files">
+    <div class="prose">
+      <h2>Files and color</h2>
+
+      <h3 id="raw">Which RAW files does it read? When do I need Adobe DNG Converter?</h3>
+      <p>
+        Camera RAW files that LibRaw reads, such as CR3, NEF, ARW, RAF, ORF, and RW2, and DNG, as well as JPEG,
+        TIFF, and PNG. RAW and DNG frames are stacked as linear camera data. LibRaw is built in and works out of
+        the box; install Adobe DNG Converter (macOS and Windows) only if you want Adobe's own demosaic or shoot
+        with a brand-new camera not yet supported by LibRaw. <a href="/docs/raw/">RAW, DNG and color</a> has the
+        full details.
+      </p>
+
+      <h3 id="flat-raw">Why do stacked RAW files look flatter than in Lightroom or my camera?</h3>
+      <p>
+        Deptheos stacks linear RAW data without applying auto-tone, sharpening, or a camera picture style. Export
+        as a 16-bit linear DNG and open it in Lightroom, Camera Raw, or your RAW editor to develop it just like
+        an original RAW file.
+      </p>
+
+      <h3 id="exif">Does it preserve EXIF metadata?</h3>
+      <p>
+        Yes. Exports keep the camera, lens, exposure, capture time, artist, and copyright from the reference
+        frame, plus the names of the stacked files. GPS location, serial numbers, and maker notes are left out
+        (<a href="/docs/export/#metadata">Metadata</a>).
+      </p>
+
+      <h3 id="dng">Can I get a DNG back? Why is DNG dimmed for my JPEG stack?</h3>
+      <p>
+        A stack of RAW or DNG frames can be exported as a 16-bit linear DNG, which Lightroom, Camera Raw and
+        other RAW editors develop like a RAW file. A stack of JPEG, TIFF or PNG frames has no linear camera data
+        to put in one, since those frames are finished pictures, so DNG is dimmed for it; export TIFF instead.
+        <a href="/docs/export/#formats">Exporting</a> covers each format.
+      </p>
+
+      <h3 id="originals">Does it change my original files?</h3>
+      <p>
+        No. Your frames are only ever read: Deptheos never changes, moves or deletes them, and deleting a render
+        or a stack leaves them alone. <a href="/docs/concepts/#files">Stacks, renders and the Library</a> says
+        more.
+      </p>
+
+      <h3 id="renders">Where are my renders kept?</h3>
+      <p>
+        In the app's own folder, not beside your photos: <code>~/Library/Application Support/Deptheos</code> on
+        macOS, <code>%LOCALAPPDATA%\Deptheos</code> on Windows and <code>~/.local/share/Deptheos</code> on Linux.
+        Settings ▸ Library ▸ <em>Library folder</em> chooses another folder for the next time Deptheos starts
+        (it does not move existing renders; copy them first if you want to keep them).
+        <a href="/docs/install/#data">Where it keeps its data</a> lists the settings and logs folders too.
+      </p>
+
+      <h3 id="lightroom">Can I use it from Lightroom? Is there a plugin?</h3>
+      <p>
+        There is no plugin. Add the RAW files themselves to Deptheos, or export the frames from your editor as
+        TIFFs and add those, then bring the result back: a DNG result from RAW frames opens in Lightroom as a
+        RAW file, with the camera's color profile and white balance still adjustable.
+        <a href="/docs/raw/#keeps">What a DNG result keeps</a> explains what carries over.
+      </p>
+    </div>
+  </section>
+
+  <section id="problems">
+    <div class="prose">
+      <h2>Problems</h2>
+
+      <h3 id="bug">How do I report a bug?</h3>
+      <p>
+        Choose Help ▸ <em>Report a Problem…</em>, which opens a new issue on GitHub, and say what you did and
+        what happened. Issues are public, so the diagnostics go by email instead: Help ▸ <em>Save
+        Diagnostics…</em> saves the app's logs as one zip file to send to
+        <a href="mailto:support@deptheos.com">support@deptheos.com</a>. On Windows and Linux the Help menu is
+        under the ≡ button. <a href="/support/">Support</a> has the details, for the iPhone and iPad app too.
+      </p>
+
+      <h3 id="speed">How fast is it on my computer?</h3>
+      <p>
+        Run <code>deptheos bench &lt;folder&gt; --live --repeat 5 --cool 30</code> on a folder of your own frames.
+        It times whole stacks as the app runs them, with Pyramid and Depth and each aligner, and prints a table of
+        the times. <a href="/docs/troubleshooting/#timings">Timings</a> explains the options, and
+        <a href="/docs/cli/#install">The command line</a> says where the command is.
+      </p>
+    </div>
+  </section>
+</DocsLayout>

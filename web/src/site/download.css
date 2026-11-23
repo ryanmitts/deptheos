@@ -1,0 +1,61 @@
+/* The download page (/download/): a block per desktop system, the links, the iPhone and iPad app.
+   src/download.ts moves the visitor's system first and marks it (.yours). */
+
+/* Wider than running text, for the blocks; the text in it keeps its measure. */
+.prose.dl { max-width: 880px; }
+.dl > p, .dl > section > p { max-width: var(--text); }
+
+.dl-systems { display: grid; gap: var(--s4); margin: var(--s6) 0 0; }
+.dl-os {
+  display: grid; grid-template-columns: 13.5em minmax(0, 1fr); gap: var(--s4) var(--s6);
+  padding: var(--s5); border: 1px solid var(--line); border-radius: var(--radius-lg); background: var(--panel);
+  scroll-margin-top: var(--nav-height, 80px);
+}
+.dl-os.yours,
+html[data-os="mac"] #mac,
+html[data-os="windows"] #windows,
+html[data-os="linux"] #linux { border-color: var(--accent); box-shadow: var(--shadow); order: -1; }
+html[data-os="ios"] #ios { border-color: var(--accent); box-shadow: var(--shadow); }
+.dl-name { display: flex; flex-direction: column; align-items: flex-start; gap: var(--s3); }
+.dl-name h2 { margin: 0; font-size: var(--t-xl); letter-spacing: -0.015em; }
+.dl-name .btn { justify-content: center; }
+.dl-yours { display: none; margin: 0 0 calc(-1 * var(--s2)); color: var(--accent); }
+.dl-os.yours .dl-yours,
+html[data-os="mac"] #mac .dl-yours,
+html[data-os="windows"] #windows .dl-yours,
+html[data-os="linux"] #linux .dl-yours { display: block; }
+.dl-detail { min-width: 0; }
+.dl-detail > :first-child { margin-top: 0; }
+.dl-detail > :last-child { margin-bottom: 0; }
+.dl-needs { margin: 0 0 var(--s3); font-weight: 600; color: var(--fg); }
+.dl-files { margin: 0 0 var(--s3); font-size: var(--t-md); }
+.dl-files dt { margin-top: var(--s3); color: var(--muted); font-size: var(--t-sm); }
+.dl-files dt:first-child { margin-top: 0; }
+.dl-files dd { margin: 2px 0 0; color: var(--body); }
+/* File names wrap where they must rather than push the page sideways. */
+.dl-files code { white-space: normal; overflow-wrap: anywhere; }
+.dl-note { margin: 0; padding-top: var(--s3); border-top: 1px solid var(--line); font-size: var(--t-md); color: var(--muted); }
+.prose .dl-note { color: var(--muted); }
+.dl-note a { white-space: nowrap; }
+
+.prose .dl-links { margin: var(--s4) 0 0; padding: 0; list-style: none; }
+.prose .dl-links li { display: grid; grid-template-columns: 10em minmax(0, 1fr); gap: var(--s4); margin: 0; padding: var(--s3) 0; border-top: 1px solid var(--line); font-size: var(--t-md); }
+.dl-links li:last-child { border-bottom: 1px solid var(--line); }
+.dl-links a { font-weight: 600; }
+.dl-links span { color: var(--muted); }
+
+/* The iPhone and iPad app, as on the home page. */
+.dl-ios { margin: var(--s8) 0 0; padding: var(--s6); border: 1px solid var(--line); border-radius: var(--radius-lg); background: var(--panel); max-width: var(--text); }
+.dl-ios h2 { margin: 0 0 var(--s2); font-size: var(--t-xl); letter-spacing: -0.015em; }
+.dl-ios p { font-size: var(--t-md); }
+.prose .dl-ios ul { margin: var(--s4) 0; padding: 0; list-style: none; font-size: var(--t-md); line-height: 1.55; }
+.dl-ios li { position: relative; padding-left: 20px; margin: var(--s3) 0; }
+.dl-ios li::before { content: ""; position: absolute; left: 2px; top: 0.72em; width: 8px; height: 1px; background: var(--muted); }
+.prose .dl-ios .soon-note { margin: 0; padding-top: var(--s4); border-top: 1px solid var(--line); color: var(--muted); font-size: var(--t-sm); }
+
+@media (max-width: 640px) {
+  .dl-os { grid-template-columns: minmax(0, 1fr); padding: var(--s4); }
+  .dl-name .btn { align-self: stretch; }
+  .prose .dl-links li { grid-template-columns: minmax(0, 1fr); gap: 2px; }
+  .dl-ios { padding: var(--s5); }
+}

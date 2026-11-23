@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<!-- Merged into deptheos-gui.exe's manifest by script\bundle-windows.ps1
+     (mt.exe), after the build. The UI kit embeds its own manifest (DPI
+     awareness, common controls) and a second one fails the link, so this
+     is added to that one rather than embedded by build.rs as the CLI's is.
+     longPathAware lets the native libraries open paths of more than 260
+     characters, where the system's LongPathsEnabled setting is on. -->
+<assembly xmlns="urn:schemas-microsoft-com:asm.v1" manifestVersion="1.0">
+    <application xmlns="urn:schemas-microsoft-com:asm.v3">
+        <windowsSettings>
+            <longPathAware xmlns="http://schemas.microsoft.com/SMI/2016/WindowsSettings">true</longPathAware>
+        </windowsSettings>
+    </application>
+</assembly>

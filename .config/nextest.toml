@@ -1,0 +1,15 @@
+# cargo-nextest, which CI runs the Rust tests with (.github/workflows/tests.yml).
+# It runs each test in a process of its own, so one that wedges its process
+# (a thread that can't exit, see `a_thread_that_used_the_codec_exits` in
+# deptheos_dng) is killed and reported, where `cargo test` would hang.
+
+[profile.ci]
+# A test still running after five minutes is killed and fails the run: on
+# a software GPU a stacking test can take minutes.
+slow-timeout = { period = "60s", terminate-after = 5 }
+fail-fast = false
+
+# The native codecs need no GPU, so a hang there is cut off after two.
+[[profile.ci.overrides]]
+filter = "package(deptheos_dng) | package(deptheos_raw)"
+slow-timeout = { period = "60s", terminate-after = 2 }

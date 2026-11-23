@@ -1,0 +1,67 @@
+{
+  "schema": 1,
+  "created_unix_ms": 1795146292404,
+  "frames": [
+    {
+      "root": "01a1f70e9c707054b0876f5af8d83d52",
+      "path": "a.png",
+      "size": 5,
+      "fingerprint": "fe0e0a059c009416"
+    },
+    {
+      "root": "01a1f70e9c707054b0876f5af8d83d52",
+      "path": "b.png",
+      "size": 5,
+      "fingerprint": "da53aed56d24f058"
+    },
+    {
+      "root": "01a1f70e9c707054b0876f5af8d83d52",
+      "path": "c.png",
+      "size": 5,
+      "fingerprint": "1a06f07d378bdd29"
+    }
+  ],
+  "included": [
+    true,
+    false,
+    true
+  ],
+  "stack": "01a1f70e9c5f712b87ea7665d7b865fa",
+  "number": 2,
+  "stacker": {
+    "algorithm": "pyramid",
+    "smoothness": 4.0
+  },
+  "options": {
+    "align": true,
+    "align_mode": "grid",
+    "crop": false,
+    "reverse_check": true,
+    "raw_backend": "adobe_dng",
+    "grid": {
+      "horizontal_pct": 5.0,
+      "vertical_pct": 5.0,
+      "rotation_deg": 1.0,
+      "magnification_pct": 3.0,
+      "apply_brightness": false
+    },
+    "camera_profile": "camera_standard",
+    "order": "name"
+  },
+  "alignment": [
+    null,
+    null
+  ],
+  "crop": null,
+  "reversed": true,
+  "result": {
+    "width": 37,
+    "height": 23
+  },
+  "color": {
+    "kind": "srgb",
+    "sixteen_bit": true,
+    "profile": false
+  },
+  "frame_map": true
+}

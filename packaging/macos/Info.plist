@@ -1,0 +1,81 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!-- script/bundle-mac.sh fills in @VERSION@, @BUILD@ and @MIN_MACOS@. -->
+<plist version="1.0">
+<dict>
+	<key>CFBundleIdentifier</key>
+	<string>com.deptheos.Deptheos</string>
+	<key>CFBundleName</key>
+	<string>Deptheos</string>
+	<key>CFBundleDisplayName</key>
+	<string>Deptheos</string>
+	<key>CFBundleExecutable</key>
+	<string>deptheos-gui</string>
+	<key>CFBundlePackageType</key>
+	<string>APPL</string>
+	<key>CFBundleInfoDictionaryVersion</key>
+	<string>6.0</string>
+	<key>CFBundleShortVersionString</key>
+	<string>@VERSION@</string>
+	<key>CFBundleVersion</key>
+	<string>@BUILD@</string>
+	<key>CFBundleIconFile</key>
+	<string>DeptheosAppIcon</string>
+	<key>CFBundleIconName</key>
+	<string>DeptheosAppIcon</string>
+	<key>LSMinimumSystemVersion</key>
+	<string>@MIN_MACOS@</string>
+	<key>LSApplicationCategoryType</key>
+	<string>public.app-category.photography</string>
+	<key>NSHighResolutionCapable</key>
+	<true/>
+	<key>NSPrincipalClass</key>
+	<string>NSApplication</string>
+	<key>NSHumanReadableCopyright</key>
+	<string>© Ryan Mitts. GPL-3.0.</string>
+	<!-- What macOS shows when it asks to let Deptheos use these places. -->
+	<key>NSDesktopFolderUsageDescription</key>
+	<string>Deptheos reads the photos you add from your Desktop folder, and saves exports there when you choose to.</string>
+	<key>NSDocumentsFolderUsageDescription</key>
+	<string>Deptheos reads the photos you add from your Documents folder, and saves exports there when you choose to.</string>
+	<key>NSDownloadsFolderUsageDescription</key>
+	<string>Deptheos reads the photos you add from your Downloads folder, and saves exports there when you choose to.</string>
+	<key>NSRemovableVolumesUsageDescription</key>
+	<string>Deptheos reads the photos you add from memory cards and external drives, and saves exports there when you choose to.</string>
+	<key>NSNetworkVolumesUsageDescription</key>
+	<string>Deptheos reads the photos you add from network drives, and saves exports there when you choose to.</string>
+	<!-- Open With and drops on the Dock icon (main.rs, on_open_urls). -->
+	<key>CFBundleDocumentTypes</key>
+	<array>
+		<dict>
+			<key>CFBundleTypeName</key>
+			<string>Image</string>
+			<key>CFBundleTypeRole</key>
+			<string>Viewer</string>
+			<key>LSHandlerRank</key>
+			<string>Alternate</string>
+			<key>LSItemContentTypes</key>
+			<array>
+				<string>public.camera-raw-image</string>
+				<string>com.adobe.raw-image</string>
+				<string>public.jpeg</string>
+				<string>public.png</string>
+				<string>public.tiff</string>
+			</array>
+		</dict>
+		<!-- A folder of frames, added as a whole. -->
+		<dict>
+			<key>CFBundleTypeName</key>
+			<string>Folder</string>
+			<key>CFBundleTypeRole</key>
+			<string>Viewer</string>
+			<key>LSHandlerRank</key>
+			<string>Alternate</string>
+			<key>LSItemContentTypes</key>
+			<array>
+				<string>public.folder</string>
+			</array>
+		</dict>
+	</array>
+</dict>
+</plist>

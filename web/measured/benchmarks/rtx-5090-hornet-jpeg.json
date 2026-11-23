@@ -1,0 +1,55 @@
+{
+  "version": "0.2.0",
+  "commit": "dc7e87fc",
+  "date": "2026-11-21",
+  "label": "Ryzen 9 9950X3D + RTX 5090",
+  "machine": {
+    "os": "Windows 11 Pro 26H2",
+    "cpu": "AMD Ryzen 9 9950X3D 16-Core Processor",
+    "threads": 32,
+    "memory_gb": 64.0,
+    "gpu": "NVIDIA GeForce RTX 5090",
+    "gpu_backend": "Vulkan",
+    "gpu_driver": "NVIDIA 621.01"
+  },
+  "stack": {
+    "name": "hornet",
+    "frames": 66,
+    "width": 8192,
+    "height": 5464,
+    "megapixels": 44.761088,
+    "format": "JPEG",
+    "bytes": 263576049
+  },
+  "path": "live",
+  "runs": {
+    "pyramid": {
+      "ecc": {
+        "fastest": 1.9803461,
+        "left_out": 0,
+        "mpx_per_s": 1480.336820854816,
+        "ms_per_frame": 30.237096969696967,
+        "phases": {
+          "blend": 0.0,
+          "complete": 0.0928524,
+          "finalize": 0.000326,
+          "pass1": 1.853297799999999
+        },
+        "repeats": [
+          1.9828500999999998,
+          2.0700083,
+          1.9956483999999999,
+          1.9803461,
+          2.0280043
+        ],
+        "result": [
+          8138,
+          5449
+        ],
+        "reversed": false,
+        "seconds": 1.9956483999999999,
+        "slowest": 2.0700083
+      }
+    }
+  }
+}

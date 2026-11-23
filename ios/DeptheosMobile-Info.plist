@@ -1,0 +1,41 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<!-- Bursts from the camera show in Files under On My iPhone › Deptheos.
+	     Files lists the app's Documents only with this and
+	     LSSupportsOpeningDocumentsInPlace (a build setting) both on, so that
+	     stays though the app declares no document types. -->
+	<key>UIFileSharingEnabled</key>
+	<true/>
+	<!-- The app uses no encryption of its own, so App Store Connect needs no
+	     export compliance answer for each build. -->
+	<!-- A stack or batch asks iOS for time to go on using the GPU in the
+	     background (ContinuedWork.swift), each request its own identifier
+	     under this wildcard. -->
+	<key>BGTaskSchedulerPermittedIdentifiers</key>
+	<array>
+		<string>$(PRODUCT_BUNDLE_IDENTIFIER).stacking.*</string>
+	</array>
+	<!-- One window: the app has one stack on screen and one camera, in one
+	     model. A second window would only mirror the first. -->
+	<key>UIApplicationSceneManifest</key>
+	<dict>
+		<key>UIApplicationSupportsMultipleScenes</key>
+		<false/>
+		<key>UISceneConfigurations</key>
+		<dict/>
+	</dict>
+	<!-- Which devices can install the app (ADR-164): those with the graphics
+	     performance of an iPhone 15 Pro or better, the nearest the App Store
+	     has to "enough memory to stack". A later version can relax this but
+	     never add to it, so it is here from the first submission. -->
+	<key>UIRequiredDeviceCapabilities</key>
+	<array>
+		<string>arm64</string>
+		<string>iphone-performance-gaming-tier</string>
+	</array>
+	<key>ITSAppUsesNonExemptEncryption</key>
+	<false/>
+</dict>
+</plist>

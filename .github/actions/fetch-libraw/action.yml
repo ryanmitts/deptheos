@@ -1,0 +1,22 @@
+# The LibRaw submodule (native/vendor/LibRaw), which every native build
+# needs: fetched over HTTPS, as the checkout has no SSH key, one commit deep.
+
+name: Fetch LibRaw
+description: Check out the LibRaw submodule over HTTPS, one commit deep.
+
+inputs:
+  recursive:
+    description: Fetch the submodule's own submodules too ("true"), as the source archive does.
+    default: "false"
+
+runs:
+  using: composite
+  steps:
+    - shell: bash
+      run: |
+        git config --global url."https://github.com/".insteadOf "git@github.com:"
+        if [[ "${{ inputs.recursive }}" == "true" ]]; then
+          git submodule update --init --recursive --depth 1
+        else
+          git submodule update --init --depth 1
+        fi

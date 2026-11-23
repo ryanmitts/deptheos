@@ -1,0 +1,38 @@
+[package]
+name = "deptheos_aligner"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+authors.workspace = true
+license.workspace = true
+repository.workspace = true
+homepage.workspace = true
+publish = false
+
+[dependencies]
+image = { workspace = true }
+thiserror = { workspace = true }
+tracing = { workspace = true }
+nalgebra = { workspace = true }
+rayon = { workspace = true }
+rten-simd = { workspace = true }
+libm = { workspace = true }
+
+[dev-dependencies]
+# The fixture tests and examples decode JPEGs.
+image = { workspace = true, features = ["jpeg"] }
+tracing-subscriber = { workspace = true }
+
+[features]
+# The examples (benches and comparison tools) build only with this on, so
+# `cargo test` does not compile and link them:
+#   cargo run --release -p deptheos_aligner --features examples --example <name>
+examples = []
+
+[[example]]
+name = "compare_aligners"
+required-features = ["examples"]
+
+[[example]]
+name = "ecc_bench"
+required-features = ["examples"]

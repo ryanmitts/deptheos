@@ -1,0 +1,26 @@
+{
+  "id": "depthmap",
+  "kind": "renders",
+  "frames": 66,
+  "renders": [
+    {
+      "name": "default",
+      "method": "depth",
+      "args": [],
+      "every": 1
+    }
+  ],
+  "places": [
+    {
+      "name": "head",
+      "width": 768,
+      "height": 768
+    }
+  ],
+  "files": [
+    {
+      "file": "default-head-map.png",
+      "bytes": 39743
+    }
+  ]
+}

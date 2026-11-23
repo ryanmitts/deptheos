@@ -1,0 +1,12 @@
+---
+import { tileSvg } from "../brand/logo.ts";
+
+interface Props {
+  class?: string;
+}
+
+const { class: className = "" } = Astro.props;
+const svg = tileSvg(className);
+---
+
+<Fragment set:html={svg} />

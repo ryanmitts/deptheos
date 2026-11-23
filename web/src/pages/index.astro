@@ -1,0 +1,457 @@
+---
+import Shot from "../components/Shot.astro";
+import "../site/home.css";
+import "../site/gallery.css";
+import BaseLayout from "../layouts/BaseLayout.astro";
+import Measured from "../components/Measured.astro";
+import BrandTile from "../components/BrandTile.astro";
+import ZoomIcon from "../components/ZoomIcon.astro";
+import { getParam } from "../lib/site-data.ts";
+import { DEFAULT_OG_IMAGE, SITE_URL } from "../data/site.ts";
+
+const description =
+  "GPU focus stacking for macOS, Windows, and Linux: 200 frames at 45 MP in about 5 seconds. RAW in, 16-bit linear DNG out, three methods, retouching. Free and open source.";
+
+const jsonLd = JSON.stringify({
+  "@context": "https://schema.org",
+  "@type": "SoftwareApplication",
+  name: "Deptheos",
+  softwareVersion: String(getParam("version")),
+  description,
+  image: DEFAULT_OG_IMAGE,
+  applicationCategory: "PhotographyApplication",
+  operatingSystem: "macOS, Windows, Linux",
+  url: `${SITE_URL}/`,
+  license: "https://github.com/ryanmitts/deptheos/blob/main/LICENSE.md",
+  offers: {
+    "@type": "Offer",
+    price: "0",
+    priceCurrency: "USD",
+  },
+});
+---
+
+<BaseLayout
+  navKey="home"
+  title="Deptheos: free GPU focus stacking for macOS, Windows & Linux"
+  description={description}
+  bodyClass="home"
+>
+  <script slot="head" type="application/ld+json" set:html={jsonLd} />
+
+  <div class="hero-top">
+    <div class="hero" data-viewer data-size="8138x5449" data-tiles="/media/gallery/hornet/tiles">
+      <img
+        src="/media/gallery/hornet/2400.jpg"
+        srcset="/media/gallery/hornet/1200.jpg 1200w, /media/gallery/hornet/2400.jpg 2400w"
+        sizes="(min-width: 960px) and (min-height: 561px) min(644px, 55vw), 100vw"
+        width="2400"
+        height="1607"
+        fetchpriority="high"
+        alt="A hornet's face, sharp from the antennae to the jaw: 66 photos stacked"
+      />
+      <!-- The stack building up from the back (scripts/make-gallery.sh), played once over the still, then faded out (src/home.ts). -->
+      <video class="hero-video" muted playsinline preload="none" poster="/media/gallery/hornet/grow-poster.jpg" aria-hidden="true" data-hero-video>
+        <source src="/media/gallery/hornet/grow.av1.mp4" type='video/mp4; codecs="av01.0.08M.08"' />
+        <source src="/media/gallery/hornet/grow.h264.mp4" type="video/mp4" />
+      </video>
+      <noscript><style is:inline>.hero-video { display: none; }</style></noscript>
+      <button class="hero-replay" type="button" hidden aria-label="Replay the stack building" title="Replay the stack building">
+        <svg viewBox="0 0 24 24" width="15" height="15" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 3-6.7L3 8" /><path d="M3 3v5h5" /></svg>
+        <span>Replay</span>
+      </button>
+      <button class="hero-zoom" type="button" aria-label="See the hornet at 100%" title="See it at 100%">
+        <ZoomIcon />
+      </button>
+    </div>
+    <p class="hero-cap exif">
+      <span>Hornet</span><span><Measured path="benchmarks.m5-max-hornet-jpeg.stack.frames" /> JPEG frames, handheld</span><span><Measured path="benchmarks.m5-max-hornet-jpeg.runs.pyramid.ecc.seconds" digits={1} /> s on an Apple M5 Max</span><span><a href="/gallery/hornet/">View in gallery</a></span>
+    </p>
+    <div class="hero-text">
+      <div class="hero-head">
+        <p class="eyebrow">Free &amp; open source · macOS · Windows · Linux · iPhone &amp; iPad soon</p>
+        <h1>Focus stacking in seconds.</h1>
+      </div>
+      <div class="hero-side">
+        <p class="lede">
+          GPU-accelerated focus stacking for macro, product, and landscape photography. Stack camera RAWs straight
+          to 16-bit linear DNG, choose from three methods, and retouch from any source frame, in seconds rather than
+          minutes.
+        </p>
+        <div class="hero-cta">
+          <a class="btn primary" href="/download/">Download free</a>
+          <a class="btn" href="#features">Explore features</a>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <section class="figures-strip" aria-label="Key figures">
+    <dl>
+      <div>
+        <dt><Measured path="benchmarks.m5-max-hornet-jpeg.runs.pyramid.ecc.seconds" digits={1} /> s</dt>
+        <dd><Measured path="benchmarks.m5-max-hornet-jpeg.stack.frames" /> JPEG frames, <Measured path="benchmarks.m5-max-hornet-jpeg.stack.megapixels" digits={0} /> MP, handheld</dd>
+      </div>
+      <div>
+        <dt><Measured path="benchmarks.m5-max-pcb1-jpeg.runs.pyramid.ecc.seconds" digits={1} /> s</dt>
+        <dd><Measured path="benchmarks.m5-max-pcb1-jpeg.stack.frames" /> JPEG frames, <Measured path="benchmarks.m5-max-pcb1-jpeg.stack.megapixels" digits={0} /> MP, tripod</dd>
+      </div>
+      <div>
+        <dt>RAW in, DNG out</dt>
+        <dd>16-bit linear · floating-point precision</dd>
+      </div>
+      <div>
+        <dt>Free</dt>
+        <dd>Open source (GPL-3.0) · no tiers or account</dd>
+      </div>
+    </dl>
+  </section>
+
+  <section class="chapter app-band" id="app" aria-labelledby="app-h">
+    <div class="app-band-inner">
+      <header class="chapter-head">
+        <p class="eyebrow">The app</p>
+        <h2 id="app-h">From a folder of frames to a finished stack</h2>
+        <p>
+          Drop a folder of focus-bracketed frames onto the window, pick a stacking method, and press Stack.
+          Inspect the result at 100%, retouch problem edges from any source frame, and export.
+        </p>
+      </header>
+      <figure class="shot app-window-shot">
+        <Shot name="app-window" width="2880" height="1800" loading="lazy" alt="The Deptheos Stacking screen with a finished hornet render: Frames list on the left, the stacked hornet in the viewer with its view bar and focus rail below, and the Pyramid inspector on the right." />
+      </figure>
+    </div>
+  </section>
+
+  <section class="chapter" id="quality" aria-labelledby="quality-h">
+    <header class="chapter-head">
+      <p class="eyebrow">At 100%</p>
+      <h2 id="quality-h">Single frame vs. stacked result</h2>
+      <p>
+        Drag the line to compare one source frame with the full <Measured path="benchmarks.m5-max-hornet-jpeg.stack.frames" />-frame
+        stack. Every gallery image opens at full resolution, and
+        <a href="/docs/getting-started/#samples">the source frames are available to download</a> so you can test them yourself.
+      </p>
+    </header>
+    <div class="compare" data-compare>
+      <img src="/media/home/hornet-frame-2400.jpg" width="2400" height="1607" alt="The first of 66 frames: only the wood at the front is sharp" loading="lazy" />
+      <img class="after" src="/media/gallery/hornet/2400.jpg" width="2400" height="1607" alt="All 66 frames stacked: the hornet sharp throughout" loading="lazy" />
+      <span class="compare-label left">Frame 1 of <Measured path="benchmarks.m5-max-hornet-jpeg.stack.frames" /></span><span class="compare-label right">All <Measured path="benchmarks.m5-max-hornet-jpeg.stack.frames" />, stacked</span>
+      <input type="range" min="0" max="100" value="50" aria-label="Move the line between one frame and the stack" />
+    </div>
+
+    <div class="methods" id="methods">
+      <a class="method" href="/docs/pyramid/">
+        <div class="method-body">
+          <h3>Pyramid <span class="tag">default</span></h3>
+          <p>Blends detail across multiple scales to keep crossing hairs, bristles, and antennae crisp and separate. The best all-around starting point.</p>
+          <span class="more">How Pyramid works</span>
+        </div>
+      </a>
+      <a class="method" href="/docs/depth-map/">
+        <div class="method-body">
+          <h3>Depth</h3>
+          <p>Builds a depth map to keep smooth gradients, plain backgrounds, and colors true to the original frames, with minimal halos on high-contrast edges.</p>
+          <span class="more">How Depth works</span>
+        </div>
+      </a>
+      <a class="method" href="/docs/wavelet/">
+        <div class="method-body">
+          <h3>Wavelet</h3>
+          <p>Selects the strongest detail at each scale while taking each pixel's color whole from a single frame. Ideal for fine repeating textures and complex micro-detail.</p>
+          <span class="more">How Wavelet works</span>
+        </div>
+      </a>
+    </div>
+    <p class="fine">
+      Need the best of two methods on one subject? Stack with both and paint one onto the other during retouching. No
+      artificial sharpening or contrast is added afterward.
+      <a href="/docs/methods/">Choosing a method</a> compares all three on the same subjects.
+    </p>
+  </section>
+
+  <section class="chapter" id="speed" aria-labelledby="speed-h">
+    <header class="chapter-head">
+      <p class="eyebrow">Timings</p>
+      <h2 id="speed-h"><Measured path="benchmarks.m5-max-pcb1-jpeg.stack.frames" /> frames at <Measured path="benchmarks.m5-max-pcb1-jpeg.stack.megapixels" digits={0} /> MP in <Measured path="benchmarks.m5-max-pcb1-jpeg.runs.pyramid.ecc.seconds" digits={1} /> seconds</h2>
+      <p>
+        That's <Measured path="benchmarks.m5-max-pcb1-jpeg.runs.pyramid.ecc.mpx_per_s" digits={0} /> MP/s: 9
+        billion pixels read off disk, decoded, aligned, and blended end to end. The same
+        <Measured path="benchmarks.m5-max-pcb1-cr3.stack.frames" /> camera RAW (CR3) frames stack in
+        <Measured path="benchmarks.m5-max-pcb1-cr3.runs.pyramid.ecc.seconds" digits={1} /> seconds with
+        no separate conversion step. Because frames stream through memory a few at a time, a 300-frame stack uses
+        no more RAM than a 30-frame one.
+      </p>
+    </header>
+    <div class="bench-wrap">
+      <table class="bench">
+        <caption class="visually-hidden">Stacking times by format and machine</caption>
+        <thead>
+          <tr>
+            <th scope="col">Stack</th>
+            <th scope="col" class="n grp def"><Measured path="benchmarks.m5-max-pcb1-jpeg.label" /></th>
+            <th scope="col" class="n grp def"><Measured path="benchmarks.rtx-5090-pcb1-jpeg.label" /></th>
+            <th scope="col" class="n grp"><Measured path="benchmarks.ipad-pro-m5-pcb1-jpeg.label" /></th>
+            <th scope="col" class="n grp"><Measured path="benchmarks.iphone-duo-pcb1-jpeg.label" /></th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <th scope="row"><Measured path="benchmarks.m5-max-hornet-jpeg.stack.frames" /> JPEG frames, handheld<span class="sub">Hornet · <Measured path="benchmarks.m5-max-hornet-jpeg.stack.megapixels" digits={0} /> MP</span></th>
+            <td class="n grp def"><Measured path="benchmarks.m5-max-hornet-jpeg.runs.pyramid.ecc.seconds" digits={1} /> s</td>
+            <td class="n grp def"><Measured path="benchmarks.rtx-5090-hornet-jpeg.runs.pyramid.ecc.seconds" digits={1} /> s</td>
+            <td class="n grp"><Measured path="benchmarks.ipad-pro-m5-hornet-jpeg.runs.pyramid.ecc.seconds" digits={1} /> s</td>
+            <td class="n grp"><Measured path="benchmarks.iphone-duo-hornet-jpeg.runs.pyramid.ecc.seconds" digits={1} /> s</td>
+          </tr>
+          <tr>
+            <th scope="row"><Measured path="benchmarks.m5-max-pcb1-jpeg.stack.frames" /> JPEG frames, tripod<span class="sub">Circuit board · <Measured path="benchmarks.m5-max-pcb1-jpeg.stack.megapixels" digits={0} /> MP</span></th>
+            <td class="n grp def"><Measured path="benchmarks.m5-max-pcb1-jpeg.runs.pyramid.ecc.seconds" digits={1} /> s</td>
+            <td class="n grp def"><Measured path="benchmarks.rtx-5090-pcb1-jpeg.runs.pyramid.ecc.seconds" digits={1} /> s</td>
+            <td class="n grp"><Measured path="benchmarks.ipad-pro-m5-pcb1-jpeg.runs.pyramid.ecc.seconds" digits={1} /> s</td>
+            <td class="n grp"><Measured path="benchmarks.iphone-duo-pcb1-jpeg.runs.pyramid.ecc.seconds" digits={1} /> s</td>
+          </tr>
+          <tr>
+            <th scope="row"><Measured path="benchmarks.m5-max-pcb1-cr3.stack.frames" /> RAW frames (CR3, LibRaw)<span class="sub">Circuit board · <Measured path="benchmarks.m5-max-pcb1-cr3.stack.megapixels" digits={0} /> MP, no conversion step</span></th>
+            <td class="n grp def"><Measured path="benchmarks.m5-max-pcb1-cr3.runs.pyramid.ecc.seconds" digits={1} /> s</td>
+            <td class="n grp def"><Measured path="benchmarks.rtx-5090-pcb1-cr3.runs.pyramid.ecc.seconds" digits={1} /> s</td>
+            <td class="n grp"><Measured path="benchmarks.ipad-pro-m5-pcb1-cr3.runs.pyramid.ecc.seconds" digits={1} /> s</td>
+            <td class="n grp"><Measured path="benchmarks.iphone-duo-pcb1-cr3.runs.pyramid.ecc.seconds" digits={1} /> s</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+    <p class="fine">
+      <Measured path="benchmarks.m5-max-pcb1-jpeg.stack.megapixels" digits={0} /> MP frames, the Pyramid method, from the first file read to the finished picture (median of five runs, live app path).
+    </p>
+    <p class="fine">
+      Time your own. <a href="/docs/getting-started/#samples">Download these frames</a>, or run
+      <code>deptheos bench &lt;folder&gt; --live --repeat 5 --cool 30</code> on a folder of yours.
+    </p>
+    <details class="fine-details">
+      <summary>How these were timed</summary>
+      <p>
+        Canon EOS R5 Mark II with the RF 100 mm macro, 8192 × 5464.
+        <Measured path="benchmarks.m5-max-pcb1-jpeg.label" />,
+        <Measured path="benchmarks.m5-max-pcb1-jpeg.machine.memory_gb" digits={0} /> GB,
+        <Measured path="benchmarks.m5-max-pcb1-jpeg.machine.os" />, plugged in;
+        <Measured path="benchmarks.rtx-5090-pcb1-jpeg.label" />,
+        <Measured path="benchmarks.rtx-5090-pcb1-jpeg.machine.memory_gb" digits={0} /> GB,
+        <Measured path="benchmarks.rtx-5090-pcb1-jpeg.machine.os" />;
+        <Measured path="benchmarks.ipad-pro-m5-pcb1-jpeg.label" />,
+        <Measured path="benchmarks.ipad-pro-m5-pcb1-jpeg.machine.memory_gb" digits={0} /> GB,
+        <Measured path="benchmarks.ipad-pro-m5-pcb1-jpeg.machine.os" />;
+        <Measured path="benchmarks.iphone-duo-pcb1-jpeg.label" />,
+        <Measured path="benchmarks.iphone-duo-pcb1-jpeg.machine.os" />.
+        Each time is the median of five runs, timed as the app stacks (Pyramid, aligned with ECC, with the live
+        preview), from reading and decoding the frames to the finished picture; saving is not timed. The shaders
+        were warmed up first, the files were in the system's cache, and the machine sat idle for 30 seconds before
+        each run, as between one stack and the next. The RAW row decodes the camera's own CR3 files with LibRaw, the
+        decoder built into the app, with the Adobe Standard camera profile; on desktop with Adobe DNG Converter
+        installed, the app can convert them with it instead (<a href="/docs/raw/">Camera RAW</a>). Timed on
+        <Measured path="benchmarks.m5-max-pcb1-jpeg.date" /> (Mac, build <Measured path="benchmarks.m5-max-pcb1-jpeg.commit" />),
+        <Measured path="benchmarks.rtx-5090-pcb1-jpeg.date" /> (PC, build <Measured path="benchmarks.rtx-5090-pcb1-jpeg.commit" />),
+        <Measured path="benchmarks.ipad-pro-m5-pcb1-jpeg.date" /> (iPad), and
+        <Measured path="benchmarks.iphone-duo-pcb1-jpeg.date" /> (iPhone).
+      </p>
+    </details>
+  </section>
+
+  <section class="chapter" id="features" aria-labelledby="features-h">
+    <header class="chapter-head">
+      <p class="eyebrow">Workflow</p>
+      <h2 id="features-h">Built for the full workflow</h2>
+      <p>From camera RAW files to precision alignment, non-destructive retouching, comparison, and batch export.</p>
+    </header>
+
+    <section class="feature-row" id="raw">
+      <div class="feature-text">
+        <h3>RAW in, linear DNG out</h3>
+        <p>
+          Stack CR3, NEF, ARW, RAF, and DNG files directly with no separate conversion step. The stacked result
+          exports as a 16-bit linear DNG that Lightroom and Camera Raw open like a RAW file, with white balance and
+          tone controls intact.
+        </p>
+        <p>
+          Built-in LibRaw decodes camera RAW files out of the box with Adobe camera profiles, or you can optionally
+          use Adobe DNG Converter for Adobe's own demosaic. Deptheos writes linear DNGs natively on macOS, Windows,
+          and Linux.
+        </p>
+        <p class="more"><a href="/docs/raw/">RAW, DNG and color</a></p>
+      </div>
+      <figure class="shot"><Shot name="export-dng" width="2880" height="1800" loading="lazy" alt="The Export sheet for a RAW stack: DNG selected as the format, 16 bits per channel, linear camera color." /><figcaption>Exporting a RAW stack as a 16-bit linear DNG.</figcaption></figure>
+    </section>
+
+    <section class="feature-row" id="retouch">
+      <div class="feature-text">
+        <h3>Retouch from any source frame</h3>
+        <p>
+          Paint clean detail onto your stacked result from any individual source frame, or from another method's
+          result. Option-click (Alt-click) any spot to jump directly to the sharpest frame there, with a live
+          preview inside the brush before you paint.
+        </p>
+        <p>Retouching is non-destructive and saved with the stack, and the Eraser paints the original stacked result back at any time.</p>
+        <p class="more"><a href="/docs/retouching/">Retouching</a></p>
+      </div>
+      <figure class="shot"><Shot name="paint-edge" width="2880" height="1800" loading="lazy" alt="Retouch open on the hornet at 100%, with the source frame list on the left and Brush controls on the right." /><figcaption>Retouching from a source frame at 100%.</figcaption></figure>
+    </section>
+
+    <section class="feature-row" id="compare">
+      <div class="feature-text">
+        <h3>Inspect and compare at 100%</h3>
+        <p>
+          Compare two stacked results, or a result against any aligned source frame, with a draggable Split view, or
+          switch to Side by Side, Top and Bottom, and Flicker, all locked to the same pan and zoom.
+        </p>
+        <p>
+          Optional Depth Map and Contribution views show which frame supplied each part of the image, making it easy
+          to track down halos or problem edges.
+        </p>
+        <p class="more"><a href="/docs/compare/">Viewing and comparing</a></p>
+      </div>
+      <figure class="shot"><Shot name="split-frame" width="2880" height="1800" loading="lazy" alt="The viewer in Split view at 100% with a source frame on one side of the line and the stacked result on the other." /><figcaption>Split view comparing a source frame and the stacked result at 100%.</figcaption></figure>
+    </section>
+
+    <section class="feature-row" id="handheld">
+      <div class="feature-text">
+        <h3>Automatic alignment</h3>
+        <p>
+          Focus breathing changes magnification between shots, and handheld brackets shift and rotate. Automatic
+          sub-pixel ECC alignment corrects shift, rotation, scale, stretch, and slant with zero settings required. A
+          configurable Grid search mode (with exposure compensation) handles brackets with larger jumps between
+          shots.
+        </p>
+        <p>
+          Shoot near to far or far to near. Frames that cannot be aligned are skipped and reported so the rest of
+          the stack completes cleanly.
+        </p>
+        <p class="more"><a href="/docs/alignment/">Alignment</a></p>
+      </div>
+      <figure class="shot"><Shot name="stacking-frames" width="2880" height="1800" loading="lazy" alt="The Stacking screen showing 66 frames ready to align and stack with ECC affine alignment enabled in the inspector." /><figcaption>Automatic ECC affine alignment in the Stacking workspace.</figcaption></figure>
+    </section>
+
+    <section class="feature-row" id="batch">
+      <div class="feature-text">
+        <h3>Batch processing and CLI</h3>
+        <p>
+          Point Batch at a folder of folders for one stack per folder, or let it split a folder of mixed shots
+          into separate stacks by capture time. It stacks them in turn and exports each as it finishes. Any stack that
+          fails is kept with its error so you can open and retry it.
+        </p>
+        <p>The <code>deptheos</code> command-line tool runs the same stacking, batch, alignment, and sequence workflows from a terminal.</p>
+        <p class="more"><a href="/docs/batch/">Batch</a> · <a href="/docs/cli/">Command line</a></p>
+      </div>
+      <figure class="shot"><Shot name="batch-dialog" width="2880" height="1800" loading="lazy" alt="The Batch dialog for stacking many folders or splitting a folder into stacks by capture time." /><figcaption>Batch stacking multiple brackets in one run.</figcaption></figure>
+    </section>
+
+    <section class="feature-row" id="history">
+      <div class="feature-text">
+        <h3>Non-destructive render history</h3>
+        <p>
+          Every stacked result (called a render in Deptheos) is saved in the Library along with the exact method,
+          settings, and retouching that produced it. Re-stack with a different method and compare results side by side.
+        </p>
+        <p>Your source frames are read-only. Deptheos never modifies, moves, or deletes them.</p>
+        <p class="more"><a href="/docs/concepts/">Stacks, renders and the Library</a></p>
+      </div>
+      <figure class="shot"><Shot name="library" width="2880" height="1800" loading="lazy" alt="The Library showing stacked hornet and circuit board stacks with their renders and settings in the inspector." /><figcaption>Stacks and renders organized in the Library.</figcaption></figure>
+    </section>
+
+    <p class="home-more"><a href="/features/">See all features <span aria-hidden="true">→</span></a></p>
+  </section>
+
+  <section class="chapter ios-band" id="iphone" aria-labelledby="ios-band-h">
+    <div class="ios-band-grid">
+      <div class="ios-band-text">
+        <p class="eyebrow">iPhone and iPad · coming soon</p>
+        <h2 id="ios-band-h">The same stacking engine on iPhone and iPad</h2>
+        <p>
+          Everything runs on the device, and nothing is uploaded. Import 45 MP brackets from Photos, Files, or an
+          external drive, stack with Pyramid, Depth, or Wavelet, and retouch with Apple Pencil on iPad.
+        </p>
+        <p class="more"><a href="/iphone/">Deptheos for iPhone and iPad</a></p>
+      </div>
+      <figure class="device-shot ipad-frame">
+        <Shot name="iphone-duo-open" width="2853" height="2007" loading="lazy" alt="Deptheos on iPhone Duo in open mode showing the stacked 66-frame hornet result with the focus rail along the bottom and controls along the right." />
+      </figure>
+    </div>
+  </section>
+
+  <section class="chapter" id="open" aria-labelledby="open-h">
+    <header class="chapter-head">
+      <p class="eyebrow">Open source</p>
+      <h2 id="open-h">Free and open source</h2>
+    </header>
+    <div class="trust-grid">
+      <div>
+        <h3>Free, no tiers</h3>
+        <p>
+          Every stacking method, RAW and linear DNG support, retouching, batch processing, and the CLI are included
+          in one download. The source is on GitHub under GPL-3.0.
+        </p>
+      </div>
+      <div>
+        <h3>Native GPU engine</h3>
+        <p>
+          Written in Rust with Metal, DirectX 12, and Vulkan compute shaders for fast startup, low memory use, and
+          full GPU throughput.
+        </p>
+      </div>
+      <div>
+        <h3>Independent project</h3>
+        <p>
+          Built as an independent solo project: the fast, modern, GPU-accelerated focus stacker I wanted to
+          use. Questions and bug reports go to GitHub or
+          <a href="mailto:support@deptheos.com">support@deptheos.com</a>.
+          <a href="/about/">About Deptheos</a>
+        </p>
+      </div>
+    </div>
+  </section>
+
+  <section class="chapter" id="gallery" aria-labelledby="gallery-h">
+    <header class="chapter-head">
+      <p class="eyebrow">Samples</p>
+      <h2 id="gallery-h">Gallery</h2>
+    </header>
+    <div class="g-cards">
+      <a class="g-card" href="/gallery/hornet/">
+        <img src="/media/gallery/hornet/900.jpg" width="900" height="602" alt="A hornet's face on a branch, sharp from the antennae to the jaw" loading="lazy" />
+        <span class="exif"><span>Hornet</span><span><Measured path="benchmarks.m5-max-hornet-jpeg.stack.frames" /> frames, handheld</span><span>Pyramid · <Measured path="benchmarks.m5-max-hornet-jpeg.runs.pyramid.ecc.seconds" digits={1} /> s</span></span>
+      </a>
+      <a class="g-card" href="/gallery/pcb/">
+        <img src="/media/gallery/pcb/900.jpg" width="900" height="600" alt="Black capacitors and rows of small parts on a circuit board, all in focus" loading="lazy" />
+        <span class="exif"><span>Circuit board</span><span><Measured path="benchmarks.m5-max-pcb1-jpeg.stack.frames" /> frames, tripod</span><span>Pyramid · <Measured path="benchmarks.m5-max-pcb1-jpeg.runs.pyramid.ecc.seconds" digits={1} /> s</span></span>
+      </a>
+      <a class="g-card" href="/gallery/screwdriver/">
+        <img src="/media/gallery/screwdriver/900.jpg" width="900" height="676" alt="The knurled steel grip of a screwdriver: rows of small pyramids against a dark red background, all in focus" loading="lazy" />
+        <span class="exif"><span>Screwdriver</span><span>250 RAW frames</span><span>OM-1 · Pyramid</span></span>
+      </a>
+    </div>
+    <p class="home-more"><a href="/gallery/">See all five pictures in the gallery <span aria-hidden="true">→</span></a></p>
+  </section>
+
+  <section class="chapter" id="download" aria-labelledby="download-h">
+    <div class="get">
+      <BrandTile class="app-icon" />
+      <div>
+        <p class="eyebrow">Download</p>
+        <h2 id="download-h">Free on macOS, Windows, and Linux</h2>
+        <p>
+          Runs on Apple silicon Macs, Windows 10 or later, and Linux, even on integrated graphics. No account, no watermark,
+          no paid tiers. The <a href="/iphone/">iPhone and iPad app</a> is coming soon.
+        </p>
+        <div class="hero-cta">
+          <a class="btn primary" href="/download/">Download free</a>
+          <a class="btn" href="/docs/getting-started/#samples">Sample frames to try</a>
+          <a class="btn" href="https://github.com/ryanmitts/deptheos">Source on GitHub</a>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <Fragment slot="scripts">
+    <script>
+      import "../home.ts";
+    </script>
+  </Fragment>
+</BaseLayout>

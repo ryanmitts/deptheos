@@ -1,0 +1,12 @@
+{
+  "schema": 1,
+  "roots": {
+    "01a1f309a68670f5be004978f9fff79e": {
+      "place": {
+        "at": "anchored",
+        "anchor": "library",
+        "path": "Photos/Bee"
+      }
+    }
+  }
+}

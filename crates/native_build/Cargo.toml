@@ -1,0 +1,15 @@
+[package]
+name = "native_build"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+authors.workspace = true
+license.workspace = true
+repository.workspace = true
+homepage.workspace = true
+publish = false
+
+# What the build scripts of deptheos_raw and deptheos_dng share: their
+# build-dependency, never linked into the app.
+[dependencies]
+cc = { version = "1.2", features = ["parallel"] }

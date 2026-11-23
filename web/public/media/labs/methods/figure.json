@@ -1,0 +1,143 @@
+{
+  "id": "methods",
+  "kind": "renders",
+  "frames": 66,
+  "renders": [
+    {
+      "name": "pyramid",
+      "method": "pyramid",
+      "args": [],
+      "every": 1
+    },
+    {
+      "name": "depth",
+      "method": "depth",
+      "args": [],
+      "every": 1
+    },
+    {
+      "name": "wavelet",
+      "method": "wavelet",
+      "args": [],
+      "every": 1
+    },
+    {
+      "name": "wavelet-c2",
+      "method": "wavelet",
+      "args": [
+        "--consistency",
+        "2"
+      ],
+      "every": 1
+    }
+  ],
+  "places": [
+    {
+      "name": "hairs",
+      "width": 768,
+      "height": 512
+    },
+    {
+      "name": "green",
+      "width": 768,
+      "height": 512
+    },
+    {
+      "name": "antenna",
+      "width": 768,
+      "height": 512
+    },
+    {
+      "name": "leg",
+      "width": 768,
+      "height": 512
+    },
+    {
+      "name": "board",
+      "width": 768,
+      "height": 512
+    }
+  ],
+  "files": [
+    {
+      "file": "depth-antenna.jpg",
+      "bytes": 47410
+    },
+    {
+      "file": "depth-board.jpg",
+      "bytes": 68793
+    },
+    {
+      "file": "depth-green.jpg",
+      "bytes": 45840
+    },
+    {
+      "file": "depth-hairs.jpg",
+      "bytes": 59560
+    },
+    {
+      "file": "depth-leg.jpg",
+      "bytes": 63153
+    },
+    {
+      "file": "pyramid-antenna.jpg",
+      "bytes": 57368
+    },
+    {
+      "file": "pyramid-board.jpg",
+      "bytes": 71499
+    },
+    {
+      "file": "pyramid-green.jpg",
+      "bytes": 55791
+    },
+    {
+      "file": "pyramid-hairs.jpg",
+      "bytes": 72126
+    },
+    {
+      "file": "pyramid-leg.jpg",
+      "bytes": 69065
+    },
+    {
+      "file": "wavelet-antenna.jpg",
+      "bytes": 56732
+    },
+    {
+      "file": "wavelet-board.jpg",
+      "bytes": 78180
+    },
+    {
+      "file": "wavelet-c2-antenna.jpg",
+      "bytes": 56620
+    },
+    {
+      "file": "wavelet-c2-board.jpg",
+      "bytes": 77907
+    },
+    {
+      "file": "wavelet-c2-green.jpg",
+      "bytes": 65050
+    },
+    {
+      "file": "wavelet-c2-hairs.jpg",
+      "bytes": 79575
+    },
+    {
+      "file": "wavelet-c2-leg.jpg",
+      "bytes": 79208
+    },
+    {
+      "file": "wavelet-green.jpg",
+      "bytes": 65074
+    },
+    {
+      "file": "wavelet-hairs.jpg",
+      "bytes": 79685
+    },
+    {
+      "file": "wavelet-leg.jpg",
+      "bytes": 79284
+    }
+  ]
+}

@@ -1,0 +1,45 @@
+[package]
+name = "deptheos_cli"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+authors.workspace = true
+license.workspace = true
+repository.workspace = true
+homepage.workspace = true
+publish = false
+
+[[bin]]
+name = "deptheos"
+path = "src/main.rs"
+
+[dependencies]
+deptheos_app = { workspace = true }
+# `bench --profile`: GPU time per pass and CPU time per stage.
+deptheos_gpu = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+chrono = { workspace = true }
+clap = { workspace = true }
+image = { workspace = true, features = ["jpeg", "png", "tiff", "rayon"] }
+tracing-subscriber = { workspace = true }
+mimalloc = { workspace = true }
+bytemuck = { workspace = true }
+tracing = { workspace = true }
+# Expands globs in the arguments on Windows, where the shell does not.
+wild = "2.2.1"
+
+[target.'cfg(unix)'.dependencies]
+libc = { workspace = true }
+
+# Ctrl-C stops a run (interrupt.rs).
+[target.'cfg(windows)'.dependencies]
+windows = { version = "0.62.2", default-features = false, features = ["Win32_System_Console"] }
+
+# The manifest embedded in deptheos.exe (build.rs).
+[target.'cfg(windows)'.build-dependencies]
+winresource = { workspace = true }
+
+[dev-dependencies]
+deptheos_app = { workspace = true, features = ["test-support"] }
+tempfile = { workspace = true }

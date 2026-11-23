@@ -1,0 +1,228 @@
+---
+import DocsLayout from "../../../layouts/DocsLayout.astro";
+---
+
+<DocsLayout
+  docKey="install"
+  title="Installing"
+  description="Install Deptheos on macOS, Windows and Linux: which file to download, first-launch warnings, updates, uninstalling, and where it keeps data."
+>
+  <div class="prose">
+    <h1>Installing</h1>
+    <p class="lede">
+      Deptheos is a free download for macOS, Windows and Linux. This page goes from the download to the first
+      launch on each system, then covers updates and uninstalling. The iPhone and iPad app is coming soon, on
+      the App Store.
+    </p>
+  </div>
+
+  <section id="files">
+    <div class="prose">
+      <h2>Which file to download</h2>
+      <p>
+        <a href="/download/">Download</a> lists the file for each system, from the
+        <a href="https://github.com/ryanmitts/deptheos/releases/latest">latest release</a> page on GitHub:
+        a .dmg for macOS, a setup file or a portable zip for Windows, and a .deb, .rpm or tarball for Linux
+        on x86-64 or ARM64.
+      </p>
+    </div>
+  </section>
+
+  <section id="requirements">
+    <div class="prose">
+      <h2>What it needs</h2>
+      <ul>
+        <li><strong>macOS</strong> 27 or later, on a Mac with Apple silicon. There is no build for Intel Macs.</li>
+        <li><strong>Windows</strong> 10 or later, 64-bit.</li>
+        <li>
+          <strong>Linux</strong>, as a preview, on x86-64 or ARM64, with glibc 2.35 or newer (Ubuntu 22.04 and later, Debian 12
+          and later, Fedora 36 and later, and distributions based on them) and a Vulkan driver.
+        </li>
+      </ul>
+      <p>
+        Stacking runs on the graphics card: Metal on a Mac, DirectX 12 or Vulkan on Windows, Vulkan on Linux.
+        Integrated graphics will do. A computer with no usable GPU can stack on the CPU instead, much more
+        slowly (see <a href="/docs/troubleshooting/#gpu">Troubleshooting</a>). 16 GB of memory is recommended:
+        the memory a stack needs grows with the size of the photos, not with the number of frames.
+      </p>
+    </div>
+  </section>
+
+  <section id="mac">
+    <div class="prose">
+      <h2>macOS</h2>
+      <ol class="steps">
+        <li><strong>Open the .dmg.</strong> A window shows Deptheos beside a shortcut to your Applications folder.</li>
+        <li><strong>Drag Deptheos onto Applications</strong>, then eject the disk image.</li>
+        <li>
+          <strong>Open Deptheos from Applications.</strong> The app is signed with a Developer ID and notarized by
+          Apple, so macOS only asks the first time whether you want to open an app downloaded from the internet.
+          Click <em>Open</em>.
+        </li>
+      </ol>
+      <p>
+        Run it from Applications rather than from the disk image. The command line tool needs that too: once
+        the app is in Applications, Deptheos ▸ Install Command Line Tool… puts the <code>deptheos</code>
+        command in <code>/usr/local/bin</code> (see <a href="/docs/cli/#install">The command line</a>).
+      </p>
+    </div>
+  </section>
+
+  <section id="windows">
+    <div class="prose">
+      <h2>Windows</h2>
+      <h3>The installer</h3>
+      <ol class="steps">
+        <li>
+          <strong>Run the setup file.</strong> It installs for your user account only, into
+          <code>%LOCALAPPDATA%\Programs\Deptheos</code>, so it doesn't need an administrator password.
+        </li>
+        <li>
+          <strong>Accept the license and choose the options.</strong> <em>Add the deptheos command to PATH, for
+          the command line</em> is on at first; it lets a new terminal run <code>deptheos</code>. A desktop
+          shortcut is off at first.
+        </li>
+        <li><strong>Finish.</strong> Setup can start Deptheos for you; afterwards it is in the Start menu.</li>
+      </ol>
+      <h3 id="smartscreen">"Windows protected your PC"</h3>
+      <p>
+        The Windows installer isn't code-signed yet, so Microsoft Defender SmartScreen may stop it with
+        "Windows protected your PC". Click <em>More info</em>, check that the file is the one you downloaded
+        from the release page, then click <em>Run anyway</em>. You may see the same warning when you first run
+        Deptheos from the portable zip.
+      </p>
+    </div>
+    <div class="prose">
+      <h3>The portable zip</h3>
+      <p>
+        Extract the zip and run <code>deptheos-gui.exe</code> in the Deptheos folder it holds;
+        <code>deptheos.exe</code>, beside it, is the command line. Nothing is installed, and there is no
+        uninstaller: delete the folder to remove it. Its renders, settings and logs go in the same folders as
+        an installed copy's (<a href="#data">below</a>).
+      </p>
+    </div>
+  </section>
+
+  <section id="linux">
+    <div class="prose">
+      <h2>Linux</h2>
+      <p>
+        Linux builds are a preview: they are tested on fewer systems than macOS and Windows. Each package comes for x86-64 and for ARM64 (<code>amd64</code> or <code>x86_64</code>, and
+        <code>arm64</code> or <code>aarch64</code>, in the file names). The .deb and .rpm install the app as
+        <code>/usr/bin/deptheos-gui</code> and the command line as <code>/usr/bin/deptheos</code>, with a menu
+        entry, and pull in the libraries they need. In the folder you downloaded to:
+      </p>
+      <p class="cmd"><code>sudo apt install ./deptheos_*_amd64.deb</code></p>
+      <p class="cmd"><code>sudo dnf install ./deptheos-*.x86_64.rpm</code></p>
+      <p>
+        The tarball is for other distributions, or for installing without root. Unpack it, then run its
+        <code>install.sh</code>, which copies the app and the command into <code>~/.local</code> and adds the
+        menu entry:
+      </p>
+      <p class="cmd"><code>tar xzf Deptheos-*-linux-x86_64.tar.gz</code></p>
+      <p class="cmd"><code>cd Deptheos-*-linux-x86_64 &amp;&amp; ./install.sh</code></p>
+      <p>
+        <code>sudo PREFIX=/usr/local ./install.sh</code> installs it for every user instead. You can also run
+        <code>bin/deptheos-gui</code> straight from the unpacked folder. With the tarball, install the libraries
+        yourself; its <code>README.txt</code> lists them for Ubuntu, Debian and Fedora. Then open Deptheos
+        from the menu, or run <code>deptheos-gui</code>.
+      </p>
+      <p>
+        Most desktop Linux systems already have Vulkan and desktop file dialogs set up. If Deptheos can't
+        find your GPU or stacks slowly in a virtual machine, see
+        <a href="/docs/troubleshooting/#gpu">Troubleshooting</a>.
+      </p>
+    </div>
+  </section>
+
+  <section id="first-launch">
+    <div class="prose">
+      <h2>The first launch</h2>
+      <p>
+        Deptheos opens on the Library, empty. <a href="/docs/getting-started/">Your first stack</a> goes from
+        there to a saved picture. If it can't start its GPU engine, it says so and offers Settings, where you
+        can choose another GPU or the CPU (<a href="/docs/troubleshooting/#gpu">Troubleshooting</a>).
+      </p>
+      <p>
+        For camera RAW files, Deptheos has a decoder built in. On macOS and Windows it can also use Adobe DNG
+        Converter, a free program from Adobe that you install separately, to get the same color as Lightroom
+        gives the same files. It is optional: <a href="/docs/raw/#which">RAW, DNG and color</a> explains when
+        it helps.
+      </p>
+    </div>
+  </section>
+
+  <section id="updates">
+    <div class="prose">
+      <h2>Updates</h2>
+      <p>
+        Each time it starts, Deptheos asks GitHub whether a newer version has been released. When one has, a
+        notice says "Update available" with the new version and yours, and its <em>Download</em> button opens
+        that release's page in your browser. Deptheos doesn't download or install anything itself. At startup
+        it stays quiet when there is no update or the check fails; to check by hand, and hear either way,
+        choose Deptheos ▸ Check for Updates… on a Mac, or ≡ ▸ Help ▸ Check for Updates… on Windows and Linux. To stop the check at
+        startup, turn off Settings ▸ General ▸ <em>Check for updates</em>.
+      </p>
+      <p>To install the new version, download its file and install it as before:</p>
+      <ul>
+        <li><strong>macOS</strong>: drag the new Deptheos onto Applications and choose to replace the old one. An installed command line tool follows the app.</li>
+        <li><strong>Windows</strong>: run the new setup file. It installs over the old version, closing Deptheos first if it is running and opening it again afterwards. For the portable zip, replace the folder.</li>
+        <li><strong>Linux</strong>: the same <code>apt install</code> or <code>dnf install</code> command with the new file upgrades the package; for the tarball, run the new folder's <code>install.sh</code>.</li>
+      </ul>
+      <p>Your renders and settings are kept.</p>
+    </div>
+  </section>
+
+  <section id="uninstall">
+    <div class="prose">
+      <h2>Uninstalling</h2>
+      <ul>
+        <li>
+          <strong>macOS</strong>: quit Deptheos and move it from Applications to the Trash. If you installed the
+          command line tool, also remove its link: <code>sudo rm /usr/local/bin/deptheos</code>.
+        </li>
+        <li>
+          <strong>Windows</strong>: in Windows Settings ▸ Apps, find Deptheos and choose <em>Uninstall</em>. It also takes
+          the <code>deptheos</code> command off your PATH. For the portable zip, delete its folder.
+        </li>
+        <li>
+          <strong>Linux</strong>: <code>sudo apt remove deptheos</code> or <code>sudo dnf remove deptheos</code>.
+          For the tarball, run <code>./install.sh --uninstall</code> from its folder, with the same
+          <code>PREFIX</code> you installed with.
+        </li>
+      </ul>
+    </div>
+  </section>
+
+  <section id="data">
+    <div class="prose">
+      <h2>Where it keeps its data</h2>
+      <p>
+        Uninstalling removes the app and leaves your data. Your frames are only ever read, so nothing of yours
+        is kept beside them; everything Deptheos writes is in these folders, and deleting them removes every
+        render, setting and log. Export the renders you want to keep first.
+      </p>
+      <ul>
+        <li>
+          <strong>macOS</strong>: renders and settings in <code>~/Library/Application Support/Deptheos</code>,
+          logs in <code>~/Library/Logs/Deptheos</code>.
+        </li>
+        <li>
+          <strong>Windows</strong>: renders in <code>%LOCALAPPDATA%\Deptheos</code>, with the logs in its
+          <code>logs</code> folder; settings in <code>%APPDATA%\Deptheos</code>.
+        </li>
+        <li>
+          <strong>Linux</strong>: renders in <code>~/.local/share/Deptheos</code>, settings in
+          <code>~/.config/Deptheos</code>, logs in <code>~/.local/state/Deptheos</code> (or under
+          <code>$XDG_DATA_HOME</code>, <code>$XDG_CONFIG_HOME</code> and <code>$XDG_STATE_HOME</code> when those
+          are set).
+        </li>
+      </ul>
+      <p>
+        If you chose another folder under Settings ▸ Library ▸ <em>Library folder</em>, the renders are there
+        instead. <a href="/docs/concepts/#files">Stacks, renders and the Library</a> explains what a render
+        keeps.
+      </p>
+    </div>
+  </section>
+</DocsLayout>

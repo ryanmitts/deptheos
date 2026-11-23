@@ -1,0 +1,72 @@
+{
+  "id": "smoothness",
+  "kind": "renders",
+  "frames": 66,
+  "renders": [
+    {
+      "name": "s1",
+      "method": "pyramid",
+      "args": [
+        "--smoothness",
+        "1"
+      ],
+      "every": 1
+    },
+    {
+      "name": "s4",
+      "method": "pyramid",
+      "args": [
+        "--smoothness",
+        "4"
+      ],
+      "every": 1
+    },
+    {
+      "name": "s10",
+      "method": "pyramid",
+      "args": [
+        "--smoothness",
+        "10"
+      ],
+      "every": 1
+    }
+  ],
+  "places": [
+    {
+      "name": "antenna",
+      "width": 768,
+      "height": 512
+    },
+    {
+      "name": "leg",
+      "width": 768,
+      "height": 512
+    }
+  ],
+  "files": [
+    {
+      "file": "s1-antenna.jpg",
+      "bytes": 70293
+    },
+    {
+      "file": "s1-leg.jpg",
+      "bytes": 85849
+    },
+    {
+      "file": "s10-antenna.jpg",
+      "bytes": 38644
+    },
+    {
+      "file": "s10-leg.jpg",
+      "bytes": 51423
+    },
+    {
+      "file": "s4-antenna.jpg",
+      "bytes": 63129
+    },
+    {
+      "file": "s4-leg.jpg",
+      "bytes": 76431
+    }
+  ]
+}

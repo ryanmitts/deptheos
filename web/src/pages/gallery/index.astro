@@ -1,0 +1,79 @@
+---
+import "../../site/home.css";
+import "../../site/gallery.css";
+import BaseLayout from "../../layouts/BaseLayout.astro";
+import { GALLERY_ITEMS } from "../../data/gallery.ts";
+---
+
+<BaseLayout
+  navKey="gallery"
+  title="Gallery"
+  description="Focus stacks made with Deptheos: each with how it was shot, the picture at 100%, one frame beside the stack, and the stack building up."
+  bodyClass="gallery-page"
+>
+  <header class="page-head">
+    <div>
+      <h1>Gallery</h1>
+    </div>
+    <p class="lede">
+      Stacks made with Deptheos. Each has its own page: how it was shot, the picture at 100%, and the stack building up.
+    </p>
+  </header>
+
+  <div class="g-cards">
+    {
+      GALLERY_ITEMS.map((item, idx) => (
+        <a class="g-card" href={`/gallery/${item.slug}/`}>
+          <img
+            src={`/media/gallery/${item.slug}/900.jpg`}
+            width={item.cardWidth}
+            height={item.cardHeight}
+            alt={item.alt}
+            loading={idx < 3 ? "eager" : "lazy"}
+          />
+          <span class="exif">
+            <span>{item.name}</span>
+            <span>{item.cardFrames}</span>
+            <span>{item.cardMethod}</span>
+          </span>
+        </a>
+      ))
+    }
+  </div>
+  <p class="fine">
+    The first three: Canon EOS R5 Mark II, RF 100 mm macro. The last two: OM System OM-1, M.Zuiko 90 mm macro (the
+    screwdriver with a 2× teleconverter).
+  </p>
+
+  <section class="g-section" aria-labelledby="turn-h">
+    <h2 id="turn-h">On a turntable</h2>
+    <figure class="turntable">
+      <video
+        controls
+        muted
+        loop
+        playsinline
+        preload="none"
+        poster="/media/turntable/pcb-poster.jpg"
+        width="1920"
+        height="1080"
+        aria-label="A circuit board turning on a turntable, every frame a finished stack, as the view pulls back"
+      >
+        <source src="/media/turntable/pcb.av1.mp4" type='video/mp4; codecs="av01.0.08M.08"' />
+        <source src="/media/turntable/pcb.h264.mp4" type="video/mp4" />
+      </video>
+      <figcaption class="exif">
+        <span>Circuit board on a turntable</span>
+        <span>50 stacks of 200 JPEG frames, the table turned 0.5° between stacks</span>
+        <span>every frame a finished stack</span>
+        <span>Pyramid</span>
+      </figcaption>
+    </figure>
+  </section>
+
+  <Fragment slot="scripts">
+    <script>
+      import "../../gallery.ts";
+    </script>
+  </Fragment>
+</BaseLayout>

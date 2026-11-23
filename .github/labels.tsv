@@ -1,0 +1,22 @@
+# The repository's issue labels: name, color (hex, no #) and description,
+# separated by tabs. `just labels` applies them to the public repository
+# with `gh label create --force`, which makes a missing label and updates
+# one that is there; a label not listed here is left alone. The issue forms
+# (ISSUE_TEMPLATE/) name bug and enhancement.
+bug	d73a4a	Something doesn't work as it should, or it crashed
+enhancement	a2eeef	A feature request
+documentation	0075ca	The docs, the website or the README
+needs-info	fbca04	Waiting on details or diagnostics from the reporter
+duplicate	cfd3d7	Already reported
+wontfix	ffffff	Not something Deptheos will do
+good first issue	7057ff	A small, well-described change for a new contributor
+help wanted	008672	A change the maintainer would welcome help with
+macos	1d76db	Only on macOS
+windows	1d76db	Only on Windows
+linux	1d76db	Only on Linux (a preview)
+ios	1d76db	Only on iPhone or iPad
+cli	1d76db	The command line tool
+raw	5319e7	RAW and DNG files: decoding, color, DNG export
+gpu	5319e7	GPU drivers, memory and device loss
+library	5319e7	The Library: saving, opening, deleting, moving
+security	b60205	A security problem (report it privately: SECURITY.md)

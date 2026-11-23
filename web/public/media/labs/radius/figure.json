@@ -1,0 +1,67 @@
+{
+  "id": "radius",
+  "kind": "renders",
+  "frames": 66,
+  "renders": [
+    {
+      "name": "r1",
+      "method": "depth",
+      "args": [
+        "--radius",
+        "1"
+      ],
+      "every": 1
+    },
+    {
+      "name": "r8",
+      "method": "depth",
+      "args": [
+        "--radius",
+        "8"
+      ],
+      "every": 1
+    },
+    {
+      "name": "r50",
+      "method": "depth",
+      "args": [
+        "--radius",
+        "50"
+      ],
+      "every": 1
+    }
+  ],
+  "places": [
+    {
+      "name": "hairs",
+      "width": 1024,
+      "height": 768
+    }
+  ],
+  "files": [
+    {
+      "file": "r1-hairs-map.png",
+      "bytes": 208703
+    },
+    {
+      "file": "r1-hairs.jpg",
+      "bytes": 99723
+    },
+    {
+      "file": "r50-hairs-map.png",
+      "bytes": 23650
+    },
+    {
+      "file": "r50-hairs.jpg",
+      "bytes": 109663
+    },
+    {
+      "file": "r8-hairs-map.png",
+      "bytes": 52273
+    },
+    {
+      "file": "r8-hairs.jpg",
+      "bytes": 114403
+    }
+  ]
+}

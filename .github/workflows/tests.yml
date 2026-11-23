@@ -1,0 +1,104 @@
+# The workspace's Rust tests on macOS, Windows and Linux, under
+# cargo-nextest's `ci` profile (.config/nextest.toml), which runs each test
+# in a process of its own and kills one that hangs: on Windows a thread
+# pool joined as its thread exited once deadlocked the whole process under
+# the loader lock, and the tests for that hang rather than fail.
+#
+# On Windows and Linux the GPU tests run on the runner's software GPU,
+# forced by DEPTHEOS_SOFTWARE_GPU: WARP and Mesa's lavapipe. There
+# DEPTHEOS_REQUIRE_GPU makes a test that would skip for want of a GPU fail
+# (`GpuContext::skip_test`). macOS runners are virtual machines whose Metal
+# device is not assured, so there a GPU test may skip.
+#
+# The Linux job also checks the website's committed
+# web/generated/manifest.json is what the engine's parameters make now
+# (deptheos_webexport --check).
+
+name: Tests
+
+on:
+  push:
+    branches: [main]
+    paths: ["crates/**", "native/**", "Cargo.toml", "Cargo.lock", ".config/nextest.toml", "web/generated/**", ".github/workflows/tests.yml", ".github/actions/**"]
+  pull_request:
+    paths: ["crates/**", "native/**", "Cargo.toml", "Cargo.lock", ".config/nextest.toml", "web/generated/**", ".github/workflows/tests.yml", ".github/actions/**"]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+env:
+  CARGO_TERM_COLOR: always
+  # Line tables only: full debug info for the whole workspace at opt-level 3
+  # outgrows a hosted runner's disk.
+  CARGO_PROFILE_DEV_DEBUG: line-tables-only
+
+jobs:
+  macos:
+    runs-on: macos-26
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: ./.github/actions/select-xcode
+      - uses: ./.github/actions/fetch-libraw
+      - uses: dtolnay/rust-toolchain@b725eda525362e7cf34af9a7243cac1e3f01a7ec # stable
+        with:
+          components: clippy, rustfmt
+      - uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2
+      - uses: taiki-e/install-action@cfdb7ed4ccc7c7dce37759eae89dc5674b469b39 # v2
+        with:
+          tool: cargo-nextest
+      # `just lint`, with clippy's warnings as errors.
+      - name: The files docs and comments name
+        run: python3 script/check-paths.py
+      - name: The formatting
+        run: cargo fmt --all --check
+      - name: Clippy, with the tests
+        run: cargo clippy --workspace --tests -- -D warnings
+      - name: The workspace's tests
+        run: cargo nextest run --profile ci --workspace
+
+  windows:
+    runs-on: windows-2025
+    timeout-minutes: 90
+    env:
+      DEPTHEOS_SOFTWARE_GPU: "1"
+      DEPTHEOS_REQUIRE_GPU: "1"
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: ./.github/actions/fetch-libraw
+      - uses: dtolnay/rust-toolchain@b725eda525362e7cf34af9a7243cac1e3f01a7ec # stable
+      - uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2
+      - uses: taiki-e/install-action@cfdb7ed4ccc7c7dce37759eae89dc5674b469b39 # v2
+        with:
+          tool: cargo-nextest
+      - name: The workspace's tests, on WARP
+        run: cargo nextest run --profile ci --workspace
+
+  linux:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 90
+    env:
+      DEPTHEOS_SOFTWARE_GPU: "1"
+      DEPTHEOS_REQUIRE_GPU: "1"
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: ./.github/actions/fetch-libraw
+      # The build packages release.yml's Linux job installs (GPUI's among
+      # them), and Mesa's Vulkan drivers for lavapipe.
+      - name: Install the build packages and lavapipe
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends build-essential pkg-config cmake clang \
+            libfontconfig-dev libfreetype-dev libxkbcommon-dev libxkbcommon-x11-dev \
+            libwayland-dev libx11-xcb-dev libxcb1-dev libvulkan-dev libasound2-dev \
+            libssl-dev libzstd-dev mesa-vulkan-drivers
+      - uses: dtolnay/rust-toolchain@b725eda525362e7cf34af9a7243cac1e3f01a7ec # stable
+      - uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2
+      - uses: taiki-e/install-action@cfdb7ed4ccc7c7dce37759eae89dc5674b469b39 # v2
+        with:
+          tool: cargo-nextest
+      - name: The workspace's tests, on lavapipe
+        run: cargo nextest run --profile ci --workspace
+      - name: The website's parameters are current
+        run: cargo run -q -p deptheos_webexport -- --check

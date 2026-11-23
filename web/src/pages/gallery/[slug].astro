@@ -1,0 +1,158 @@
+---
+import "../../site/home.css";
+import "../../site/gallery.css";
+import BaseLayout from "../../layouts/BaseLayout.astro";
+import Measured from "../../components/Measured.astro";
+import ZoomIcon from "../../components/ZoomIcon.astro";
+import { GALLERY_ITEMS, type GalleryItem } from "../../data/gallery.ts";
+import { SITE_URL } from "../../data/site.ts";
+
+export function getStaticPaths() {
+  return GALLERY_ITEMS.map((item) => ({
+    params: { slug: item.slug },
+    props: { item },
+  }));
+}
+
+interface Props {
+  item: GalleryItem;
+}
+
+const { item } = Astro.props;
+const base = `/media/gallery/${item.slug}`;
+const compareHeight = item.compareHeight ?? item.height2400;
+---
+
+<BaseLayout
+  navKey={item.slug}
+  title={item.pageTitle}
+  description={item.description}
+  ogImage={`${SITE_URL}${base}/1200.jpg`}
+  ogImageAlt={item.alt}
+  bodyClass="gallery-page"
+>
+  <header class="page-head">
+    <div>
+      <p class="eyebrow"><a href="/gallery/">Gallery</a></p>
+      <h1>{item.name}</h1>
+    </div>
+    <p class="lede">{item.lede}</p>
+  </header>
+
+  <figure class="g-main">
+    <div class="g-photo" data-viewer data-size={item.fullSize} data-tiles={`${base}/tiles`}>
+      <img
+        src={`${base}/2400.jpg`}
+        srcset={`${base}/1200.jpg 1200w, ${base}/2400.jpg 2400w`}
+        sizes="(min-width: 1280px) 1152px, 100vw"
+        width={item.width2400}
+        height={item.height2400}
+        alt={item.alt}
+        fetchpriority="high"
+      />
+      <button class="hero-zoom" type="button" aria-label={item.zoomLabel} title="See it at 100%">
+        <ZoomIcon />
+      </button>
+    </div>
+  </figure>
+
+  <section class="g-section" aria-labelledby="shot-h">
+    <h2 id="shot-h">How it was shot and stacked</h2>
+    <dl class="g-facts">
+      <div><dt>Frames</dt><dd>{item.facts.frames}</dd></div>
+      <div><dt>Camera</dt><dd>{item.facts.camera}</dd></div>
+      <div><dt>Lens</dt><dd>{item.facts.lens}</dd></div>
+      <div><dt>Each frame</dt><dd>{item.facts.exposure}</dd></div>
+      <div><dt>Method</dt><dd>{item.facts.method}</dd></div>
+      <div><dt>Aligned with</dt><dd>{item.facts.alignedWith}</dd></div>
+      <div><dt>Result</dt><dd>{item.facts.result}</dd></div>
+      {
+        item.benchmarkKey && (
+          <div>
+            <dt>Stacked in</dt>
+            <dd>
+              <Measured path={`benchmarks.${item.benchmarkKey}.runs.pyramid.ecc.seconds`} digits={1} /> s on an{" "}
+              <Measured path={`benchmarks.${item.benchmarkKey}.label`} />, from reading the frames to the finished
+              picture
+            </dd>
+          </div>
+        )
+      }
+      {
+        item.sampleFact && (
+          <div>
+            <dt>Try this stack</dt>
+            <dd>
+              {item.sampleFact.map((link, idx) => (
+                <>
+                  {idx > 0 && " · "}
+                  <a href={link.href}>{link.label}</a>
+                </>
+              ))}
+            </dd>
+          </div>
+        )
+      }
+    </dl>
+    {
+      item.sampleFine && (
+        <p class="fine">
+          Try this stack yourself: download the {item.frameCount} frames as{" "}
+          {item.sampleFine.map((link, idx) => (
+            <>
+              {idx > 0 && " or "}
+              <a href={link.href}>{link.label}</a>
+            </>
+          ))}
+          .
+        </p>
+      )
+    }
+  </section>
+
+  <section class="g-section" aria-labelledby="one-h">
+    <h2 id="one-h">One frame, and the stack</h2>
+    <p>The frame focused farthest back, beside all {item.frameCount} stacked. Drag the line.</p>
+    <div class="compare" data-compare>
+      <img
+        src={`${base}/frame-2400.jpg`}
+        width={item.width2400}
+        height={compareHeight}
+        alt={`One frame of the ${item.frameCount}: a thin slice in focus`}
+        loading="lazy"
+      />
+      <img class="after" src={`${base}/2400.jpg`} width={item.width2400} height={compareHeight} alt={`All ${item.frameCount} frames stacked`} loading="lazy" />
+      <span class="compare-label left">One frame</span>
+      <span class="compare-label right">All {item.frameCount}, stacked</span>
+      <input type="range" min="0" max="100" value="50" aria-label="Move the line between one frame and the stack" />
+    </div>
+  </section>
+
+  <section class="g-section" aria-labelledby="build-h">
+    <h2 id="build-h">The stack building</h2>
+    <p>The stack after each frame, starting from the back, as Export Grow Sequence writes it.</p>
+    <video
+      class="g-video"
+      controls
+      muted
+      loop
+      playsinline
+      preload="none"
+      poster={`${base}/grow-poster.jpg`}
+      width={item.videoWidth}
+      height={item.videoHeight}
+      aria-label={item.videoLabel}
+    >
+      <source src={`${base}/grow.av1.mp4`} type='video/mp4; codecs="av01.0.08M.08"' />
+      <source src={`${base}/grow.h264.mp4`} type="video/mp4" />
+    </video>
+  </section>
+
+  <p class="g-back"><a href="/gallery/"><span aria-hidden="true">← </span>All the pictures</a></p>
+
+  <Fragment slot="scripts">
+    <script>
+      import "../../gallery.ts";
+    </script>
+  </Fragment>
+</BaseLayout>

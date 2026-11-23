@@ -1,0 +1,41 @@
+[package]
+name = "deptheos_e2e"
+description = "Checks the files the apps export in the end-to-end tests: that each opens as asked, and that the picture is a good stack of its frames"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+authors.workspace = true
+license.workspace = true
+repository.workspace = true
+homepage.workspace = true
+publish = false
+
+[dependencies]
+# RAW frames and DNG exports, which `image` can't open, read through the
+# engine: decoded by LibRaw or the DNG SDK, rendered to sRGB by the SDK.
+deptheos_core = { workspace = true }
+# A CR3's or RAF's metadata, which kamadak-exif can't find in the file.
+deptheos_app = { workspace = true }
+# The SDK's own render of a DNG (`sdk_render_file_srgb`), and the test DNGs
+# (`test_dng`) for the checker's own tests: `test-support` builds both in
+# any profile. The checker never ships, and the desktop takes it only for
+# its tests.
+deptheos_dng = { workspace = true, features = ["test-support"] }
+image = { workspace = true, features = ["jpeg", "png", "tiff", "rayon"] }
+kamadak-exif = { workspace = true }
+rayon = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+# The sets' 8-bit PNGs, written with their frame's EXIF (`e2e-check eight`).
+png = { workspace = true }
+# A set's manifest: each frame's SHA-256, so a set edited after its
+# references were signed off is caught.
+sha2 = "0.10"
+toml = "0.8"
+
+[dev-dependencies]
+tempfile = { workspace = true }
+
+[[bin]]
+name = "e2e-check"
+path = "src/main.rs"

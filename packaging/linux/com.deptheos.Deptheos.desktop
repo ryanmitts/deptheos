@@ -1,0 +1,15 @@
+[Desktop Entry]
+Type=Application
+Name=Deptheos
+GenericName=Focus Stacker
+Comment=Focus stacking for macro photography, on the GPU
+Exec=deptheos-gui %F
+Icon=com.deptheos.Deptheos
+Terminal=false
+Categories=Graphics;Photography;
+Keywords=focus;stack;stacking;macro;raw;dng;
+StartupWMClass=com.deptheos.Deptheos
+# The images it reads (deptheos_app::folder::is_image) as Open With choices,
+# like the Mac's Info.plist: a folder or images on the command line become a
+# stack.
+MimeType=image/jpeg;image/png;image/tiff;image/x-adobe-dng;image/x-dcraw;image/x-canon-cr2;image/x-canon-cr3;image/x-canon-crw;image/x-nikon-nef;image/x-nikon-nrw;image/x-sony-arw;image/x-sony-sr2;image/x-sony-srf;image/x-olympus-orf;image/x-fuji-raf;image/x-panasonic-rw2;image/x-panasonic-raw;image/x-pentax-pef;image/x-samsung-srw;image/x-sigma-x3f;image/x-kodak-dcr;image/x-kodak-kdc;image/x-minolta-mrw;

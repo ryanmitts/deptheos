@@ -1,0 +1,98 @@
+/* The website's palette, type and spacing. The apps' themes come from design/tokens.json; the site
+   does not read it, but keeps the brand's accent and grays in spirit, tuned for long reading, and
+   sets its own type: IBM Plex Sans and Plex Mono (OFL, self-hosted from @fontsource). Nothing here
+   reaches the apps. See design/README.md. */
+
+@import "@fontsource/ibm-plex-sans/latin-400.css";
+@import "@fontsource/ibm-plex-sans/latin-400-italic.css";
+@import "@fontsource/ibm-plex-sans/latin-500.css";
+@import "@fontsource/ibm-plex-sans/latin-600.css";
+@import "@fontsource/ibm-plex-mono/latin-400.css";
+@import "@fontsource/ibm-plex-mono/latin-500.css";
+
+:root {
+  /* Color: light */
+  --bg: #f5f6f8;
+  --panel: #ffffff;
+  --sunken: #eceef2;
+  --hover: #e2e6eb;
+  --fg: #14171c;
+  --body: #262b32;          /* running text: a step softer than headings */
+  --muted: #59616c;         /* 5.9:1 on --bg */
+  --line: #dde1e7;
+  --line-strong: #c3c9d1;
+  --accent: #1f57a3;        /* the app icon's blue, as in tokens.json */
+  --accent-hover: #163f78;
+  --accent-tint: #e7eef8;
+  --accent-fg: #ffffff;
+  --underline: rgb(31 87 163 / 0.35);
+  --ok: #22713c;
+  --warn: #875500;
+  --series-1: #a04a08;      /* 5.2:1 on --sunken */
+  --viewer: #121417;        /* behind photographs, in both themes */
+  --on-photo: #f2f3f5;
+  --scrim: rgb(10 12 15 / 0.62);
+  --shadow: 0 1px 2px rgb(20 23 28 / 0.05), 0 4px 16px rgb(20 23 28 / 0.05);
+
+  /* Type */
+  --font-sans: "IBM Plex Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-mono: "IBM Plex Mono", ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  /* Scale, ratio ~1.25 on 17px */
+  --t-xs: 12.5px;
+  --t-sm: 14px;
+  --t-md: 15.5px;
+  --t-base: 17px;
+  --t-lg: 20px;
+  --t-xl: 24px;
+  --t-2xl: 30px;
+  --t-3xl: clamp(30px, 4.2vw, 40px);
+  --t-4xl: clamp(34px, 5.4vw, 58px);
+
+  /* Space: 4px base */
+  --s1: 4px;
+  --s2: 8px;
+  --s3: 12px;
+  --s4: 16px;
+  --s5: 24px;
+  --s6: 32px;
+  --s7: 48px;
+  --s8: 64px;
+  --s9: 96px;
+  --s10: 136px;
+
+  /* Measure */
+  --wide: 1200px;
+  --text: 680px;
+  --gutter: 24px;           /* 16px on phones, below */
+
+  /* Corners */
+  --radius-sm: 4px;
+  --radius: 6px;
+  --radius-lg: 10px;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #0f1114;
+    --panel: #16191d;
+    --sunken: #1d2126;
+    --hover: #262b31;
+    --fg: #eceef1;
+    --body: #d3d8de;
+    --muted: #99a1ac;
+    --line: #252a30;
+    --line-strong: #353b43;
+    --accent: #86aff0;
+    --accent-hover: #abc8f6;
+    --accent-tint: #172334;
+    --accent-fg: #0a1628;
+    --underline: rgb(134 175 240 / 0.4);
+    --ok: #5cc283;
+    --warn: #e8a845;
+    --series-1: #e8833a;
+    --viewer: #0a0b0d;
+    --shadow: 0 1px 2px rgb(0 0 0 / 0.3);
+    color-scheme: dark;
+  }
+}
+@media (max-width: 640px) { :root { --gutter: 16px; } }

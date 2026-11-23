@@ -1,0 +1,8 @@
+{{#each licenses}}{{#unless (eq id "GPL-3.0-only")}}
+--------------------------------------------------------------------------------
+{{{name}}}
+
+Used by: {{#each used_by}}{{crate.name}} {{crate.version}}{{#unless @last}}, {{/unless}}{{/each}}
+
+{{{text}}}
+{{/unless}}{{/each}}

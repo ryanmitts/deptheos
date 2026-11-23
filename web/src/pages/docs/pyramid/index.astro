@@ -1,0 +1,190 @@
+---
+import DocsLayout from "../../../layouts/DocsLayout.astro";
+import Param from "../../../components/Param.astro";
+---
+
+<DocsLayout
+  docKey="pyramid"
+  title="Pyramid"
+  description="Deptheos's default stacking method: when to choose the pyramid, what its Smoothness setting does to the picture, and how it blends the frames level by level."
+  hasLabs
+>
+  <div class="prose">
+    <h1>Pyramid</h1>
+    <p class="lede">
+      The pyramid method, the default, splits every frame into levels of detail, from fine texture to broad
+      shading, and blends the frames separately in each level, giving the most weight to the sharpest.
+    </p>
+    <p>
+      Choose it for fine detail at many depths, such as hairs, bristles and antennae in front of a distant
+      background, and for subjects with jumps in depth. It reads each frame once, so it is also the quickest of
+      the three methods. Its weak spots are plain out-of-focus backgrounds, which can come out grainy, and dark
+      areas beside something bright and out of focus, where some of the bright thing's blur can show as a haze.
+      For those, try <a href="/docs/depth-map/">Depth</a>; <a href="/docs/methods/">Choosing a
+      method</a> shows the three side by side.
+    </p>
+  </div>
+
+  <section id="smoothness">
+    <div class="prose">
+      <h2>Smoothness</h2>
+      <p>
+        The method's one setting, from <Param path="ranges.pyramid.smoothness.min" /> to
+        <Param path="ranges.pyramid.smoothness.max" />, default
+        <Param path="defaults.pyramid.smoothness" />; the slider's ends read <em>Crisp, more
+        noise</em> and <em>Calm, softer</em>. It sets how much of each spot the sharpest frame takes. At low
+        Smoothness the sharpest frame takes nearly all of it; at high Smoothness the spot is shared among more
+        frames, whose noise then averages out.
+      </p>
+    </div>
+    <figure
+      class="lab"
+      id="smoothness-figure"
+      data-lab="stops"
+      data-assets="smoothness"
+      data-stops="s1=1|s4=4, the default|s10=10"
+      data-stops-label="Smoothness"
+      data-start="s4"
+      data-places="antenna=Antenna against green|leg=Spider's leg against the dark"
+      data-places-label="Place"
+      data-panels="{stop}-{place}.jpg=The result"
+      data-center="300,180|300,256"
+    >
+      <div class="lab-body">
+        <div class="pan"><img src="/media/labs/smoothness/s4-antenna.jpg" width="768" height="512" alt="The tip of the hornet's antenna against the green, at the default Smoothness" /></div>
+      </div>
+      <figcaption>
+        Results the app made from the hornet and spider sample stacks, at 100%: two places, each stacked at
+        three settings. Flick between the settings and watch the plain area beside the subject.
+      </figcaption>
+      <div class="lab-why" data-for="s1" hidden>
+        <p>
+          At 1 the sharpest frame takes nearly all the weight at every spot. In a plain area no frame is sharp,
+          so the winner is whichever frame's noise scores highest, a different frame from spot to spot, and the
+          area carries their grain.
+        </p>
+      </div>
+      <div class="lab-why" data-for="s4">
+        <p>The default sits between: plain areas are calmer than at 1, and fine detail is still crisp.</p>
+      </div>
+      <div class="lab-why" data-for="s10" hidden>
+        <p>
+          At 10 the weight is shared among many frames and their noise averages out: plain areas are smooth.
+          Fine detail is a touch softer, since frames where it is out of focus now get some weight. And beside
+          the spider's pale leg the dark background is a little lighter along the leg: more of the leg's glow.
+        </p>
+      </div>
+    </figure>
+    <div class="prose">
+      <p>
+        Start at the default. <strong>Lower it</strong> when fine detail should be as crisp as it can be, and
+        look for grain in plain areas. <strong>Raise it</strong> when a plain background comes out grainy, and
+        look for softer fine detail and for a lighter haze where something bright sits against something dark.
+        When no one setting suits the whole picture, stack at two and <a href="/docs/retouching/">paint</a> from
+        one render over the other. (Depth's <em>Smoothing</em> only fills in uncertain spots of the depth map,
+        whereas Pyramid's <em>Smoothness</em> blends more frames together across the whole picture.)
+      </p>
+    </div>
+  </section>
+
+  <section id="levels">
+    <div class="prose">
+      <h2>How it works, briefly</h2>
+      <p>
+        Each frame is split into a <em>Laplacian pyramid</em>: the frame is blurred and halved again and again,
+        and each level holds what one step of blurring and halving removed. Hairs, texture and speckles sit in
+        the finest level, the shapes of parts a few levels down, and the whole subject as a blob in the
+        coarsest. Adding the levels back up gives the frame again, so each level can be blended on its own and
+        the levels still add up to a clean picture.
+      </p>
+    </div>
+    <figure class="pyramid-diagram" id="pyramid-diagram" data-lab="diagram"><div class="figure-loading">Drawing the diagram…</div></figure>
+    <p class="caption">
+      A crop of one frame of a spider, at half size. Under <em>Gaussian pyramid</em>, that frame at the bottom and
+      ever smaller, blurrier copies above it. Under <em>Detail levels</em>, each level's detail: the level minus
+      the next smaller one scaled back up. Rebuilding runs down the detail levels: scale up, add the next detail
+      level, repeat.
+    </p>
+    <div class="prose">
+      <p>
+        Being out of focus removes fine detail first, so the frames differ most in the fine levels, where the
+        choice matters, and are nearly alike in the coarse ones. At every spot of every level each frame is
+        scored on how strong its detail is there, and the frames share the spot by weight: the best-scoring
+        frame gets the most, and the others a share that falls steeply as their score falls. Smoothness sets
+        how steeply.
+      </p>
+      <p>
+        The fine levels choose more sharply than the coarse ones, which blend more frames and so hide seams, and
+        the coarsest level is a plain average of every frame. To keep a bright out-of-focus blur from glowing
+        into adjacent dark areas, each frame's coarse weight is also scaled by a <em>fine-detail factor</em> so
+        frames that are out of focus around a spot lose weight in the coarse levels there too.
+      </p>
+      <p>
+        Burt and Adelson described the
+        <a href="https://www.rctn.org/bruno/public/papers/Laplacian-pyramid-Burt%2BAdelson1983.pdf">Laplacian
+        pyramid</a> in 1983, and the same year used it to
+        <a href="https://cs.brown.edu/courses/cs129/2020_Fall/labs/lab_compositing/BurtAdelson_LaplacianPyramidBlending_1983.pdf">join
+        two photos without a visible seam</a>, by blending them level by level. The pyramid method does the same
+        with focus.
+      </p>
+      <details class="numbers">
+        <summary>In numbers</summary>
+        <ul>
+          <li>
+            The halving stops when one more would take the short side below
+            <Param path="constants.pyramid.level_floor_px" /> pixels, so the number of levels depends
+            on the picture's size.
+          </li>
+          <li>
+            A frame's weight at a spot is its score divided by the best score there, raised to a power. At the
+            finest level, that exponent is <Param path="constants.pyramid.exponent_base" /> minus Smoothness
+            (<Param path="at.pyramid.default.finest_exponent" /> at the default;
+            <Param path="at.pyramid.min.finest_exponent" /> at Smoothness
+            <Param path="ranges.pyramid.smoothness.min" />;
+            <Param path="at.pyramid.max.finest_exponent" /> at Smoothness
+            <Param path="ranges.pyramid.smoothness.max" />), stepping down linearly to
+            <Param path="constants.pyramid.coarsest_exponent_ratio" />× that value at the coarsest level.
+          </li>
+          <li>
+            From Smoothness <Param path="at.pyramid.score_blur_from" /> up, each level's scores are
+            blurred a little before they are compared, so that one noisy pixel cannot decide.
+          </li>
+          <li>
+            The fine-detail factor is the frame's score at the second finest level, pooled over its
+            neighborhood and raised to the power <Param path="constants.pyramid.prior_exponent" />.
+          </li>
+        </ul>
+      </details>
+      <details id="mixing">
+        <summary>Try blending two frames by hand</summary>
+        <p>
+          Two frames from the 66-frame hornet stack: frame A has its pale front leg in focus, and in frame B the
+          leg is far out of focus. Each row beside the picture is one level, the coarsest at the top, and its
+          two tiles show what A and B hold there. Click a tile to take that level of the result from that
+          frame.
+        </p>
+        <figure class="lab" id="mixer" data-lab="mixer" data-assets="mixer" data-patch="215,190">
+          <div class="lab-body">
+            <div class="pan"><img src="/media/labs/mixer/b.jpg" loading="lazy" width="512" height="384" alt="The hornet's pale front leg against its dark body, out of focus" /></div>
+          </div>
+          <figcaption>
+            The result opens as frame B. Switch the rows to A one at a time from the bottom, then try the
+            preset buttons. In the tiles, detail is drawn against mid-gray and strengthened so that it shows.
+          </figcaption>
+          <div class="lab-why">
+            <p>
+              In the fine levels A holds edges and texture and B is empty gray, so the finest two or three levels
+              from A are enough to make the result look sharp, whichever frame the coarse levels come from.
+            </p>
+            <p>
+              The coarsest row holds only broad light and color, and B's is paler: its out-of-focus leg is spread
+              over the dark body beside it. Flick between <em>Fine from A, coarse from B</em> and <em>All from
+              A</em> and watch the dark parts next to the leg. That light is the glow the method keeps out by
+              taking less of the coarse levels from frames that are blurred there.
+            </p>
+          </div>
+        </figure>
+      </details>
+    </div>
+  </section>
+</DocsLayout>

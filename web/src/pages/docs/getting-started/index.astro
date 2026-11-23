@@ -1,0 +1,179 @@
+---
+import Shot from "../../../components/Shot.astro";
+import DocsLayout from "../../../layouts/DocsLayout.astro";
+import Param from "../../../components/Param.astro";
+---
+
+<DocsLayout
+  docKey="getting-started"
+  title="Your first stack"
+  description="From a fresh install of Deptheos to a saved focus stack: adding frames, choosing a method, stacking, checking the result and exporting it."
+>
+  <div class="prose">
+    <h1>Your first stack</h1>
+    <p class="lede">
+      This page takes you from a fresh install, with nothing in the Library, to a finished picture saved as a
+      file. You need one focus bracket: a set of photos of the same subject, taken from the same place, with the
+      focus moved a little between each one.
+    </p>
+  </div>
+
+  <section id="need">
+    <div class="prose">
+      <p>
+        If you haven't installed Deptheos yet, see <a href="/docs/install/">Installing</a> for system
+        requirements and setup steps.
+      </p>
+      <h2 id="samples">A stack to try</h2>
+      <p>
+        Deptheos includes a small built-in sample bracket on first launch. To try a full-size 45 MP bracket,
+        download one of the gallery's. Each is a zip of the frames as they came from the camera, as JPEG or as
+        Canon RAW (CR3); unzip it and add the folder.
+      </p>
+      <table class="which-table">
+        <thead>
+          <tr><th scope="col">Stack</th><th scope="col">Frames</th><th scope="col">Download</th></tr>
+        </thead>
+        <tbody>
+          <tr>
+            <th scope="row"><a href="/gallery/spider/">Spider</a></th>
+            <td data-label="Frames:">46</td>
+            <td><a href="https://images.deptheos.com/spider1-jpeg.zip">JPEG (250 MB)</a> · <a href="https://images.deptheos.com/spider1-cr3.zip">CR3 (711 MB)</a></td>
+          </tr>
+          <tr>
+            <th scope="row"><a href="/gallery/hornet/">Hornet</a></th>
+            <td data-label="Frames:">66, handheld</td>
+            <td><a href="https://images.deptheos.com/samples/hornet-jpeg.zip">JPEG (264 MB)</a> · <a href="https://images.deptheos.com/samples/hornet-cr3.zip">CR3 (1.1 GB)</a></td>
+          </tr>
+          <tr>
+            <th scope="row"><a href="/gallery/pcb/">Circuit board</a></th>
+            <td data-label="Frames:">200, on a tripod</td>
+            <td><a href="https://images.deptheos.com/samples/pcb-jpeg.zip">JPEG (412 MB)</a> · <a href="https://images.deptheos.com/samples/pcb-cr3.zip">CR3 (3.1 GB)</a></td>
+          </tr>
+        </tbody>
+      </table>
+      <p>
+        Keys on these pages are written as on a Mac. On Windows and Linux, ⌘ is Ctrl and ⌥ is Alt. The Mac has
+        a menu bar; on Windows and Linux the same menus are under the ≡ button in the window's title bar (F10
+        opens it).
+      </p>
+    </div>
+  </section>
+
+  <section id="steps">
+    <div class="prose">
+      <h2>From frames to a saved picture</h2>
+      <ol class="steps">
+        <li>
+          <strong>Add the frames.</strong> Deptheos opens on the Library, its home screen, which is empty the
+          first time. Drag a folder of frames, or the frames themselves, onto the window, or click
+          <em>Add Frames…</em> (⌘O) or <em>Add Folder…</em> (⇧⌘O). Deptheos reads camera RAW files (CR3, NEF,
+          ARW, RAF, ORF and the others LibRaw reads), DNG, JPEG, TIFF and PNG. A stack is either all RAW and DNG
+          or all JPEG, TIFF and PNG; <a href="/docs/raw/">RAW, DNG and color</a> explains how each kind is
+          read. Adding frames opens the Stacking screen.
+        </li>
+      </ol>
+    </div>
+    <figure class="shot"><Shot name="library-empty" width="2880" height="1800" loading="lazy" alt="The Library on first launch, empty, with its drop area and Add Frames and Add Folder buttons." /><figcaption>The Library on first launch. Drop a folder anywhere on it.</figcaption></figure>
+    <div class="prose">
+      <ol class="steps" start="2">
+        <li>
+          <strong>Check the list.</strong> The <em>Frames</em> list on the left has one row per frame, with a
+          thumbnail and the file name, and its header counts them ("44 of 46" when two are excluded). Every
+          frame starts included. Select rows (click, ⌘-click, ⇧-click) and press <em>X</em> to exclude them,
+          for example a test shot at the start; an excluded row stays in place, dimmed with a crossed-out eye.
+          Press <em>X</em> again to include it. Right-click the list for <em>Include Only These</em>,
+          <em>Exclude Frames After This</em>, <em>Include All</em> and <em>Remove from List</em>.
+        </li>
+        <li>
+          <strong>Check the order.</strong> Frames stack in the list's order, which starts as file name order
+          (numbers compared as numbers, so IMG_9 comes before IMG_10). If your camera's file numbers wrapped
+          round during the bracket, right-click the list and choose <em>Sort by Capture Time</em>. When the two
+          orders disagree for a folder, a warning over the list says so and offers the same button. Near to far or far
+          to near makes no difference: the app works out which way the magnification runs, so frames shot in
+          exactly the reverse of their names' order raise no warning.
+        </li>
+        <li>
+          <strong>RAW + JPEG pairs.</strong> If the camera saved a RAW and a JPEG of each shot, each pair is one
+          row, and a <em>RAW + JPEG pairs</em> switch above the list chooses which file is stacked: <em>RAW</em> (the
+          default) or <em>JPEG</em>.
+        </li>
+      </ol>
+    </div>
+    <figure class="shot"><Shot name="stacking-frames" width="2880" height="1800" loading="lazy" alt="The Stacking screen after adding a folder of frames: the Frames list on the left with the first frame excluded, a frame in the viewer, and Pyramid selected in the inspector." /><figcaption>A folder added: one row per shot, the first excluded.</figcaption></figure>
+    <div class="prose">
+      <ol class="steps" start="5">
+        <li>
+          <strong>Choose a method, or keep the default.</strong> The inspector on the right holds the settings:
+          the method and its sliders first, then <em>Alignment</em>, a row that opens. <em>Method</em> offers
+          Pyramid, Depth and Wavelet. Pyramid is the default and the all-round choice;
+          keep its Smoothness at the default of <Param path="defaults.pyramid.smoothness" /> for the
+          first stack. <em>Alignment</em> starts at <em>ECC (affine)</em>, with <em>Crop to the area every frame
+          covers</em> on. <a href="/docs/methods/">Choosing a method</a> says when the others do better, and
+          Help ▸ Choosing a Method has a summary in the app.
+        </li>
+      </ol>
+    </div>
+    <figure class="shot"><Shot name="inspector-defaults" width="540" height="1800" loading="lazy" alt="The inspector at its defaults: Pyramid selected, Smoothness at 4.0, Alignment set to ECC (affine), cropped." /><figcaption>The inspector at its defaults.</figcaption></figure>
+    <div class="prose">
+      <ol class="steps" start="6">
+        <li>
+          <strong>Stack.</strong> Click <em>Stack</em> in the title bar, or press ⌘↩ (Ctrl+Enter). A panel shows
+          the two phases, <em>Aligning 12 of 46</em> and then <em>Blending</em>, with a progress bar and the time
+          left, while the viewer builds up a map of which frame each part is coming from, colored by frame
+          from the first to the last. <em>Cancel</em>, or ⌘. (Ctrl+.), stops it. While a stack runs, the list and the
+          settings are locked.
+        </li>
+        <li>
+          <strong>The result is saved for you.</strong> When the stack finishes, the result fills the viewer and
+          is saved automatically in the Library as render #1, appearing in the <em>Renders</em> strip along the
+          bottom of the window. The bottom of the inspector says how long it took. See
+          <a href="/docs/concepts/">Stacks, renders and the Library</a> for what a render keeps.
+        </li>
+      </ol>
+    </div>
+    <figure class="shot"><Shot name="stacking-progress" width="2880" height="1800" loading="lazy" alt="A 200-frame Pyramid stack in progress: the progress card showing Aligning 73 of 200, the colored frame map building in the viewer, and the colored focus rail below." /><figcaption>Stacking: the map of which frame supplies each part builds as the frames go in.</figcaption></figure>
+    <div class="prose">
+      <ol class="steps" start="8">
+        <li>
+          <strong>Look at it at 100%.</strong> The view bar over the bottom left of the picture holds the render
+          shown, the focus rail through the frames, the views and the zoom. Press <em>⌘1</em> for Actual Size and <em>0</em> to fit the window again (Space switches
+          between the two), and drag to move around. Click a frame in the list to see it alone, lined up with the
+          result, then press <em>2</em> for Split and drag the divider across the edges you care about: hairs, antennae, the
+          rim of an eye. <a href="/docs/compare/">Viewing and comparing</a> covers the other views.
+        </li>
+      </ol>
+    </div>
+    <figure class="shot"><Shot name="split-frame" width="2880" height="1800" loading="lazy" alt="The finished result at 100% in Split view with a source frame on one side and the stacked result on the other." /><figcaption>Split at 100%: a source frame on the left, the result on the right.</figcaption></figure>
+    <div class="prose">
+      <ol class="steps" start="9">
+        <li>
+          <strong>Fix an edge, if one needs it.</strong> If something came out soft or doubled, click
+          <em>Retouch</em> (or press <em>P</em>) and paint it in from the frame where it is sharp.
+          <a href="/docs/retouching/">Retouching</a> shows how. Or try another method and stack again: each
+          Stack makes a new render, and the old ones stay.
+        </li>
+        <li>
+          <strong>Export.</strong> Click <em>Export</em> in the title bar, or press ⌘E. The Export sheet chooses
+          the format (TIFF, JPEG, PNG, or DNG for a RAW stack), the bit depth, the file name and the folder; it
+          starts next to the frames. Export Again (⇧⌘E) exports the next one with the same choices.
+          <a href="/docs/export/">Exporting</a> explains each choice.
+        </li>
+      </ol>
+    </div>
+    <figure class="shot"><Shot name="export-jpeg" width="2880" height="1800" loading="lazy" alt="The Export sheet for render #1 of a JPEG stack." /><figcaption>The Export sheet.</figcaption></figure>
+  </section>
+
+  <section id="next">
+    <div class="prose">
+      <h2>What next</h2>
+      <ul>
+        <li><a href="/docs/concepts/">Stacks, renders and the Library</a>: what is kept, and how to go back to an earlier result.</li>
+        <li><a href="/docs/methods/">Choosing a method</a>: when Depth or Wavelet beats Pyramid.</li>
+        <li><a href="/docs/alignment/">Aligning the frames</a>: what to do when frames are left out.</li>
+        <li><a href="/docs/batch/">Batch</a>: many folders stacked in one go.</li>
+        <li><a href="/docs/troubleshooting/">Troubleshooting</a>: when a stack doesn't finish.</li>
+      </ul>
+    </div>
+  </section>
+</DocsLayout>

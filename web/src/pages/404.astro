@@ -1,0 +1,19 @@
+---
+import BaseLayout from "../layouts/BaseLayout.astro";
+---
+
+<BaseLayout
+  navKey="not-found"
+  title="Page not found"
+  description="There is no page at this address on deptheos.com."
+  noindex
+>
+  <div class="prose">
+    <h1>Page not found</h1>
+    <p class="lede">There is no page at this address.</p>
+    <p>
+      Start again from the <a href="/">home page</a>, or go to the <a href="/docs/">docs</a>, the{" "}
+      <a href="/gallery/">gallery</a> or the <a href="/download/">download page</a>.
+    </p>
+  </div>
+</BaseLayout>

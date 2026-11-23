@@ -1,0 +1,20 @@
+# The newest Xcode 27 on the runner: the macOS 27 floor needs its SDK
+# (ADR-102). Fails when the image has none, rather than building with an
+# older SDK.
+
+name: Select Xcode 27
+description: Select the newest Xcode 27 installed on the runner, or fail.
+
+runs:
+  using: composite
+  steps:
+    - shell: bash
+      run: |
+        xcode=$(ls -d /Applications/Xcode_27*.app 2>/dev/null | sort -V | tail -1)
+        if [[ -z "$xcode" ]]; then
+          echo "::error::no Xcode 27 on this runner image; the macOS 27 floor needs its SDK (ADR-102)"
+          ls -d /Applications/Xcode*.app
+          exit 1
+        fi
+        sudo xcode-select -s "$xcode/Contents/Developer"
+        xcodebuild -version

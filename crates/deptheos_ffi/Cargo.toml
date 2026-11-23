@@ -1,0 +1,51 @@
+[package]
+name = "deptheos_ffi"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+authors.workspace = true
+license.workspace = true
+repository.workspace = true
+homepage.workspace = true
+description = "Swift bindings (UniFFI) over the stacking engine, for the iOS app"
+publish = false
+
+[lib]
+# staticlib: linked into the iOS app through an XCFramework
+# (ios/build-xcframework.sh). lib: for the bindgen binary and tests.
+crate-type = ["staticlib", "lib"]
+
+[dependencies]
+# LibRaw demosaics mosaic DNGs (the camera's Bayer bursts among them) and
+# decodes camera RAW for a stack set to LibRaw; Apple's frameworks decode
+# it otherwise, through the app's FrameDecoder (ADR-131).
+deptheos_app = { workspace = true }
+deptheos_core = { workspace = true }
+fast_image_resize = { workspace = true }
+futures = { workspace = true }
+image = { workspace = true, features = ["jpeg", "png", "tiff", "rayon"] }
+thiserror = { workspace = true }
+tracing = { workspace = true }
+uniffi = "0.32.2"
+
+[features]
+# The Swift binding generator, run on the host by build-xcframework.sh:
+#   cargo run -p deptheos_ffi --features bindgen --bin uniffi-bindgen-swift -- ...
+bindgen = ["uniffi/cli"]
+examples = []
+
+[[bin]]
+name = "uniffi-bindgen-swift"
+path = "src/bin/uniffi-bindgen-swift.rs"
+required-features = ["bindgen"]
+
+[dev-dependencies]
+tempfile = { workspace = true }
+zip = { workspace = true }
+
+[[example]]
+# The FFI surface end to end on the host, the way the iOS app drives it,
+# with the `image` crate standing in for the app's Apple decoder:
+#   cargo run --release -p deptheos_ffi --features examples --example smoke -- <folder>...
+name = "smoke"
+required-features = ["examples"]

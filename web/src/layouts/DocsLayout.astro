@@ -1,0 +1,131 @@
+---
+import BaseLayout from "./BaseLayout.astro";
+import { DOC_GROUPS, DOCS, docHref } from "../data/docs.ts";
+import { extractOutline } from "../lib/site-data.ts";
+
+interface Props {
+  /** Key in `DOCS`, or `"docs"` for the `/docs/` index page. */
+  docKey: string;
+  title: string;
+  description: string;
+  /** Set true on docs pages that mount interactive `[data-lab]` figures. */
+  hasLabs?: boolean;
+}
+
+const { docKey, title, description, hasLabs = false } = Astro.props;
+
+const index = DOCS.findIndex((d) => d.key === docKey);
+const current = index >= 0 ? DOCS[index] : undefined;
+const prev = index > 0 ? DOCS[index - 1] : undefined;
+const next = index >= 0 && index + 1 < DOCS.length ? DOCS[index + 1] : undefined;
+const summary = current ? `${current.group} · ${current.short}` : "All docs";
+
+// Render the page body once so we can extract its `<h2>` section outline for the sidebar
+// and inject the group eyebrow right above `<h1>` on individual doc pages.
+let bodyHtml = await Astro.slots.render("default");
+const sections = current ? extractOutline(bodyHtml) : [];
+if (current) {
+  bodyHtml = bodyHtml.replace(
+    "<h1>",
+    `<p class="eyebrow"><a href="/docs/">Docs</a> · ${current.group}</p>\n        <h1>`,
+  );
+}
+---
+
+<BaseLayout navKey={docKey} title={title} description={description} customArticle>
+  <div class="docs-layout">
+    <nav class="docs-nav" aria-label="Docs">
+      {
+        DOC_GROUPS.map((group) => (
+          <div class="docs-nav-group">
+            <p class="docs-nav-heading">{group}</p>
+            <ul>
+              {DOCS.filter((d) => d.group === group).map((doc) => (
+                <li>
+                  <a href={docHref(doc.key)} aria-current={doc.key === docKey ? "page" : undefined}>
+                    {doc.short}
+                  </a>
+                  {doc.key === docKey && sections.length > 0 && (
+                    <ol>
+                      {sections.map(([id, text]) => (
+                        <li>
+                          <a href={`#${id}`}>{text}</a>
+                        </li>
+                      ))}
+                    </ol>
+                  )}
+                </li>
+              ))}
+            </ul>
+          </div>
+        ))
+      }
+    </nav>
+
+    <details class="docs-mobile-nav">
+      <summary><span>Docs: {summary}</span></summary>
+      <nav aria-label="Docs menu">
+        {
+          DOC_GROUPS.map((group) => (
+            <div class="docs-nav-group">
+              <p class="docs-nav-heading">{group}</p>
+              <ul>
+                {DOCS.filter((d) => d.group === group).map((doc) => (
+                  <li>
+                    <a href={docHref(doc.key)} aria-current={doc.key === docKey ? "page" : undefined}>
+                      {doc.short}
+                    </a>
+                    {doc.key === docKey && sections.length > 0 && (
+                      <ol>
+                        {sections.map(([id, text]) => (
+                          <li>
+                            <a href={`#${id}`}>{text}</a>
+                          </li>
+                        ))}
+                      </ol>
+                    )}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          ))
+        }
+      </nav>
+    </details>
+
+    <main id="content" tabindex="-1">
+      <article>
+        <Fragment set:html={bodyHtml} />
+        {
+          current && (
+            <nav class="next-page" aria-label="Where next">
+              {prev && (
+                <a class="prev" href={docHref(prev.key)}>
+                  <small>Previous</small> <span>{prev.title}</span>
+                </a>
+              )}
+              {next && (
+                <a class="next" href={docHref(next.key)}>
+                  <small>Next</small> <span>{next.title}</span>
+                </a>
+              )}
+              <a class="back" href="/docs/">
+                All the docs
+              </a>
+            </nav>
+          )
+        }
+      </article>
+    </main>
+  </div>
+
+  {
+    hasLabs && (
+      <Fragment slot="scripts">
+        <script>
+          import "../labs/main.ts";
+        </script>
+      </Fragment>
+    )
+  }
+</BaseLayout>

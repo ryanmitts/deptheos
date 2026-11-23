@@ -1,0 +1,128 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Blind Compare</title>
+<style>
+  :root { --bg: #111; --fg: #ddd; --muted: #888; --accent: #6af; }
+  body { margin: 0; background: var(--bg); color: var(--fg); font: 14px system-ui, sans-serif; }
+  header { display: flex; gap: 12px; align-items: center; padding: 8px 12px; flex-wrap: wrap; }
+  header .muted { color: var(--muted); }
+  button { background: #222; color: var(--fg); border: 1px solid #444; border-radius: 4px; padding: 6px 10px; cursor: pointer; }
+  button.on { border-color: var(--accent); color: var(--accent); }
+  #stage { position: relative; display: flex; gap: 4px; height: calc(100vh - 96px); }
+  .pane { position: relative; flex: 1; overflow: hidden; background: #000; cursor: grab; }
+  .pane img { position: absolute; left: 0; top: 0; transform-origin: 0 0; image-rendering: pixelated; user-select: none; -webkit-user-drag: none; }
+  .label { position: absolute; left: 8px; top: 8px; background: #000a; padding: 2px 6px; border-radius: 3px; z-index: 1; }
+  footer { padding: 8px 12px; color: var(--muted); }
+</style>
+</head>
+<body>
+<header>
+  <strong id="title"></strong>
+  <button id="mode">Split</button>
+  <span class="muted">Flip: space · Zoom: scroll · Pan: drag · 1 = left/A better, 2 = right/B better, 0 = tie</span>
+  <button data-vote="left">A better</button>
+  <button data-vote="tie">Tie</button>
+  <button data-vote="right">B better</button>
+</header>
+<div id="stage"></div>
+<footer id="status"></footer>
+<script>
+let pairs = [], idx = 0, split = true, flipped = false;
+let view = { s: 0, x: 0, y: 0 };
+const stage = document.getElementById("stage");
+
+async function load() {
+  pairs = await (await fetch("/api/pairs")).json();
+  show();
+}
+
+function src(p, name) { return `/${p.dataset}/${name}.png`; }
+
+function show() {
+  if (idx >= pairs.length) {
+    stage.innerHTML = "<p style='padding:20px'>Done. Votes are in votes.jsonl.</p>";
+    document.getElementById("title").textContent = "";
+    return;
+  }
+  const p = pairs[idx];
+  document.getElementById("title").textContent = `${idx + 1}/${pairs.length} · ${p.dataset}`;
+  const sides = split ? [["A", p.left], ["B", p.right]] : [[flipped ? "B" : "A", flipped ? p.right : p.left]];
+  stage.innerHTML = "";
+  for (const [label, name] of sides) {
+    const pane = document.createElement("div");
+    pane.className = "pane";
+    pane.innerHTML = `<span class="label">${label}</span><img src="${src(p, name)}">`;
+    stage.appendChild(pane);
+    const img = pane.querySelector("img");
+    img.onload = () => { if (view.s === 0) fit(pane, img); apply(); };
+    attach(pane);
+  }
+  document.getElementById("mode").textContent = split ? "Split" : "Flip";
+  document.getElementById("mode").classList.toggle("on", !split);
+  document.getElementById("status").textContent = "";
+}
+
+function fit(pane, img) {
+  const s = Math.min(pane.clientWidth / img.naturalWidth, pane.clientHeight / img.naturalHeight);
+  view = { s, x: 0, y: 0 };
+}
+
+function apply() {
+  for (const img of stage.querySelectorAll("img")) img.style.transform = `translate(${view.x}px, ${view.y}px) scale(${view.s})`;
+}
+
+function attach(pane) {
+  pane.addEventListener("wheel", (e) => {
+    e.preventDefault();
+    const r = pane.getBoundingClientRect();
+    const mx = e.clientX - r.left, my = e.clientY - r.top;
+    const k = Math.exp(-e.deltaY * 0.002);
+    // Zoom about the cursor: the image point under it stays put.
+    view.x = mx - (mx - view.x) * k;
+    view.y = my - (my - view.y) * k;
+    view.s *= k;
+    apply();
+  }, { passive: false });
+  pane.addEventListener("pointerdown", (e) => {
+    const sx = e.clientX - view.x, sy = e.clientY - view.y;
+    const move = (m) => { view.x = m.clientX - sx; view.y = m.clientY - sy; apply(); };
+    const up = () => { removeEventListener("pointermove", move); removeEventListener("pointerup", up); };
+    addEventListener("pointermove", move);
+    addEventListener("pointerup", up);
+  });
+}
+
+// The pair a vote was recorded for: a second press while "Recorded" shows is ignored, so it
+// neither records twice nor skips the next pair.
+let voted = -1;
+async function vote(side) {
+  if (voted === idx || idx >= pairs.length) return;
+  voted = idx;
+  const p = pairs[idx];
+  const winner = side === "tie" ? "tie" : side === "left" ? p.left : p.right;
+  try {
+    await fetch("/api/vote", { method: "POST", body: JSON.stringify({ dataset: p.dataset, a: p.left, b: p.right, winner, t: new Date().toISOString() }) });
+  } catch (err) {
+    voted = -1;
+    document.getElementById("status").textContent = `Not recorded (${err.message}); vote again.`;
+    return;
+  }
+  document.getElementById("status").textContent = `Recorded. A was ${p.left}, B was ${p.right}.`;
+  setTimeout(() => { idx++; view.s = 0; flipped = false; show(); }, 1200);
+}
+
+document.querySelectorAll("[data-vote]").forEach((b) => b.onclick = () => vote(b.dataset.vote));
+document.getElementById("mode").onclick = () => { split = !split; view.s = 0; show(); };
+addEventListener("keydown", (e) => {
+  if (e.key === " ") { e.preventDefault(); if (!split) { flipped = !flipped; const keep = { ...view }; show(); view = keep; } }
+  else if (e.key === "1") vote("left");
+  else if (e.key === "2") vote("right");
+  else if (e.key === "0") vote("tie");
+});
+load();
+</script>
+</body>
+</html>

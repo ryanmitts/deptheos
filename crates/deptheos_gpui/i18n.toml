@@ -1,0 +1,7 @@
+# The desktop's own strings: i18n/<language>/deptheos_gpui.ftl, read by
+# `crate::words` (ADR-161), loaded for the language of the shared layer's
+# words. English is the language every message falls back to.
+fallback_language = "en-US"
+
+[fluent]
+assets_dir = "i18n"

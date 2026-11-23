@@ -1517,7 +1517,7 @@ fn a_root_is_found_again_where_its_bookmark_led() {
     let led = BookmarkResolution { root, path: PathBuf::from(&bee), fresh: Some(b"n".to_vec()) };
     let found = now(engine.clone().find_again(vec![led])).unwrap();
     assert_eq!(found.len(), 1);
-    let canon = std::fs::canonicalize(&bee).unwrap();
+    let canon = deptheos_app::frames::sources::canonical(&bee).unwrap();
     assert_eq!(now(engine.clone().list_renders(req())).unwrap()[0].frames, [canon.join("a.jpg")]);
     assert_eq!(
         now(engine.clone().reach(req(), vec![canon.join("a.jpg")])).unwrap(),

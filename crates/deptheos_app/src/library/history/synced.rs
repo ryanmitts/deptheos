@@ -41,7 +41,7 @@ pub fn sync_service(folder: &Path) -> Option<SyncService> {
         .filter_map(|name| std::env::var_os(name).map(PathBuf::from))
         .collect();
     // A link is followed where it exists.
-    let folder = std::fs::canonicalize(folder).unwrap_or_else(|_| folder.to_path_buf());
+    let folder = crate::frames::sources::canonical(folder).unwrap_or_else(|_| folder.to_path_buf());
     let around = Around { home: home.as_deref(), one_drive: &one_drive };
     service_of(&folder, &around, &|p| p.exists())
 }

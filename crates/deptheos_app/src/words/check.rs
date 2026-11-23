@@ -234,7 +234,8 @@ impl Catalog<'_> {
             std::fs::write(path, &text).unwrap();
             return;
         }
-        let recorded = std::fs::read_to_string(path).unwrap_or_default();
+        // A Windows checkout may end its lines with CRLF.
+        let recorded = std::fs::read_to_string(path).unwrap_or_default().replace("\r\n", "\n");
         if recorded != text {
             let differs = recorded
                 .lines()

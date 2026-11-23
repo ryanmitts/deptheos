@@ -12,7 +12,7 @@ fn header_levels_redaction_panics_and_bundle() {
     let file = installed.current_file().unwrap();
 
     let home = dirs::home_dir().unwrap();
-    tracing::info!("opened {}", home.join("Pictures/Hornet").display());
+    tracing::info!("opened {}", home.join("Pictures").join("Hornet").display());
     tracing::debug!(target: "deptheos_app::runs::batch", "hidden transition");
     installed.set_verbose(true);
     assert!(installed.is_verbose());
@@ -31,7 +31,8 @@ fn header_levels_redaction_panics_and_bundle() {
     let text = std::fs::read_to_string(&file).unwrap();
     assert!(text.contains("Deptheos (test) 1.2.3 (abc1234 debug)"), "{text}");
     assert!(text.contains("os: "), "{text}");
-    assert!(text.contains("opened ~/Pictures/Hornet"), "{text}");
+    let sep = std::path::MAIN_SEPARATOR;
+    assert!(text.contains(&format!("opened ~{sep}Pictures{sep}Hornet")), "{text}");
     assert!(!text.contains(&*home.to_string_lossy()), "{text}");
     assert!(text.contains("shown transition"), "{text}");
     assert!(!text.contains("hidden"), "{text}");

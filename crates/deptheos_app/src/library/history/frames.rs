@@ -173,7 +173,7 @@ pub(crate) fn canonical_under(path: &Path) -> Option<PathBuf> {
     let mut rest = Vec::new();
     let mut at = path;
     loop {
-        if let Ok(canonical) = std::fs::canonicalize(at) {
+        if let Ok(canonical) = crate::frames::sources::canonical(at) {
             return Some(rest.iter().rev().fold(canonical, |p, n| p.join(n)));
         }
         rest.push(at.file_name()?);
@@ -398,7 +398,7 @@ impl Frames {
             // In the front end's form when it is the root's own folder.
             let own = sources
                 .root_path(&root)
-                .is_some_and(|at| std::fs::canonicalize(folder).is_ok_and(|c| c == at));
+                .is_some_and(|at| crate::frames::sources::canonical(folder).is_ok_and(|c| c == at));
             let pointed = if own { vec![(root.clone(), folder.to_path_buf())] } else { Vec::new() };
             let moves = named.moved((&before, &was), sources, &moved, pointed);
             Ok((moves, root))
@@ -861,7 +861,7 @@ mod tests {
 
         // A new session: from the roots, the folder in its canonical form.
         let again = Frames::open(frames.places.clone()).unwrap();
-        let canon = std::fs::canonicalize(dir.path().join("Bee")).unwrap();
+        let canon = crate::frames::sources::canonical(dir.path().join("Bee")).unwrap();
         assert_eq!(again.paths(&refs[..1]).unwrap(), [canon.join("2.tif")]);
         // Named again without a read; a missing unread file from its root.
         std::fs::remove_file(&paths[1]).unwrap();
@@ -938,7 +938,7 @@ mod tests {
 
         // The roots kept their place for the next session.
         let again = Frames::open(frames.places.clone()).unwrap();
-        let canon = std::fs::canonicalize(at("all")).unwrap();
+        let canon = crate::frames::sources::canonical(at("all")).unwrap();
         assert_eq!(
             again.paths(&refs).unwrap(),
             [canon.join("trip/a.tif"), canon.join("day1/b.tif")]
@@ -974,7 +974,7 @@ mod tests {
         let paths = photos(dir.path(), "card", &["a.tif"]);
         let root = frames.refs(&paths).unwrap().remove(0).root;
         let bookmark = |frames: &Frames| frames.sources().bookmark(&root).cloned();
-        let at = |p: &str| std::fs::canonicalize(dir.path()).unwrap().join(p);
+        let at = |p: &str| crate::frames::sources::canonical(dir.path()).unwrap().join(p);
         assert_eq!(bookmark(&frames), made(&at("card")));
 
         std::fs::rename(dir.path().join("card"), dir.path().join("Bee")).unwrap();
@@ -1003,7 +1003,7 @@ mod tests {
         assert!(frames.find_again(&[]).unwrap().is_empty());
         let led = Resolution { root: root.clone(), path: at("Bee"), fresh: None };
         let moves = frames.find_again(&[led]).unwrap();
-        let now = std::fs::canonicalize(at("Bee")).unwrap();
+        let now = crate::frames::sources::canonical(at("Bee")).unwrap();
         assert_eq!(moves.path(&was), Some(now.join("a.tif")));
         assert_eq!(frames.paths(&refs).unwrap(), [now.join("a.tif")]);
         assert!(!frames.is_lost(&root));

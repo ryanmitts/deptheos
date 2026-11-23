@@ -169,7 +169,7 @@ fn a_folder_renamed_is_found_again_at_launch(cx: &mut TestAppContext) {
     crate::test_support::quit(cx, window, app);
     std::fs::rename(&trip, &moved).unwrap();
     let (_, app) = launch(cx, &engine, Vec::new(), &root);
-    let stored = std::fs::canonicalize(&moved).unwrap();
+    let stored = deptheos_app::frames::sources::canonical(&moved).unwrap();
     wait_until(cx, "the folder found again", |cx| {
         app.read_with(cx, |app, cx| {
             let renders = app.renders.read(cx).renders();
@@ -209,7 +209,7 @@ fn a_folder_that_only_partly_matches_is_not_offered(cx: &mut TestAppContext) {
     }
     let changed = moved.join(names[1].file_name().unwrap());
     std::fs::write(&changed, b"not the frame it was").unwrap();
-    let was = std::fs::canonicalize(&trip).unwrap();
+    let was = deptheos_app::frames::sources::canonical(&trip).unwrap();
     std::fs::remove_dir_all(&trip).unwrap();
     let (_, app) = launch(cx, &engine, Vec::new(), &root);
     wait_until(cx, "the frames missing where they were", |cx| {
@@ -306,7 +306,7 @@ fn relinking_a_moved_folder(cx: &mut TestAppContext) {
     app.read_with(cx, |app, cx| assert_eq!(app.files.read(cx).missing_count(), 0));
     assert_eq!(notices(cx), before + 1, "found 2 of 2 is said");
     // Read again from the roots: via the temp folder's link or its target.
-    let stored = std::fs::canonicalize(&moved).unwrap();
+    let stored = deptheos_app::frames::sources::canonical(&moved).unwrap();
     wait_until(cx, "the list saved", |cx| {
         let first =
             crate::test_support::library(cx, &app).read_working().unwrap().list.files[0].clone();

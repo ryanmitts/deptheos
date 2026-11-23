@@ -147,7 +147,7 @@ fn a_batch_makes_one_render_per_folder(cx: &mut TestAppContext) {
     let failure = crate::test_support::library(cx, &app).failures().unwrap().remove(0);
     // Named as the app named the gone folder: via the temp link or its target.
     let named = |at: &Path| vec![at.join("x/1.png"), at.join("x/2.png")];
-    let at = std::fs::canonicalize(dir.path()).unwrap();
+    let at = deptheos_app::frames::sources::canonical(dir.path()).unwrap();
     assert!([named(&at), named(dir.path())].contains(&failure.frames), "{:?}", failure.frames);
     // Clicking it loads its images in place of the list.
     act(cx, window, &app, |app, window, cx| app.retry(&failure, window, cx));

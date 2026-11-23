@@ -421,7 +421,9 @@ fn a_reset_is_saved() {
     assert!(!open(dir.path(), &base).is_painted());
 }
 
-/// A commit after its render is deleted fails without making a folder.
+/// A commit after its render is deleted fails without making a folder. On
+/// Unix only: Windows doesn't move a folder with a file open in it.
+#[cfg(unix)]
 #[test]
 fn a_commit_never_brings_back_a_deleted_render() {
     let (dir, base) = (render_dir(), base());

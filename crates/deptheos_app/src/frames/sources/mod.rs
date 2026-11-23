@@ -30,7 +30,7 @@ use serde::{Deserialize, Serialize};
 use serde_json::{Map, Value};
 use thiserror::Error;
 
-pub use disk::Disk;
+pub use disk::{Disk, canonical};
 pub use find::Resolution;
 pub use probe::{FINGERPRINT_END, FileId, Fingerprint, Mounted, Probe, Same, Stat, in_trash, key};
 

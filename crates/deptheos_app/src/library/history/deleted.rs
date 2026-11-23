@@ -584,7 +584,8 @@ mod tests {
                 let path = entry.path();
                 if path.is_dir() {
                     folders.push(path);
-                } else {
+                } else if entry.file_name() != crate::library::history::lock::LOCK_FILE {
+                    // The lock is held, and on Windows locked against reading.
                     let bytes = std::fs::read(&path).unwrap();
                     files.push((path.strip_prefix(dir).unwrap().to_path_buf(), bytes));
                 }

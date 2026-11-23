@@ -31,7 +31,7 @@ impl Probe for Disk {
     }
 
     fn canonical(&self, path: &Path) -> io::Result<PathBuf> {
-        std::fs::canonicalize(path).map(|p| plain(&p))
+        canonical(path)
     }
 
     fn volume(&self, path: &Path) -> io::Result<Mounted> {
@@ -56,6 +56,12 @@ impl Probe for Disk {
             .filter_map(|entry| entry.file_name().into_string().ok())
             .collect())
     }
+}
+
+/// `path` with its links resolved, in its plain form: what every path the
+/// engine compares is canonicalized by, never `std::fs::canonicalize` alone.
+pub fn canonical(path: impl AsRef<Path>) -> io::Result<PathBuf> {
+    std::fs::canonicalize(path).map(|p| plain(&p))
 }
 
 /// `path` without Windows' verbatim prefix (`\\?\C:\a` is `C:\a`,

@@ -34,11 +34,10 @@ fn export_from_the_library_stays_in_the_library(cx: &mut TestAppContext) {
     choice.dir = out.path().to_path_buf();
     choice.place = ExportPlace::Last;
     choice.reveal = false;
+    // Held at its write, so it is seen running however fast it is.
+    let held = crate::work::gate::hold("export");
     dialog.update(cx, |_, cx| cx.emit(ExportDialogEvent::Export(choice)));
-    // Once the pool has said the file isn't there.
-    wait_until(cx, "the export to start", |cx| {
-        app.read_with(cx, |app, cx| app.export_progress_text(cx).is_some())
-    });
+    wait_until(cx, "the export to start", |_| held.waiting() == 1);
     app.read_with(cx, |app, cx| {
         assert_eq!(app.export_progress_text(cx).as_deref(), Some("Exporting out.png…"));
         assert!(app.files_being_written(cx), "quitting waits for it");
@@ -48,6 +47,7 @@ fn export_from_the_library_stays_in_the_library(cx: &mut TestAppContext) {
             "and so does Delete Library"
         );
     });
+    held.open();
     let written = out.path().join("out.png");
     wait_until(cx, "the export", |cx| {
         written.exists() && app.read_with(cx, |app, cx| app.export_progress_text(cx).is_none())
@@ -135,6 +135,8 @@ fn one_export_runs_at_a_time(cx: &mut TestAppContext) {
     let first = active(cx, &app).unwrap();
     let sheet = |cx: &mut TestAppContext| app.read_with(cx, |app, _| export_sheet(app));
     let out = tempfile::tempdir().unwrap();
+    // Each export is held at its write until `over`, so it is seen running.
+    let held = std::cell::RefCell::new(None);
     let export_as = |cx: &mut TestAppContext, name: &str| {
         let dialog = sheet(cx).expect("the export sheet");
         let mut choice = dialog.read_with(cx, |d, cx| d.choice(cx)).expect("it can export");
@@ -143,14 +145,16 @@ fn one_export_runs_at_a_time(cx: &mut TestAppContext) {
         choice.dir = out.path().to_path_buf();
         choice.place = ExportPlace::Last;
         choice.reveal = false;
+        let gate = crate::work::gate::hold("export");
         dialog.update(cx, |_, cx| cx.emit(ExportDialogEvent::Export(choice)));
-        wait_until(cx, "the export to start", |cx| {
-            app.read_with(cx, |app, cx| {
-                app.export_progress_text(cx).is_some_and(|t| t.contains(name))
-            })
+        wait_until(cx, "the export to start", |_| gate.waiting() == 1);
+        app.read_with(cx, |app, cx| {
+            assert!(app.export_progress_text(cx).is_some_and(|t| t.contains(name)), "{name}");
         });
+        *held.borrow_mut() = Some(gate);
     };
     let over = |cx: &mut TestAppContext, name: &str| {
+        held.borrow_mut().take();
         let written = out.path().join(name);
         wait_until(cx, "the export", |cx| {
             written.exists() && !app.read_with(cx, |app, _| app.is_exporting())
@@ -278,15 +282,14 @@ fn exports_from_the_sheet_and_again(cx: &mut TestAppContext) {
     choice.dir = out.path().to_path_buf();
     choice.place = ExportPlace::Last;
     choice.reveal = false;
+    let held = crate::work::gate::hold("export");
     dialog.update(cx, |_, cx| cx.emit(ExportDialogEvent::Export(choice)));
     let first = out.path().join("out.png");
-    // Once the pool has said the file isn't there.
-    wait_until(cx, "the export to start", |cx| {
-        app.read_with(cx, |app, cx| app.export_progress_text(cx).is_some())
-    });
+    wait_until(cx, "the export to start", |_| held.waiting() == 1);
     app.read_with(cx, |app, cx| {
         assert_eq!(app.export_progress_text(cx).as_deref(), Some("Exporting out.png…"));
     });
+    held.open();
     wait_until(cx, "the export", |_| first.exists());
     app.read_with(cx, |app, cx| {
         assert!(export_sheet(app).is_none(), "the sheet closed");

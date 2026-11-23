@@ -63,16 +63,17 @@ fn preview_stack_and_compare(cx: &mut TestAppContext) {
     for part in ["view-home", "focus-rail", "view-layouts", "contribution"] {
         assert!(vcx.debug_bounds(part).is_some(), "{part} is in the view bar");
     }
-    let compare = vcx.debug_bounds("view-compare").expect("Compare is in the view bar");
-    vcx.simulate_click(compare.center(), gpui::Modifiers::none());
+    assert!(vcx.debug_bounds("view-compare").is_some(), "Compare is in the view bar");
+    // Compare waits for the render to be saved; then, its notice slid away, it is clicked.
+    wait_until(cx, "the render saved", |cx| {
+        app.read_with(cx, |app, cx| !app.renders.read(cx).is_saving())
+    });
+    click(cx, window, "view-compare");
     app.read_with(cx, |app, cx| assert_eq!(app.viewer.read(cx).mode().look(), Some(Look::Split)));
     wait_until(cx, "the compare source", |cx| {
         app.read_with(cx, |app, cx| !app.viewer.read(cx).is_loading())
     });
-    let mut vcx = gpui::VisualTestContext::from_window(window, cx);
-    vcx.run_until_parked();
-    let compare = vcx.debug_bounds("view-compare").expect("Compare stays in the view bar");
-    vcx.simulate_click(compare.center(), gpui::Modifiers::none());
+    click(cx, window, "view-compare");
     app.read_with(cx, |app, cx| assert_eq!(app.viewer.read(cx).mode(), ViewMode::Result));
 
     // A compare mode with nothing selected loads the stack's first frame.

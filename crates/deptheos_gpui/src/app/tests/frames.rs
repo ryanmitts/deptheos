@@ -291,7 +291,9 @@ fn relinking_a_moved_folder(cx: &mut TestAppContext) {
     }
     std::fs::remove_dir_all(&trip).unwrap();
     let (window, app) = launch(cx, &engine, Vec::new(), &root);
-    app.read_with(cx, |app, cx| assert_eq!(app.files.read(cx).missing_count(), 2));
+    wait_until(cx, "the file check", |cx| {
+        app.read_with(cx, |app, cx| app.files.read(cx).missing_count() == 2)
+    });
     let notices = |cx: &mut TestAppContext| {
         cx.update_window(window, |_, window, cx| window.notifications(cx).len()).unwrap()
     };

@@ -123,6 +123,8 @@ pub fn quit(cx: &mut TestAppContext, window: AnyWindowHandle, app: Entity<crate:
         cx.update(|_| {});
         deptheos_app::library::history::History::open(&root).is_ok()
     });
+    // Its writes already queued still land; a test that edits the Library next waits for them.
+    assert!(deptheos_app::engine::store::store().flush(STORE_DRAINS), "the writes landed");
 }
 
 pub use deptheos_app::test_support::engine;

@@ -34,7 +34,7 @@ env:
 
 jobs:
   macos:
-    runs-on: macos-26 # Apple Silicon
+    runs-on: xcode-27 # macOS 27 with Xcode 27, Apple silicon
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
       - uses: ./.github/actions/select-xcode
@@ -204,7 +204,7 @@ jobs:
   #                   certificates): the .p8 file's contents
   #   ASC_API_KEY_ID  its key id (the issuer is APPLE_API_ISSUER)
   ios:
-    runs-on: macos-26
+    runs-on: xcode-27
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
       - uses: ./.github/actions/select-xcode

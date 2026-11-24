@@ -27,3 +27,7 @@ dependency whose license `licenses/about.toml` does not accept
 `CLAUDE.md` has the project's conventions and the quick checks for each part
 of the code. `docs/decisions/` says why things are built as they are; read
 the record for an area before changing its approach.
+
+## The apps' text
+
+The words to use are in [docs/terms-and-usage.md](docs/terms-and-usage.md). The strings: the shared layer's in `crates/deptheos_app/i18n/en-US/deptheos_app.ftl`, the desktop's in `crates/deptheos_gpui/i18n/en-US/deptheos_gpui.ftl`, iOS's in `ios/DeptheosMobile/Localizable.xcstrings` (brought up to date by `xcodebuild -exportLocalizations`, as the terms doc says); the command line's and stackrig's in their source.

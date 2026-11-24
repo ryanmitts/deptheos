@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.2.1
+
+- A new app icon, on every platform and the website.
+- The iPhone and iPad app's first build for TestFlight.
+
 ## 0.2.0
 
 A new app. Deptheos is rebuilt on a Rust engine that stacks on the GPU through

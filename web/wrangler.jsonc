@@ -14,6 +14,12 @@
     // An address with no file gets 404.html and a 404 status.
     "not_found_handling": "404-page"
   },
+  // The domains that serve it, each a custom domain (Cloudflare makes their DNS
+  // records). Every page's canonical address is on deptheos.com.
+  "routes": [
+    { "pattern": "deptheos.com", "custom_domain": true },
+    { "pattern": "www.deptheos.com", "custom_domain": true }
+  ],
   // The site is also at deptheos-web.<account>.workers.dev, to look at a deploy
   // before the domain serves it.
   "workers_dev": true

@@ -1,4 +1,5 @@
 ---
+import { TESTFLIGHT } from "../../data/site.ts";
 import Shot from "../../components/Shot.astro";
 import "../../site/home.css";
 import BaseLayout from "../../layouts/BaseLayout.astro";
@@ -15,17 +16,19 @@ import Measured from "../../components/Measured.astro";
 >
   <header class="ios-hero">
     <div>
-      <p class="eyebrow">iPhone and iPad · coming soon</p>
+      <p class="eyebrow">iPhone and iPad · public beta</p>
       <h1>The desktop stacking engine, on iPhone and iPad</h1>
       <p class="lede">
         Stack 45 MP brackets on the device, with nothing uploaded, on modern Apple silicon
         with Pyramid, Depth, and Wavelet, automatic alignment, linear RAW to DNG, and Apple Pencil retouching on
         iPad.
       </p>
+      <div class="hero-cta">
+        <a class="btn primary" href={TESTFLIGHT}>Join the beta on TestFlight</a>
+      </div>
       <p class="ios-badge-note">
-        Coming soon to the App Store, free like the desktop app. Requires iPhone 15 Pro or newer, or an iPad with
-        an M-series or A17 Pro chip (iOS 26 / iPadOS 26). Watch
-        <a href="https://github.com/ryanmitts/deptheos/releases">GitHub Releases</a> for launch updates.
+        In public beta on TestFlight, free like the desktop app, and coming to the App Store. Requires iPhone 15
+        Pro or newer, or an iPad with an M-series or A17 Pro chip (iOS 26 / iPadOS 26); TestFlight and the App Store offer it only on those devices.
       </p>
     </div>
     <figure class="device-shot phone-frame">

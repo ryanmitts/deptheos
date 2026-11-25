@@ -1,4 +1,5 @@
 ---
+import { TESTFLIGHT } from "../../data/site.ts";
 import "../../site/download.css";
 import BaseLayout from "../../layouts/BaseLayout.astro";
 import Param from "../../components/Param.astro";
@@ -164,7 +165,7 @@ const version = String(getParam("version"));
     </section>
 
     <aside class="dl-ios" id="ios" aria-labelledby="ios-h">
-      <p class="eyebrow">Coming soon</p>
+      <p class="eyebrow">Public beta</p>
       <h2 id="ios-h">iPhone and iPad</h2>
       <p>The desktop app's stacking engine on iPhone and iPad, with everything on the device. <a href="/iphone/">See what it does <span aria-hidden="true">→</span></a></p>
       <ul>
@@ -172,9 +173,10 @@ const version = String(getParam("version"));
         <li>Retouch with Apple Pencil on iPad, with pressure sensitivity, hover preview, and double-tap/squeeze shortcuts.</li>
         <li>Import brackets from Photos, Files, or an external drive, or capture them with the built-in bracketing tool.</li>
       </ul>
+      <p><a class="btn primary" href={TESTFLIGHT}>Join the beta on TestFlight</a></p>
       <p class="soon-note">
         Requires a modern device: iPhone 15 Pro or newer, or an iPad with an M-series or A17 Pro chip or newer,
-        on iOS 26 or iPadOS 26.
+        on iOS 26 or iPadOS 26. TestFlight and the App Store offer it only on those devices. It comes to the App Store after the beta.
       </p>
     </aside>
   </div>

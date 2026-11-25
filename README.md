@@ -51,7 +51,7 @@ Installers are on the [Releases](https://github.com/ryanmitts/deptheos/releases/
 | macOS | macOS 27 or later, Apple silicon (no Intel build) | a signed and notarized `.dmg` |
 | Windows | Windows 10 or later, 64-bit | an installer (not code-signed yet, so SmartScreen warns), or a portable `.zip` |
 | Linux (preview) | x86-64 or ARM64, glibc 2.35 or newer (Ubuntu 22.04, Debian 12, Fedora 36 and later), a Vulkan driver | `.deb`, `.rpm` or a tarball |
-| iPhone and iPad | iPhone 15 Pro or newer, or an iPad with an M-series or A17 Pro chip; iOS or iPadOS 26 | coming soon, on the App Store |
+| iPhone and iPad | iPhone 15 Pro or newer, or an iPad with an M-series or A17 Pro chip; iOS or iPadOS 26 | the [public beta on TestFlight](https://testflight.apple.com/join/XheabQmv); the App Store after it |
 
 Stacking runs on the GPU (Metal, DirectX 12 or Vulkan; integrated graphics will do), and 16 GB of memory is recommended. A Windows or Linux computer with no GPU stacks on the CPU instead, much more slowly.
 

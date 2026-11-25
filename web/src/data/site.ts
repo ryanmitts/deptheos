@@ -5,6 +5,9 @@ export const SITE_URL = "https://deptheos.com";
 /** The public repository: the source, the license and the downloads (its releases). */
 export const REPO = "https://github.com/ryanmitts/deptheos";
 
+/** The iPhone and iPad app's public beta: TestFlight's join link. */
+export const TESTFLIGHT = "https://testflight.apple.com/join/XheabQmv";
+
 export const DEFAULT_DESCRIPTION = "Focus stacking for macro photography.";
 export const DEFAULT_OG_IMAGE = `${SITE_URL}/media/gallery/hornet/1200.jpg`;
 export const DEFAULT_OG_ALT = "A hornet photographed with a focus stack";

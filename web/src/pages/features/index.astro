@@ -1,4 +1,5 @@
 ---
+import { TESTFLIGHT } from "../../data/site.ts";
 import Shot from "../../components/Shot.astro";
 import "../../site/home.css";
 import BaseLayout from "../../layouts/BaseLayout.astro";
@@ -14,7 +15,7 @@ import Measured from "../../components/Measured.astro";
 >
   <header class="page-head">
     <div>
-      <p class="eyebrow">macOS (Apple silicon) · Windows · Linux preview · iPhone &amp; iPad soon</p>
+      <p class="eyebrow">macOS (Apple silicon) · Windows · Linux preview · iPhone &amp; iPad beta</p>
       <h1>Features</h1>
     </div>
     <p class="lede">
@@ -39,7 +40,7 @@ import Measured from "../../components/Measured.astro";
       </div>
       <div>
         <dt>Native GPU Engine</dt>
-        <dd><strong>Metal, DirectX 12, Vulkan</strong> on macOS, Windows, and Linux, with iPhone &amp; iPad soon. Free under GPL-3.0.</dd>
+        <dd><strong>Metal, DirectX 12, Vulkan</strong> on macOS, Windows, and Linux, with iPhone &amp; iPad in beta. Free under GPL-3.0.</dd>
       </div>
     </dl>
   </section>
@@ -350,7 +351,7 @@ import Measured from "../../components/Measured.astro";
   <section class="chapter ios-band" id="ios" aria-labelledby="ios-h">
     <div class="ios-band-grid">
       <div class="ios-band-text">
-        <p class="eyebrow">iPhone and iPad · coming soon</p>
+        <p class="eyebrow">iPhone and iPad · public beta</p>
         <h2 id="ios-h">iPhone and iPad</h2>
         <p>
           The desktop app's stacking engine on iPhone and iPad, with everything on the device. Import brackets
@@ -359,9 +360,9 @@ import Measured from "../../components/Measured.astro";
         </p>
         <p>
           Requires iPhone 15 Pro or newer, or an iPad with an M-series or A17 Pro chip or newer, on iOS 26 or
-          iPadOS 26.
+          iPadOS 26. TestFlight and the App Store offer it only on those devices.
         </p>
-        <p class="more"><a href="/iphone/">Deptheos for iPhone and iPad</a></p>
+        <p class="more"><a href={TESTFLIGHT}>Join the beta on TestFlight</a> · <a href="/iphone/">Deptheos for iPhone and iPad</a></p>
       </div>
       <figure class="device-shot ipad-frame">
         <Shot name="iphone-duo-open" width="2853" height="2007" loading="lazy" alt="Deptheos on iPhone Duo in open mode showing the stacked 66-frame hornet render with its focus rail." />

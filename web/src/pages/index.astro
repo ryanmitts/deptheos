@@ -7,7 +7,7 @@ import Measured from "../components/Measured.astro";
 import BrandTile from "../components/BrandTile.astro";
 import ZoomIcon from "../components/ZoomIcon.astro";
 import { getParam } from "../lib/site-data.ts";
-import { DEFAULT_OG_IMAGE, SITE_URL } from "../data/site.ts";
+import { DEFAULT_OG_IMAGE, SITE_URL, TESTFLIGHT } from "../data/site.ts";
 
 const description =
   "GPU focus stacking for macOS, Windows, and Linux: 200 frames at 45 MP in about 5 seconds. RAW in, 16-bit linear DNG out, three methods, retouching. Free and open source.";
@@ -69,7 +69,7 @@ const jsonLd = JSON.stringify({
     </p>
     <div class="hero-text">
       <div class="hero-head">
-        <p class="eyebrow">Free &amp; open source · macOS · Windows · Linux · iPhone &amp; iPad soon</p>
+        <p class="eyebrow">Free &amp; open source · macOS · Windows · Linux · iPhone &amp; iPad beta</p>
         <h1>Focus stacking in seconds.</h1>
       </div>
       <div class="hero-side">
@@ -362,13 +362,13 @@ const jsonLd = JSON.stringify({
   <section class="chapter ios-band" id="iphone" aria-labelledby="ios-band-h">
     <div class="ios-band-grid">
       <div class="ios-band-text">
-        <p class="eyebrow">iPhone and iPad · coming soon</p>
+        <p class="eyebrow">iPhone and iPad · public beta</p>
         <h2 id="ios-band-h">The same stacking engine on iPhone and iPad</h2>
         <p>
           Everything runs on the device, and nothing is uploaded. Import 45 MP brackets from Photos, Files, or an
           external drive, stack with Pyramid, Depth, or Wavelet, and retouch with Apple Pencil on iPad.
         </p>
-        <p class="more"><a href="/iphone/">Deptheos for iPhone and iPad</a></p>
+        <p class="more"><a href={TESTFLIGHT}>Join the beta on TestFlight</a> · <a href="/iphone/">Deptheos for iPhone and iPad</a></p>
       </div>
       <figure class="device-shot ipad-frame">
         <Shot name="iphone-duo-open" width="2853" height="2007" loading="lazy" alt="Deptheos on iPhone Duo in open mode showing the stacked 66-frame hornet result with the focus rail along the bottom and controls along the right." />
@@ -438,7 +438,7 @@ const jsonLd = JSON.stringify({
         <h2 id="download-h">Free on macOS, Windows, and Linux</h2>
         <p>
           Runs on Apple silicon Macs, Windows 10 or later, and Linux, even on integrated graphics. No account, no watermark,
-          no paid tiers. The <a href="/iphone/">iPhone and iPad app</a> is coming soon.
+          no paid tiers. The <a href="/iphone/">iPhone and iPad app</a> is in public beta on <a href={TESTFLIGHT}>TestFlight</a>.
         </p>
         <div class="hero-cta">
           <a class="btn primary" href="/download/">Download free</a>

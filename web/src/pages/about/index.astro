@@ -1,4 +1,5 @@
 ---
+import { TESTFLIGHT } from "../../data/site.ts";
 import BaseLayout from "../../layouts/BaseLayout.astro";
 ---
 
@@ -10,8 +11,8 @@ import BaseLayout from "../../layouts/BaseLayout.astro";
   <div class="prose">
     <h1>About Deptheos</h1>
     <p class="lede">
-      Deptheos is a free, open-source focus stacker built by Ryan Mitts for macOS, Windows, Linux, and coming soon
-      to iPhone and iPad.
+      Deptheos is a free, open-source focus stacker built by Ryan Mitts for macOS, Windows and Linux, and in public beta
+      on iPhone and iPad.
     </p>
   </div>
 
@@ -60,7 +61,7 @@ import BaseLayout from "../../layouts/BaseLayout.astro";
         Areas planned for future releases, with no fixed dates:
       </p>
       <ul>
-        <li><strong>iPhone and iPad release</strong> on the App Store, bringing the desktop GPU stacking engine and Apple Pencil retouching to iOS and iPadOS.</li>
+        <li><strong>iPhone and iPad release</strong> on the App Store, after the <a href={TESTFLIGHT}>TestFlight beta</a>, bringing the desktop GPU stacking engine and Apple Pencil retouching to iOS and iPadOS.</li>
         <li><strong>Code-signed Windows installer</strong>, so Windows SmartScreen no longer warns on first install.</li>
         <li><strong>Slabs</strong>, for stacking deep brackets in overlapping groups and retouching from them.</li>
         <li><strong>More gallery subjects and machine timings</strong>, including everyday laptops and integrated GPUs.</li>

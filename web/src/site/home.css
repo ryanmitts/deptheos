@@ -411,6 +411,7 @@
 .ios-hero { display: grid; grid-template-columns: minmax(0, 7fr) minmax(0, 5fr); gap: var(--s6) var(--s7); align-items: center; padding-top: var(--s8); }
 .ios-hero h1 { margin: 0 0 var(--s4); }
 .ios-hero .lede { margin: 0 0 var(--s4); }
+.ios-hero .hero-cta { margin-bottom: var(--s5); }
 .ios-badge-note { margin: 0; padding: var(--s3) var(--s4); border: 1px solid var(--line); border-radius: var(--radius); background: var(--panel); font-size: var(--t-md); color: var(--muted); max-width: 46ch; }
 .ios-feature { display: grid; grid-template-columns: minmax(0, 6fr) minmax(0, 6fr); gap: var(--s5) var(--s7); align-items: center; margin-top: var(--s8); padding-top: var(--s6); border-top: 1px solid var(--line); }
 .ios-feature h2 { margin: 0 0 var(--s3); font-size: var(--t-2xl); }

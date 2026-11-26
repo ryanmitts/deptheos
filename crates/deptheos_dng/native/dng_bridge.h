@@ -211,17 +211,37 @@ void deptheos_write_dng(const std::string &output_path,
                         int32_t width, int32_t height, int32_t channels,
                         DngWriteKind kind);
 
+// A white point in CIE 1931 xy.
+struct DngWhiteXY {
+    double x = 0;
+    double y = 0;
+};
+
 // Render: linear pixels with `meta`'s color science, rendered by the SDK to
-// 16-bit sRGB (gray gamma 2.2 for one channel).
+// 16-bit sRGB (gray gamma 2.2 for one channel), at `white` (none: as shot)
+// and `exposure` stops over the baseline.
 DngReadResult deptheos_render_to_srgb(
         const uint16_t *pixels, size_t pixel_count,
         int32_t width, int32_t height, int32_t channels,
-        const DngImageMetadata &meta);
+        const DngImageMetadata &meta,
+        const std::optional<DngWhiteXY> &white, double exposure);
 
 // Metadata
-// The GPU render's parameters, in the C API's own struct; free with
-// dt_dng_render_params_free.
-struct DtDngRenderParams *deptheos_compute_render_params(const DngImageMetadata &meta);
+// The GPU render's parameters at `white` (none: as shot), in the C API's
+// own struct; free with dt_dng_render_params_free.
+struct DtDngRenderParams *deptheos_compute_render_params(const DngImageMetadata &meta,
+                                                         const std::optional<DngWhiteXY> &white);
+// The white the render takes as shot; none for a monochrome negative or
+// one without a usable profile.
+std::optional<DngWhiteXY> deptheos_as_shot_white(const DngImageMetadata &meta);
+// The camera neutral of `white` under `meta`'s profile, as AsShotNeutral
+// holds it (largest 1); none where deptheos_as_shot_white has none.
+std::optional<std::vector<double>> deptheos_neutral_for_white(const DngImageMetadata &meta,
+                                                              const DngWhiteXY &white);
+// The SDK's temperature (kelvin) and tint of a white, and back
+// (dng_temperature).
+void deptheos_temperature_of(const DngWhiteXY &white, double &kelvin, double &tint);
+DngWhiteXY deptheos_temperature_white(double kelvin, double tint);
 // Replaces `meta`'s camera profile with the DCP's; camera calibration and
 // as-shot neutral stay. On a throw (dng_error_bad_format for a non-DCP),
 // `meta` is unchanged.

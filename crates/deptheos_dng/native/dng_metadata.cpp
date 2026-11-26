@@ -1,8 +1,10 @@
 // Metadata in and out of the SDK: DngImageMetadata from a parsed negative,
-// GPU render parameters from dng_color_spec, and DCP profiles applied.
+// GPU render parameters and white points from dng_color_spec, temperatures
+// from dng_temperature, and DCP profiles applied.
 
 #include "dng_bridge_internal.h"
 #include "dng_c_api.h"
+#include "dng_temperature.h"
 
 // ---------------------------------------------------------------------------
 // Helpers for metadata extraction
@@ -56,8 +58,36 @@ static void put_hue_sat(const dng_hue_sat_map &map, uint32_t dims[3], float *&da
     std::copy(floats.begin(), floats.end(), data);
 }
 
+// The color spec of a negative's default profile, or none for a monochrome
+// negative or one without a usable profile (those render through identity).
+static std::unique_ptr<dng_color_spec> make_color_spec(dng_negative &negative,
+                                                       dng_camera_profile &profile) {
+    const dng_camera_profile_id profileID;
+    if (negative.IsMonochrome() || negative.ProfileCount() == 0 ||
+        !negative.GetProfileByID(profileID, profile)) {
+        return nullptr;
+    }
+    return std::unique_ptr<dng_color_spec>(negative.MakeColorSpec(profileID));
+}
+
+// Sets `white`, or the white the SDK's render takes as shot: the camera
+// neutral's, else the camera white, else D55 (as dng_render_task::Start).
+// Setting it interpolates a dual-illuminant profile's matrices for it.
+static void set_white(dng_color_spec &spec, const dng_negative &negative,
+                      const std::optional<DngWhiteXY> &white) {
+    if (white)
+        spec.SetWhiteXY(dng_xy_coord(white->x, white->y));
+    else if (negative.HasCameraNeutral())
+        spec.SetWhiteXY(spec.NeutralToXY(negative.CameraNeutral()));
+    else if (negative.HasCameraWhiteXY())
+        spec.SetWhiteXY(negative.CameraWhiteXY());
+    else
+        spec.SetWhiteXY(D55_xy_coord());
+}
+
 // `out` starts zeroed.
-static void fill_render_params(dng_negative &negative, DtDngRenderParams &out) {
+static void fill_render_params(dng_negative &negative, const std::optional<DngWhiteXY> &white,
+                               DtDngRenderParams &out) {
     for (int i = 0; i < 257; i++)
         out.tone_curve[i] = (float)i / 256.0f;
 
@@ -79,28 +109,13 @@ static void fill_render_params(dng_negative &negative, DtDngRenderParams &out) {
         for (int i = 0; i < 3; i++) out.camera_white[i] = 1.0f;
     };
 
-    if (negative.IsMonochrome() || negative.ProfileCount() == 0) {
-        set_identity();
-        return;
-    }
-
-    const dng_camera_profile_id profileID;
     dng_camera_profile profile;
-    if (!negative.GetProfileByID(profileID, profile)) {
+    std::unique_ptr<dng_color_spec> spec = make_color_spec(negative, profile);
+    if (!spec) {
         set_identity();
         return;
     }
-
-    // Setting the white point interpolates a dual-illuminant profile's
-    // matrices for it.
-    AutoPtr<dng_color_spec> spec(negative.MakeColorSpec(profileID));
-
-    if (negative.HasCameraNeutral())
-        spec->SetWhiteXY(spec->NeutralToXY(negative.CameraNeutral()));
-    else if (negative.HasCameraWhiteXY())
-        spec->SetWhiteXY(negative.CameraWhiteXY());
-    else
-        spec->SetWhiteXY(D55_xy_coord());
+    set_white(*spec, negative, white);
 
     // Camera → ProPhoto RGB
     dng_matrix cameraToRGB = dng_space_ProPhoto::Get().MatrixFromPCS()
@@ -158,15 +173,66 @@ struct RenderParamsFree {
 };
 } // namespace
 
-DtDngRenderParams *deptheos_compute_render_params(const DngImageMetadata &meta) {
+DtDngRenderParams *deptheos_compute_render_params(const DngImageMetadata &meta,
+                                                  const std::optional<DngWhiteXY> &white) {
     deptheos_host host;
     AutoPtr<dng_negative> negative(
         rebuild_negative_from_metadata(host, meta, nullptr, 0, 0, 0));
     // Frees the struct and its arrays if a later allocation throws.
     std::unique_ptr<DtDngRenderParams, RenderParamsFree> out(new DtDngRenderParams());
     std::memset(out.get(), 0, sizeof(DtDngRenderParams));
-    fill_render_params(*negative, *out);
+    fill_render_params(*negative, white, *out);
     return out.release();
+}
+
+std::optional<DngWhiteXY> deptheos_as_shot_white(const DngImageMetadata &meta) {
+    deptheos_host host;
+    AutoPtr<dng_negative> negative(
+        rebuild_negative_from_metadata(host, meta, nullptr, 0, 0, 0));
+    dng_camera_profile profile;
+    std::unique_ptr<dng_color_spec> spec = make_color_spec(*negative, profile);
+    if (!spec) return std::nullopt;
+    set_white(*spec, *negative, std::nullopt);
+    const dng_xy_coord &xy = spec->WhiteXY();
+    return DngWhiteXY{xy.x, xy.y};
+}
+
+std::optional<std::vector<double>> deptheos_neutral_for_white(const DngImageMetadata &meta,
+                                                              const DngWhiteXY &white) {
+    deptheos_host host;
+    AutoPtr<dng_negative> negative(
+        rebuild_negative_from_metadata(host, meta, nullptr, 0, 0, 0));
+    dng_camera_profile profile;
+    std::unique_ptr<dng_color_spec> spec = make_color_spec(*negative, profile);
+    if (!spec) return std::nullopt;
+    set_white(*spec, *negative, white);
+    // SetWhiteXY scales it to a largest of 1, each entry pinned to
+    // [0.001, 1], as the SDK holds a camera neutral.
+    const dng_vector &cw = spec->CameraWhite();
+    std::vector<double> neutral(cw.Count());
+    for (uint32 i = 0; i < cw.Count(); i++) neutral[i] = cw[i];
+    return neutral;
+}
+
+// A white the SDK takes: finite, and valid (dng_xy_coord::IsValid). The
+// same test as src/lib.rs's `WhiteXy::is_valid`.
+static bool is_valid(const DngWhiteXY &w) {
+    return std::isfinite(w.x) && std::isfinite(w.y) && dng_xy_coord(w.x, w.y).IsValid();
+}
+
+void deptheos_temperature_of(const DngWhiteXY &white, double &kelvin, double &tint) {
+    const dng_xy_coord xy = is_valid(white) ? dng_xy_coord(white.x, white.y)
+                                                   : D50_xy_coord();
+    const dng_temperature temperature(xy);
+    kelvin = temperature.Temperature();
+    tint = temperature.Tint();
+}
+
+DngWhiteXY deptheos_temperature_white(double kelvin, double tint) {
+    const dng_xy_coord xy = std::isfinite(kelvin) && kelvin > 0 && std::isfinite(tint)
+                                ? dng_temperature(kelvin, tint).Get_xy_coord()
+                                : D50_xy_coord();
+    return DngWhiteXY{xy.x, xy.y};
 }
 
 // ---------------------------------------------------------------------------

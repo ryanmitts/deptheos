@@ -19,6 +19,13 @@ extern "C" {
 
 typedef struct DtDngImage DtDngImage;
 
+// A white point in CIE 1931 xy. Where a call takes one, NULL is the white
+// as shot (deptheos_as_shot_white).
+typedef struct DtDngWhite {
+    double x;
+    double y;
+} DtDngWhite;
+
 // Initializes the DNG and XMP SDKs. Idempotent; every SDK entry point calls it.
 void dt_dng_initialize(void);
 
@@ -87,7 +94,8 @@ int64_t dt_dng_pixel_count(const DtDngImage *img);
 const uint16_t *dt_dng_pixels(const DtDngImage *img);
 
 // Renders linear pixels (a composite) to sRGB with `meta_source`'s color
-// science, as a new image.
+// science at `white` and `exposure` stops over the baseline
+// (dng_render's SetWhiteXY and SetExposure), as a new image.
 DtDngImage *dt_dng_render_linear_to_srgb(
     const DtDngImage *meta_source,
     const uint16_t *pixels,
@@ -95,6 +103,8 @@ DtDngImage *dt_dng_render_linear_to_srgb(
     int32_t width,
     int32_t height,
     int32_t channels,
+    const DtDngWhite *white,
+    double exposure,
     DtStatus *status);
 
 // Builds DNG metadata from LibRaw's, so a stack of non-DNG RAW frames can be
@@ -133,8 +143,11 @@ typedef struct DtDngField {
 // Software tag, `user_comment` and `xmp` are added, `capture_time` (ISO
 // 8601) fills a missing DateTimeOriginal, and `fields` replace the carried
 // metadata's same tags, so the export names camera, lens and exposure as
-// the frame does (LibRaw normalizes the model name). Each string may be
-// NULL or empty. Layout matches the Rust declaration (src/lib.rs).
+// the frame does (LibRaw normalizes the model name). `white`, if not NULL,
+// is written as AsShotNeutral: its camera neutral under the carried
+// profile (none for a monochrome file or one without a profile). Each
+// string may be NULL or empty. Layout matches the Rust declaration
+// (src/lib.rs).
 typedef struct DtDngTags {
     const char *software;
     const char *user_comment;
@@ -142,6 +155,7 @@ typedef struct DtDngTags {
     const char *capture_time;
     const DtDngField *fields;
     size_t field_count;
+    const DtDngWhite *white;
 } DtDngTags;
 
 // Writes pixels to a DNG with `meta_source`'s metadata, minus GPS and the
@@ -190,11 +204,27 @@ typedef struct DtDngRenderParams {
     float tone_curve[257];
 } DtDngRenderParams;
 
-// NULL on failure.
+// The parameters at `white` (NULL: as shot). NULL on failure.
 DtDngRenderParams *dt_dng_compute_render_params(const DtDngImage *meta_source,
+                                                const DtDngWhite *white,
                                                 DtStatus *status);
 
 void dt_dng_render_params_free(DtDngRenderParams *params);
+
+// The white the render takes as shot, in `out`, with `has` 1; `has` 0 for a
+// monochrome file or one without a usable profile. Returns 1 on success.
+int32_t dt_dng_as_shot_white(const DtDngImage *meta_source, DtDngWhite *out, int32_t *has,
+                             DtStatus *status);
+
+// The SDK's temperature (kelvin) and tint of `white` (dng_temperature); a
+// white not finite, or with x or y not positive, reads as D50. Returns 1 on
+// success.
+int32_t dt_dng_temperature_of(DtDngWhite white, double *kelvin, double *tint);
+
+// The white of a temperature and tint (dng_temperature); a kelvin not
+// finite and positive, or a tint not finite, reads as D50. Returns 1 on
+// success.
+int32_t dt_dng_temperature_white(double kelvin, double tint, DtDngWhite *out);
 
 #ifdef __cplusplus
 } // extern "C"

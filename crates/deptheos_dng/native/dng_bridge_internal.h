@@ -299,8 +299,11 @@ void fill_image_metadata(dng_host &host, dng_negative &negative,
 
 
 // Stage 3's default crop rendered by the SDK to 16-bit sRGB (gray gamma 2.2
-// for a monochrome negative).
-DngReadResult render_negative_to_srgb(dng_host &host, dng_negative &negative);
+// for a monochrome negative), at `white` (none: as shot) and `exposure`
+// stops over the baseline.
+DngReadResult render_negative_to_srgb(dng_host &host, dng_negative &negative,
+                                      const std::optional<DngWhiteXY> &white = std::nullopt,
+                                      double exposure = 0.0);
 
 dng_negative * rebuild_negative_from_metadata(
     dng_host &host, const DngImageMetadata &meta,

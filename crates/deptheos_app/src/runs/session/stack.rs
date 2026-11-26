@@ -411,6 +411,7 @@ pub(crate) fn export(
                 xmp: tags.xmp.as_deref().unwrap_or_default(),
                 capture_time: &crate::library::export_tags::capture_time_iso(tags),
                 fields: &crate::library::export_tags::dng_fields(tags),
+                white: None,
             };
             if !look.reframe().is_none() {
                 return Err(Error::InvalidState("a DNG keeps the whole picture".into()));

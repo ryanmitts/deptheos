@@ -30,7 +30,10 @@ static_assert(offsetof(DtDngRenderParams, look_table_encoding) == 116, "DtDngRen
 static_assert(offsetof(DtDngRenderParams, look_table_data) == 120, "DtDngRenderParams layout changed");
 static_assert(offsetof(DtDngRenderParams, look_table_count) == 128, "DtDngRenderParams layout changed");
 static_assert(offsetof(DtDngRenderParams, tone_curve) == 136, "DtDngRenderParams layout changed");
-static_assert(sizeof(DtDngTags) == 48, "DtDngTags layout changed");
+static_assert(sizeof(DtDngTags) == 56, "DtDngTags layout changed");
+static_assert(offsetof(DtDngTags, white) == 48, "DtDngTags layout changed");
+static_assert(sizeof(DtDngWhite) == 16, "DtDngWhite layout changed");
+static_assert(offsetof(DtDngWhite, y) == 8, "DtDngWhite layout changed");
 static_assert(offsetof(DtDngTags, fields) == 32, "DtDngTags layout changed");
 static_assert(offsetof(DtDngTags, field_count) == 40, "DtDngTags layout changed");
 static_assert(sizeof(DtDngField) == 24, "DtDngField layout changed");
@@ -53,6 +56,11 @@ struct DtDngImage {
 namespace {
 
 DtDngImage *wrap(DngReadResult &&decoded) { return new DtDngImage{std::move(decoded)}; }
+
+std::optional<DngWhiteXY> white_of(const DtDngWhite *white) {
+    if (!white) return std::nullopt;
+    return DngWhiteXY{white->x, white->y};
+}
 
 std::string fixed_str(const char *s, size_t n) { return std::string(s, strnlen(s, n)); }
 
@@ -328,13 +336,16 @@ DtDngImage *dt_dng_render_linear_to_srgb(
     int32_t width,
     int32_t height,
     int32_t channels,
+    const DtDngWhite *white,
+    double exposure,
     DtStatus *status) {
     if (!meta_source || !pixels || !valid_pixel_geometry(pixel_count, width, height, channels)) {
         return nullptr;
     }
     return guarded<DtDngImage *>("render_to_srgb", status, [&] {
-        return wrap(deptheos_render_to_srgb(
-            pixels, pixel_count, width, height, channels, meta_source->result.metadata));
+        return wrap(deptheos_render_to_srgb(pixels, pixel_count, width, height, channels,
+                                            meta_source->result.metadata, white_of(white),
+                                            exposure));
     });
 }
 
@@ -429,6 +440,11 @@ int32_t dt_dng_write(
         md.stack.userComment = tags->user_comment ? tags->user_comment : "";
         md.stack.xmp = tags->xmp ? tags->xmp : "";
         md.stack.sourceTags = source_tags(tags->fields, tags->field_count);
+        if (tags->white) {
+            if (auto neutral = deptheos_neutral_for_white(md, *white_of(tags->white))) {
+                md.colorScience.asShotNeutral = std::move(*neutral);
+            }
+        }
         deptheos_write_dng(out_path, md, pixels, pixel_count, width, height, channels,
                            DngWriteKind::Picture);
         return 1;
@@ -438,12 +454,48 @@ int32_t dt_dng_write(
 void dt_dng_free(DtDngImage *img) { delete img; }
 
 DtDngRenderParams *dt_dng_compute_render_params(const DtDngImage *meta_source,
+                                                const DtDngWhite *white,
                                                 DtStatus *status) {
     if (!meta_source) {
         return nullptr;
     }
     return guarded<DtDngRenderParams *>("compute_render_params", status, [&] {
-        return deptheos_compute_render_params(meta_source->result.metadata);
+        return deptheos_compute_render_params(meta_source->result.metadata, white_of(white));
+    });
+}
+
+int32_t dt_dng_as_shot_white(const DtDngImage *meta_source, DtDngWhite *out, int32_t *has,
+                             DtStatus *status) {
+    if (!meta_source || !out || !has) {
+        return 0;
+    }
+    return guarded<int32_t>("as_shot_white", status, [&] {
+        const std::optional<DngWhiteXY> white =
+            deptheos_as_shot_white(meta_source->result.metadata);
+        *has = white ? 1 : 0;
+        if (white) *out = DtDngWhite{white->x, white->y};
+        return 1;
+    });
+}
+
+int32_t dt_dng_temperature_of(DtDngWhite white, double *kelvin, double *tint) {
+    if (!kelvin || !tint) {
+        return 0;
+    }
+    return guarded<int32_t>("temperature_of", nullptr, [&] {
+        deptheos_temperature_of(DngWhiteXY{white.x, white.y}, *kelvin, *tint);
+        return 1;
+    });
+}
+
+int32_t dt_dng_temperature_white(double kelvin, double tint, DtDngWhite *out) {
+    if (!out) {
+        return 0;
+    }
+    return guarded<int32_t>("temperature_white", nullptr, [&] {
+        const DngWhiteXY white = deptheos_temperature_white(kelvin, tint);
+        *out = DtDngWhite{white.x, white.y};
+        return 1;
     });
 }
 

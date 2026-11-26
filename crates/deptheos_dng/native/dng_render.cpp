@@ -4,8 +4,12 @@
 // Internal: render a negative (with Stage3 set) to sRGB 16-bit output
 // ---------------------------------------------------------------------------
 
-DngReadResult render_negative_to_srgb(dng_host &host, dng_negative &negative) {
+DngReadResult render_negative_to_srgb(dng_host &host, dng_negative &negative,
+                                      const std::optional<DngWhiteXY> &white,
+                                      double exposure) {
     dng_render render(host, negative);
+    if (white) render.SetWhiteXY(dng_xy_coord(white->x, white->y));
+    render.SetExposure(exposure);
     render.SetFinalSpace(negative.IsMonochrome()
         ? dng_space_GrayGamma22::Get() : dng_space_sRGB::Get());
     render.SetFinalPixelType(ttShort);
@@ -41,12 +45,13 @@ DngReadResult render_negative_to_srgb(dng_host &host, dng_negative &negative) {
 DngReadResult deptheos_render_to_srgb(
         const uint16_t *pixels, size_t /* pixel_count */,
         int32_t width, int32_t height, int32_t channels,
-        const DngImageMetadata &meta) {
+        const DngImageMetadata &meta,
+        const std::optional<DngWhiteXY> &white, double exposure) {
     deptheos_host host;
 
     AutoPtr<dng_negative> negative(rebuild_negative_from_metadata(
         host, meta, pixels, width, height, channels));
 
-    return render_negative_to_srgb(host, *negative);
+    return render_negative_to_srgb(host, *negative, white, exposure);
 }
 

@@ -27,6 +27,9 @@ pub mod test_dng;
 #[cfg(all(test, dng_test_hooks))]
 mod fast_read_tests;
 
+#[cfg(test)]
+mod white_tests;
+
 /// What failed is the variant; why, when the SDK or libjxl said, is its
 /// [`Cause`].
 #[derive(Error, Debug)]
@@ -122,7 +125,10 @@ impl std::fmt::Display for Cause {
             Self::Unsupported => f.write_str("a kind the SDK doesn't read"),
             Self::OutOfMemory => f.write_str("out of memory"),
             Self::TooLarge => write!(f, "more than {MAX_READ_PIXELS} pixels"),
-            Self::Other { code: 0, .. } => f.write_str("no reason given"),
+            Self::Other { code: 0, message } if message.is_empty() => {
+                f.write_str("no reason given")
+            }
+            Self::Other { code: 0, message } => f.write_str(message),
             Self::Other { code, message } if message.is_empty() => write!(f, "SDK error {code}"),
             Self::Other { code, message } => write!(f, "{message} (SDK error {code})"),
         }
@@ -188,6 +194,7 @@ unsafe extern "C" {
     fn dt_dng_channels(img: *const DtDngImage) -> i32;
     fn dt_dng_pixel_count(img: *const DtDngImage) -> i64;
     fn dt_dng_pixels(img: *const DtDngImage) -> *const u16;
+    #[allow(clippy::too_many_arguments)]
     fn dt_dng_render_linear_to_srgb(
         meta_source: *const DtDngImage,
         pixels: *const u16,
@@ -195,6 +202,8 @@ unsafe extern "C" {
         width: i32,
         height: i32,
         channels: i32,
+        white: *const WhiteXy,
+        exposure: f64,
         status: *mut DtStatus,
     ) -> *mut DtDngImage;
     #[allow(clippy::too_many_arguments)]
@@ -257,9 +266,81 @@ unsafe extern "C" {
     ) -> i32;
     fn dt_dng_compute_render_params(
         meta_source: *const DtDngImage,
+        white: *const WhiteXy,
         status: *mut DtStatus,
     ) -> *mut DtDngRenderParams;
     fn dt_dng_render_params_free(params: *mut DtDngRenderParams);
+    fn dt_dng_as_shot_white(
+        meta_source: *const DtDngImage,
+        out: *mut WhiteXy,
+        has: *mut i32,
+        status: *mut DtStatus,
+    ) -> i32;
+    fn dt_dng_temperature_of(white: WhiteXy, kelvin: *mut f64, tint: *mut f64) -> i32;
+    fn dt_dng_temperature_white(kelvin: f64, tint: f64, out: *mut WhiteXy) -> i32;
+}
+
+/// A white point in CIE 1931 xy. Laid out as `native/dng_c_api.h`'s
+/// DtDngWhite, which the C API takes it as.
+#[repr(C)]
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub struct WhiteXy {
+    pub x: f64,
+    pub y: f64,
+}
+
+impl WhiteXy {
+    /// Whether the SDK takes this white: finite, both parts positive
+    /// (`dng_xy_coord::IsValid`). Its sum may pass 1, as its whites at a low
+    /// kelvin and a magenta tint do. A call given a white it does not take
+    /// fails without reaching the SDK.
+    pub fn is_valid(self) -> bool {
+        self.x.is_finite() && self.y.is_finite() && self.x > 0.0 && self.y > 0.0
+    }
+
+    /// `white` as the C API takes it: null for none, else a pointer into
+    /// `white`, which outlives the call.
+    fn c_ptr(white: &Option<Self>) -> *const Self {
+        white.as_ref().map_or(std::ptr::null(), std::ptr::from_ref)
+    }
+
+    /// Why a call refuses `white`, if it does.
+    fn refused(white: Option<Self>) -> Option<Cause> {
+        let white = white.filter(|w| !w.is_valid())?;
+        Some(Cause::Other { code: 0, message: format!("{white:?} is not a white point") })
+    }
+}
+
+/// A white point as the SDK's temperature (kelvin) and tint
+/// (`dng_temperature`). A render at a higher kelvin than the light's comes
+/// out warmer, and at a higher tint more magenta
+/// (`a_render_at_a_white_moves_as_the_sdk_says`).
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub struct Temperature {
+    pub kelvin: f64,
+    pub tint: f64,
+}
+
+impl Temperature {
+    /// The SDK's temperature of `white`. A white that is not valid
+    /// ([`WhiteXy::is_valid`]) reads as D50 (about 5000 K).
+    pub fn of(white: WhiteXy) -> Self {
+        let (mut kelvin, mut tint) = (0.0, 0.0);
+        // SAFETY: plain values in, two f64s out that live for the call.
+        let ok = unsafe { dt_dng_temperature_of(white, &mut kelvin, &mut tint) };
+        debug_assert_eq!(ok, 1, "dng_temperature's math does not throw");
+        Self { kelvin, tint }
+    }
+
+    /// The SDK's white at this temperature and tint. A kelvin that is not
+    /// finite and positive, or a tint not finite, reads as D50.
+    pub fn white(self) -> WhiteXy {
+        let mut out = WhiteXy { x: 0.0, y: 0.0 };
+        // SAFETY: plain values in, a WhiteXy out that lives for the call.
+        let ok = unsafe { dt_dng_temperature_white(self.kelvin, self.tint, &mut out) };
+        debug_assert_eq!(ok, 1, "dng_temperature's math does not throw");
+        out
+    }
 }
 
 /// Whether a read goes through the OS file cache.
@@ -520,7 +601,31 @@ impl DngImage {
         height: u32,
         channels: u32,
     ) -> Result<SrgbImage> {
+        self.render_linear_to_srgb_at(pixels, width, height, channels, None, 0.0)
+    }
+
+    /// [`Self::render_linear_to_srgb`] at `white` (`None`: as shot) and
+    /// `exposure` stops added to the baseline, as the SDK's render task
+    /// adds them: the reference for the GPU render's. A monochrome file
+    /// ignores the white. A white that is not valid, or an exposure
+    /// not finite, is refused.
+    pub fn render_linear_to_srgb_at(
+        &self,
+        pixels: &[u16],
+        width: u32,
+        height: u32,
+        channels: u32,
+        white: Option<WhiteXy>,
+        exposure: f64,
+    ) -> Result<SrgbImage> {
         check_pixel_count(pixels.len(), width, height, channels)?;
+        if let Some(cause) = WhiteXy::refused(white) {
+            return Err(DngError::RenderFailed(cause));
+        }
+        if !exposure.is_finite() {
+            let message = format!("an exposure of {exposure} stops");
+            return Err(DngError::RenderFailed(Cause::Other { code: 0, message }));
+        }
         let mut status = DtStatus::new();
         let ptr = unsafe {
             dt_dng_render_linear_to_srgb(
@@ -530,6 +635,8 @@ impl DngImage {
                 width as i32,
                 height as i32,
                 channels as i32,
+                WhiteXy::c_ptr(&white),
+                exposure,
                 &mut status,
             )
         };
@@ -547,10 +654,24 @@ impl DngImage {
     }
 
     /// Everything a GPU pipeline needs to render this image's linear pixels
-    /// to sRGB with the source's color science.
+    /// to sRGB with the source's color science, at the white as shot.
     pub fn render_params(&self) -> Result<RenderParams> {
+        self.render_params_at(None)
+    }
+
+    /// [`Self::render_params`] at `white` (`None`: as shot): the matrix,
+    /// camera white and a dual-illuminant profile's HueSatMap are the
+    /// SDK's for it. A monochrome file, or one without a usable profile,
+    /// gets the same parameters at any white. A white that is not
+    /// valid ([`WhiteXy::is_valid`]) is refused.
+    pub fn render_params_at(&self, white: Option<WhiteXy>) -> Result<RenderParams> {
+        if let Some(cause) = WhiteXy::refused(white) {
+            return Err(DngError::ParamsFailed(cause));
+        }
         let mut status = DtStatus::new();
-        let ptr = unsafe { dt_dng_compute_render_params(self.ptr.as_ptr(), &mut status) };
+        let ptr = unsafe {
+            dt_dng_compute_render_params(self.ptr.as_ptr(), WhiteXy::c_ptr(&white), &mut status)
+        };
         if ptr.is_null() {
             return Err(DngError::ParamsFailed(status.cause()));
         }
@@ -579,6 +700,19 @@ impl DngImage {
         };
         unsafe { dt_dng_render_params_free(ptr) };
         Ok(params)
+    }
+
+    /// The white [`Self::render_params`] renders at: the camera neutral's,
+    /// else D55. `None` for a monochrome file or one without a usable
+    /// profile, whose render has no white to change.
+    pub fn as_shot_white(&self) -> Result<Option<WhiteXy>> {
+        let mut white = WhiteXy { x: 0.0, y: 0.0 };
+        let mut has = 0;
+        let mut status = DtStatus::new();
+        let ok =
+            unsafe { dt_dng_as_shot_white(self.ptr.as_ptr(), &mut white, &mut has, &mut status) };
+        check(ok, &status, DngError::ParamsFailed)?;
+        Ok((has == 1).then_some(white))
     }
 
     /// Write pixels to a DNG that stands in for this image's metadata (the
@@ -616,6 +750,11 @@ pub struct DngTags<'a> {
     /// allowlist), written over the carried metadata's: LibRaw normalizes
     /// the model and reads no Artist from some RAW formats.
     pub fields: &'a [DngField],
+    /// A white balance written as AsShotNeutral in place of the carried
+    /// one: this white's camera neutral under the carried profile. Pixels
+    /// are untouched; a monochrome file or one without a profile keeps its
+    /// own. A white that is not valid is refused.
+    pub white: Option<WhiteXy>,
 }
 
 /// One tag of IFD0 or the Exif IFD, by number, as a frame holds it.
@@ -665,6 +804,10 @@ impl DngImage {
     ) -> Result<()> {
         check_pixel_count(pixels.len(), width, height, channels)?;
         let c = c_path(out_path)?;
+        let white = tags.and_then(|t| t.white);
+        if let Some(cause) = WhiteXy::refused(white) {
+            return Err(DngError::WriteFailed { path: out_path.display().to_string(), cause });
+        }
         let text = |s: &str| {
             CString::new(s).map_err(|_| DngError::InvalidPath(format!("{s:?} holds a NUL")))
         };
@@ -689,6 +832,7 @@ impl DngImage {
             capture_time: capture_time.as_ptr(),
             fields: if fields.is_empty() { std::ptr::null() } else { fields.as_ptr() },
             field_count: fields.len(),
+            white: WhiteXy::c_ptr(&white),
         });
         let mut status = DtStatus::new();
         let ok = unsafe {
@@ -721,6 +865,7 @@ struct DtDngTags {
     capture_time: *const c_char,
     fields: *const DtDngField,
     field_count: usize,
+    white: *const WhiteXy,
 }
 
 /// C mirror of `native/dng_c_api.h`'s DtDngField, pointing into an
@@ -787,7 +932,10 @@ impl OwnedField {
 #[cfg(target_pointer_width = "64")]
 const _: () = {
     use std::mem::{offset_of, size_of};
-    assert!(size_of::<DtDngTags>() == 48);
+    assert!(size_of::<DtDngTags>() == 56);
+    assert!(offset_of!(DtDngTags, white) == 48);
+    assert!(size_of::<WhiteXy>() == 16);
+    assert!(offset_of!(WhiteXy, y) == 8);
     assert!(offset_of!(DtDngTags, software) == 0);
     assert!(offset_of!(DtDngTags, user_comment) == 8);
     assert!(offset_of!(DtDngTags, xmp) == 16);
@@ -1184,7 +1332,14 @@ mod tests {
             ..Default::default()
         };
         let (w, h) = (16, 16);
-        let tags = DngTags { software: "Test", comment: "", xmp, capture_time: "", fields: &[] };
+        let tags = DngTags {
+            software: "Test",
+            comment: "",
+            xmp,
+            capture_time: "",
+            fields: &[],
+            white: None,
+        };
         DngImage::from_raw_metadata(&meta.into())
             .unwrap()
             .write_tagged(&path, &vec![1000u16; (w * h * 3) as usize], w, h, 3, &tags)
@@ -1270,8 +1425,14 @@ mod tests {
         let cropped = TestDng { crop: [4, 2, 56, 40], ..whole };
         // Square, so only the turn tells it from its stage 3.
         let square = TestDng { width: 48, active: [0, 0, 48, 48], crop: [0, 0, 48, 48], ..whole };
-        let tags =
-            DngTags { software: "Test", comment: "", xmp: "", capture_time: "", fields: &[] };
+        let tags = DngTags {
+            software: "Test",
+            comment: "",
+            xmp: "",
+            capture_time: "",
+            fields: &[],
+            white: None,
+        };
         let dir = tempfile::tempdir().unwrap();
         let export = |image: &DngImage, name: &str, (w, h): (u32, u32)| {
             let out = dir.path().join(format!("{name}.dng"));
@@ -1362,7 +1523,14 @@ mod tests {
             ..meta
         };
         let (w, h) = (16, 16);
-        let tags = DngTags { software: "Test", comment: "", xmp: "", capture_time: "", fields };
+        let tags = DngTags {
+            software: "Test",
+            comment: "",
+            xmp: "",
+            capture_time: "",
+            fields,
+            white: None,
+        };
         DngImage::from_raw_metadata(&meta.into())
             .unwrap()
             .write_tagged(&path, &vec![1000u16; (w * h * 3) as usize], w, h, 3, &tags)

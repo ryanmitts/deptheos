@@ -8,6 +8,7 @@ use glam::Vec4;
 
 use super::params::DngColorParams;
 use super::standard::{CODES, StandardConstants};
+use crate::chroma::Chroma;
 use crate::curve::Curve;
 
 /// `columns` (a WGSL `mat3x3f`'s) times `v`.
@@ -29,6 +30,7 @@ pub(super) fn standard(constants: &StandardConstants, stored: [u16; 3]) -> [f64;
     if let Some(curve) = &constants.curve {
         prophoto = curve.apply(prophoto);
     }
+    prophoto = chroma(u.flags.w, u.late, prophoto);
     let out = times(from, prophoto).map(|v| v.clamp(0.0, 1.0));
     if u.flags.y != 0 {
         // The nearest code through the profile's own curves, which never
@@ -80,8 +82,17 @@ pub(super) fn linear(
     if let Some(curve) = curve {
         toned = curve.apply(toned);
     }
+    toned = chroma(u.flags.w, u.late, toned);
     let pro_to_srgb = [u.pro_to_srgb_c0, u.pro_to_srgb_c1, u.pro_to_srgb_c2];
     times(pro_to_srgb, toned).map(|v| srgb_encode(v.clamp(0.0, 1.0)))
+}
+
+/// Vibrance and Saturation when the late stages (`late`) hold them.
+fn chroma(stages: u32, late: Vec4, prophoto: [f64; 3]) -> [f64; 3] {
+    match stages & 8 {
+        0 => prophoto,
+        _ => Chroma { vibrance: late.z, saturation: late.w }.apply(prophoto),
+    }
 }
 
 /// The composed tone curve at `v`, lerped between its samples.
@@ -198,8 +209,20 @@ mod tests {
     /// the stages before it rounded by up to 8 times as many.
     const WHITES_BOUND: f64 = 16.0;
 
-    /// `bound` for `adjustments`, wider where Whites lifts past white.
+    /// With Vibrance or Saturation: OkLab's cube root, a `pow` in f32,
+    /// and its cube on the way back. In a profile's own curves, a pure
+    /// power with no linear toe (Adobe RGB's), the channels chroma takes
+    /// toward 0 turn that rounding into tens of codes: under a third of an
+    /// 8-bit code.
+    const CHROMA_BOUND: f64 = 2.0;
+    const CHROMA_OWN_BOUND: f64 = 96.0;
+
+    /// `bound` for `adjustments`, wider where Whites lifts past white and
+    /// through OkLab.
     fn bound(bound: f64, adjustments: &Adjustments) -> f64 {
+        let chroma = adjustments.vibrance != 0.0 || adjustments.saturation != 0.0;
+        let chroma_bound = if bound == OWN_BOUND { CHROMA_OWN_BOUND } else { CHROMA_BOUND };
+        let bound = if chroma { bound.max(chroma_bound) } else { bound };
         if adjustments.whites > 0.0 { bound.max(WHITES_BOUND) } else { bound }
     }
 
@@ -220,7 +243,10 @@ mod tests {
                 blacks,
                 ..neutral.clone()
             });
-        std::iter::once(neutral).chain(exposure).chain(white).chain(curve).collect()
+        let chroma = [(60.0, 0.0), (-80.0, 0.0), (0.0, 50.0), (0.0, -100.0), (40.0, 30.0)]
+            .map(|(vibrance, saturation)| Adjustments { vibrance, saturation, ..neutral.clone() });
+        let all = std::iter::once(neutral).chain(exposure).chain(white).chain(curve);
+        all.chain(chroma).collect()
     }
 
     /// The largest gap between the shader's output and `reference`'s, in

@@ -55,7 +55,7 @@ mod params {
         pub(super) hsm_dims: UVec4,
         pub(super) lt_dims: UVec4,
         pub(super) exposure_gain_knee: Vec4,
-        pub(super) curve_weights: Vec4,
+        pub(super) late: Vec4,
     }
 }
 
@@ -177,9 +177,7 @@ impl Constants {
             uniform.flags.z = 1;
             uniform.exposure_gain_knee = exposure.gain_knee();
         }
-        let (_, curve_stages, curve_weights) = stages::pack_curve(stages.curve.as_ref());
-        uniform.flags.w = curve_stages;
-        uniform.curve_weights = curve_weights;
+        (uniform.flags.w, uniform.late) = stages.late();
         Self(Kind::Linear {
             curve: stages.curve.clone(),
             uniform,
@@ -321,7 +319,7 @@ fn pack_params(rp: &RenderParams, ramp: f64) -> params::DngColorParams {
         hsm_dims,
         lt_dims,
         exposure_gain_knee: Vec4::new(1.0, 1.0, 0.0, 0.0),
-        curve_weights: Vec4::ZERO,
+        late: Vec4::ZERO,
     }
 }
 

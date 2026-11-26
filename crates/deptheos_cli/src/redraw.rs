@@ -79,6 +79,16 @@ pub(crate) struct RedrawArgs {
           value_parser = |s: &str| parse_slider(s, &slider::BLACKS), help_heading = "Adjust")]
     blacks: Option<f64>,
 
+    /// Vibrance, -100 to 100
+    #[arg(long, value_name = "N", allow_hyphen_values = true,
+          value_parser = |s: &str| parse_slider(s, &slider::VIBRANCE), help_heading = "Adjust")]
+    vibrance: Option<f64>,
+
+    /// Saturation, -100 to 100
+    #[arg(long, value_name = "N", allow_hyphen_values = true,
+          value_parser = |s: &str| parse_slider(s, &slider::SATURATION), help_heading = "Adjust")]
+    saturation: Option<f64>,
+
     /// The process version the adjustments are read in [default: the
     /// latest]
     #[arg(long, value_name = "N", value_parser = parse_process, help_heading = "Adjust")]
@@ -166,6 +176,8 @@ impl RedrawArgs {
             contrast: self.contrast.unwrap_or(neutral.contrast),
             whites: self.whites.unwrap_or(neutral.whites),
             blacks: self.blacks.unwrap_or(neutral.blacks),
+            vibrance: self.vibrance.unwrap_or(neutral.vibrance),
+            saturation: self.saturation.unwrap_or(neutral.saturation),
             ..neutral
         };
         Ok(adjustments.in_process(self.process.unwrap_or(ProcessVersion::LATEST)))
@@ -185,7 +197,9 @@ impl RedrawArgs {
             }
         };
         let (temperature_spec, tint_spec, (temperature, tint)) = match scale {
-            WhiteScale::Kelvin(None) => return Err(Refusal::NoWhiteBalance),
+            WhiteScale::Kelvin(None) => {
+                return Err(Refusal::NoColor(self.color_flag().unwrap_or("--temperature")));
+            }
             WhiteScale::Kelvin(Some(shot)) => {
                 (&slider::TEMPERATURE_KELVIN, &slider::TINT_RAW, (shot.kelvin, shot.tint))
             }
@@ -203,6 +217,18 @@ impl RedrawArgs {
         })
     }
 
+    /// The first color slider's flag given, which a render with no color
+    /// refuses.
+    fn color_flag(&self) -> Option<&'static str> {
+        let given = [
+            ("--temperature", self.temperature),
+            ("--tint", self.tint),
+            ("--vibrance", self.vibrance),
+            ("--saturation", self.saturation),
+        ];
+        given.into_iter().find_map(|(flag, v)| v.is_some().then_some(flag))
+    }
+
     /// Whether a slider's flag is given off its default.
     fn sets_a_slider(&self) -> bool {
         let off = |v: Option<f64>| v.is_some_and(|v| v != 0.0);
@@ -210,6 +236,8 @@ impl RedrawArgs {
             || off(self.contrast)
             || off(self.whites)
             || off(self.blacks)
+            || off(self.vibrance)
+            || off(self.saturation)
             || self.temperature.is_some()
             || self.tint.is_some()
     }
@@ -260,6 +288,11 @@ pub(crate) fn run(args: RedrawArgs, words: &Words) -> Result<()> {
     let picture = Size { width: folder.stack.width, height: folder.stack.height };
     if let Err(outside) = reframe.window(picture) {
         return Err(Refusal::CropOutside(outside).into());
+    }
+    if !folder.stack.has_color()
+        && let Some(flag) = args.color_flag()
+    {
+        return Err(Refusal::NoColor(flag).into());
     }
     let scale = match folder.stack.is_linear() {
         true => WhiteScale::Kelvin(folder.stack.as_shot()),

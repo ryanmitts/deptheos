@@ -57,15 +57,17 @@ struct DngColorParams {
     // Max-normalized camera white (clip ceiling).
     camera_white: vec4f,
     // x = HueSatMap present, y = LookTable present, z = the exposure stage
-    // in place of the ramp's clamp, w = the curve's stages (curve.wgsl).
+    // in place of the ramp's clamp, w = the stages after the tone
+    // curve: 1, 2 and 4 the curve's (curve.wgsl), 8 chroma (adjust.wgsl).
     flags: vec4u,
     // Hue, sat and val divisions; w = 1 for an sRGB-encoded table.
     hsm_dims: vec4u,
     lt_dims: vec4u,
     // Exposure's gain and the shoulder's knee (adjust.wgsl).
     exposure_gain_knee: vec4f,
-    // The curve's operators' weights (curve.wgsl).
-    curve_weights: vec4f,
+    // The curve's operators' weights (curve.wgsl), then Vibrance and
+    // Saturation (adjust.wgsl).
+    late: vec4f,
 }
 
 // Clamped at white unless the exposure stage takes what passes it.
@@ -329,8 +331,11 @@ fn dng_render(@builtin(global_invocation_id) gid: vec3u) {
     prophoto = exposure(prophoto);
     prophoto = look_table(prophoto);
     prophoto = hue_preserving_tone_curve(prophoto);
-    if (params.flags.w != 0u) {
-        prophoto = curve(prophoto, params.flags.w, params.curve_weights);
+    if ((params.flags.w & 7u) != 0u) {
+        prophoto = curve(prophoto, params.flags.w, params.late);
+    }
+    if ((params.flags.w & 8u) != 0u) {
+        prophoto = adjust::chroma(prophoto, params.late.z, params.late.w);
     }
     let srgb = encode_srgb(prophoto_to_srgb(prophoto));
 

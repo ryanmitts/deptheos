@@ -80,6 +80,8 @@ fn set(spec: &SliderSpec, v: f64) -> Adjustments {
         s if s == &slider::CONTRAST => Adjustments { contrast: v, ..neutral },
         s if s == &slider::WHITES => Adjustments { whites: v, ..neutral },
         s if s == &slider::BLACKS => Adjustments { blacks: v, ..neutral },
+        s if s == &slider::VIBRANCE => Adjustments { vibrance: v, ..neutral },
+        s if s == &slider::SATURATION => Adjustments { saturation: v, ..neutral },
         s if s == &slider::TEMPERATURE_RELATIVE => {
             let white_balance = WhiteBalance::Relative { temperature: v, tint: 0.0 };
             Adjustments { white_balance, ..neutral }
@@ -94,7 +96,9 @@ fn set(spec: &SliderSpec, v: f64) -> Adjustments {
 
 /// The sliders the resolve step draws, and whether a linear stack takes
 /// them there: its white balance is the SDK's, in its params.
-const SLIDERS: [(&str, SliderSpec, bool); 6] = [
+const SLIDERS: [(&str, SliderSpec, bool); 8] = [
+    ("vibrance", slider::VIBRANCE, true),
+    ("saturation", slider::SATURATION, true),
     ("exposure", slider::EXPOSURE, true),
     ("contrast", slider::CONTRAST, true),
     ("whites", slider::WHITES, true),
@@ -280,11 +284,38 @@ fn a_dark_gradient_under_blacks_shows_no_banding() {
     }
 }
 
-/// Whites is one stage on both kinds: the same linear values in give the
-/// same picture out, a linear stack with sRGB's matrix and no curve, a
-/// standard one stored in sRGB.
+/// The spread of a drawn row's channels: how colorful it is.
+fn colorfulness(pixels: &[f32]) -> f64 {
+    let rgb = pixels.as_chunks::<4>().0.iter();
+    rgb.map(|p| f64::from(p[0].max(p[1]).max(p[2]) - p[0].min(p[1]).min(p[2]))).sum()
+}
+
+/// Saturation and Vibrance raise color and lower it; at -100 Saturation
+/// leaves gray.
 #[test]
-fn whites_draws_alike_on_both_kinds() {
+fn vibrance_and_saturation_move_color() {
+    let Some(ctx) = GpuContext::new_or_skip() else { return };
+    let (pixels, params) = (gradient(), linear_params());
+    // The colored rows: a ramp of red, and a muted green.
+    let colored = WIDTH as usize * 16 * 4..WIDTH as usize * 48 * 4;
+    for (kind, color) in kinds(&params) {
+        let at = |vibrance, saturation| {
+            let adjustments = Adjustments { vibrance, saturation, ..Adjustments::NEUTRAL };
+            let constants = resolve_adjusted(color, &adjustments, OutputSpace::Srgb);
+            colorfulness(&draw(&ctx, &constants, &pixels)[colored.clone()])
+        };
+        let neutral = at(0.0, 0.0);
+        assert!(at(0.0, 40.0) > neutral && at(0.0, -40.0) < neutral, "{kind}: saturation");
+        assert!(at(40.0, 0.0) > neutral && at(-40.0, 0.0) < neutral, "{kind}: vibrance");
+        assert!(at(0.0, -100.0) < neutral * 0.01, "{kind}: saturation -100 leaves color");
+    }
+}
+
+/// Whites, Vibrance and Saturation are one stage on both kinds: the same
+/// linear values in give the same picture out, a linear stack with sRGB's
+/// matrix and no curve, a standard one stored in sRGB.
+#[test]
+fn the_shared_stages_draw_alike_on_both_kinds() {
     let Some(ctx) = GpuContext::new_or_skip() else { return };
     let identity = RenderParams::srgb_identity();
     let linear: Vec<u16> = gradient();
@@ -296,8 +327,14 @@ fn whites_draws_alike_on_both_kinds() {
             (e * 65535.0).round() as u16
         })
         .collect();
-    for whites in [60.0, -60.0] {
-        let adjustments = Adjustments { whites, ..Adjustments::NEUTRAL };
+    let neutral = Adjustments::NEUTRAL;
+    let all = [
+        Adjustments { whites: 60.0, ..neutral.clone() },
+        Adjustments { whites: -60.0, ..neutral.clone() },
+        Adjustments { vibrance: 60.0, ..neutral.clone() },
+        Adjustments { saturation: -50.0, ..neutral.clone() },
+    ];
+    for adjustments in all {
         let a = draw(
             &ctx,
             &resolve_adjusted(Color::Linear(&identity), &adjustments, OutputSpace::Srgb),
@@ -308,10 +345,10 @@ fn whites_draws_alike_on_both_kinds() {
             &resolve_adjusted(Color::Standard(None), &adjustments, OutputSpace::Srgb),
             &encoded,
         );
-        // The gray ramp: the two matrices to ProPhoto differ in their
-        // fourth decimal, and the stored codes round apart.
-        let gray = WIDTH as usize * 4;
-        let gap = largest(&a[..gray], &b[..gray]);
-        assert!(gap < 80.0, "whites {whites}: {gap:.0} codes apart");
+        // The gray and two colored rows: the two matrices to ProPhoto
+        // differ in their fourth decimal, and the stored codes round apart.
+        let rows = WIDTH as usize * 48 * 4;
+        let gap = largest(&a[..rows], &b[..rows]);
+        assert!(gap < 80.0, "{adjustments:?}: {gap:.0} codes apart");
     }
 }

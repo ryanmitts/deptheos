@@ -28,7 +28,7 @@ const BRADFORD: Mat3 =
     [[0.8951, 0.2664, -0.1614], [-0.7502, 1.7135, 0.0367], [0.0389, -0.0685, 1.0296]];
 
 /// ProPhoto's primaries and its D50 white, as xy.
-const PROPHOTO: [[f64; 2]; 4] =
+pub(crate) const PROPHOTO: [[f64; 2]; 4] =
     [[0.734699, 0.265301], [0.159597, 0.840403], [0.036598, 0.000105], [0.3457, 0.3585]];
 
 /// The matrix, in linear ProPhoto, for a standard stack's relative
@@ -115,7 +115,7 @@ fn temp_tint_to_xy(t: f64, tint: f64) -> [f64; 2] {
     uv_to_xy(u + nu * duv, v + nv * duv)
 }
 
-fn xy_to_xyz([x, y]: [f64; 2]) -> [f64; 3] {
+pub(crate) fn xy_to_xyz([x, y]: [f64; 2]) -> [f64; 3] {
     [x / y, 1.0, (1.0 - x - y) / y]
 }
 
@@ -125,7 +125,7 @@ fn white_xyz(t: f64, tint: f64) -> [f64; 3] {
 
 /// The Bradford adaptation from white `src` to white `dst`, or `None`
 /// where a white's cone response is not finite and above 0.
-fn bradford_checked(src: [f64; 3], dst: [f64; 3]) -> Option<Mat3> {
+pub(crate) fn bradford_checked(src: [f64; 3], dst: [f64; 3]) -> Option<Mat3> {
     let (s, d) = (apply(&BRADFORD, src), apply(&BRADFORD, dst));
     let ok = |v: [f64; 3]| v.iter().all(|c| c.is_finite() && *c > 0.0);
     if !(ok(s) && ok(d)) {
@@ -137,7 +137,7 @@ fn bradford_checked(src: [f64; 3], dst: [f64; 3]) -> Option<Mat3> {
 }
 
 /// Linear ProPhoto to XYZ, and back.
-fn prophoto() -> (Mat3, Mat3) {
+pub(crate) fn prophoto() -> (Mat3, Mat3) {
     let [r, g, b, white] = PROPHOTO.map(xy_to_xyz);
     let m = [[r[0], g[0], b[0]], [r[1], g[1], b[1]], [r[2], g[2], b[2]]];
     let inverse = invert(&m).expect("ProPhoto's primaries are independent");
@@ -150,11 +150,11 @@ pub(crate) fn mul(a: &Mat3, b: &Mat3) -> Mat3 {
     std::array::from_fn(|i| std::array::from_fn(|j| (0..3).map(|k| a[i][k] * b[k][j]).sum()))
 }
 
-fn apply(m: &Mat3, v: [f64; 3]) -> [f64; 3] {
+pub(crate) fn apply(m: &Mat3, v: [f64; 3]) -> [f64; 3] {
     m.map(|row| row[0] * v[0] + row[1] * v[1] + row[2] * v[2])
 }
 
-fn invert(m: &Mat3) -> Option<Mat3> {
+pub(crate) fn invert(m: &Mat3) -> Option<Mat3> {
     let det = m[0][0] * (m[1][1] * m[2][2] - m[1][2] * m[2][1])
         - m[0][1] * (m[1][0] * m[2][2] - m[1][2] * m[2][0])
         + m[0][2] * (m[1][0] * m[2][1] - m[1][1] * m[2][0]);

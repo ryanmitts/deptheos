@@ -33,7 +33,7 @@ pub(super) mod params {
         pub(crate) from_prophoto_c2: Vec4,
         pub(crate) flags: UVec4,
         pub(crate) exposure_gain_knee: Vec4,
-        pub(crate) curve_weights: Vec4,
+        pub(crate) late: Vec4,
     }
 }
 
@@ -82,7 +82,7 @@ impl StandardConstants {
             }
             None => to_prophoto,
         };
-        let (_, curve_stages, curve_weights) = super::stages::pack_curve(stages.curve.as_ref());
+        let (late_stages, late) = stages.late();
         let (output, from_prophoto, own_curves) = match (output, own) {
             (OutputSpace::StackProfile, Some(source)) => {
                 (output, prophoto.transform_matrix(source), true)
@@ -104,12 +104,12 @@ impl StandardConstants {
                 u32::from(decode.is_empty()),
                 u32::from(own_curves),
                 u32::from(stages.exposure.is_some()),
-                curve_stages,
+                late_stages,
             ),
             exposure_gain_knee: stages
                 .exposure
                 .map_or(Vec4::new(1.0, 1.0, 0.0, 0.0), |exposure| exposure.gain_knee()),
-            curve_weights,
+            late,
         };
         let linearizer = match input {
             Input::Linearized(linearizer) => Some(linearizer),

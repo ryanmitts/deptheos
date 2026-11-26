@@ -68,8 +68,8 @@ pub(crate) enum Refusal {
     CropOutside(deptheos_app::reframe::OutsidePicture),
     /// `redraw`'s slider flag is outside the range it takes on this render.
     SliderRange { flag: &'static str, min: f64, max: f64 },
-    /// `redraw`'s white-balance flags on a render with no white to set.
-    NoWhiteBalance,
+    /// `redraw`'s color flag on a render with no color.
+    NoColor(&'static str),
 }
 
 impl fmt::Display for Refusal {
@@ -124,9 +124,7 @@ impl fmt::Display for Refusal {
             Self::SliderRange { flag, min, max } => {
                 write!(f, "{flag} takes {min} to {max} on this render")
             }
-            Self::NoWhiteBalance => {
-                write!(f, "--temperature and --tint need a color render; this one is monochrome")
-            }
+            Self::NoColor(flag) => write!(f, "{flag} needs a color render; this one is monochrome"),
             Self::CropOutside(outside) => {
                 let (c, p) = (outside.crop, outside.picture);
                 write!(
@@ -295,7 +293,7 @@ mod tests {
                 picture: deptheos_app::reframe::Size { width: 8, height: 8 },
             }),
             Refusal::SliderRange { flag: "--tint", min: -150.0, max: 150.0 },
-            Refusal::NoWhiteBalance,
+            Refusal::NoColor("--vibrance"),
         ];
         for refusal in all {
             let line = refusal.to_string();

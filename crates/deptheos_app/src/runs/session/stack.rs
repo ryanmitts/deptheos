@@ -283,6 +283,18 @@ impl CompletedStack {
         }
     }
 
+    /// Whether the color sliders (white balance, Vibrance, Saturation)
+    /// have color to work on: a camera RAW stack with a color profile, a
+    /// standard stack whose stored channels aren't all equal.
+    pub fn has_color(&self) -> bool {
+        match &self.color {
+            StackColor::Linear { .. } => self.as_shot().is_some(),
+            StackColor::Srgb { .. } => {
+                self.pixels.as_chunks::<3>().0.iter().any(|p| p[0] != p[1] || p[1] != p[2])
+            }
+        }
+    }
+
     /// How linear pixels render to sRGB; `None` for sRGB stacks.
     pub fn render_params(&self) -> Option<&deptheos_dng::RenderParams> {
         match &self.color {

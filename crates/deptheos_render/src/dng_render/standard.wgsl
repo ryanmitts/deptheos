@@ -34,12 +34,14 @@ struct StandardParams {
     from_prophoto_c2: vec4f,
     // x = 1 when the input is already linear; y = 1 to encode through the
     // profile's curves, 0 through sRGB's; z = 1 for the exposure stage;
-    // w the curve's stages (curve.wgsl).
+    // w the stages after the tone curve:
+    // 1, 2 and 4 the curve's (curve.wgsl), 8 chroma (adjust.wgsl).
     flags: vec4u,
     // Exposure's gain and the shoulder's knee (adjust.wgsl).
     exposure_gain_knee: vec4f,
-    // The curve's operators' weights (curve.wgsl).
-    curve_weights: vec4f,
+    // The curve's operators' weights (curve.wgsl), then Vibrance and
+    // Saturation (adjust.wgsl).
+    late: vec4f,
 }
 
 struct Placement {
@@ -103,8 +105,11 @@ fn standard_render(@builtin(global_invocation_id) gid: vec3u) {
     if (params.flags.z != 0u) {
         prophoto = adjust::exposure(prophoto, params.exposure_gain_knee);
     }
-    if (params.flags.w != 0u) {
-        prophoto = curve(prophoto, params.flags.w, params.curve_weights);
+    if ((params.flags.w & 7u) != 0u) {
+        prophoto = curve(prophoto, params.flags.w, params.late);
+    }
+    if ((params.flags.w & 8u) != 0u) {
+        prophoto = adjust::chroma(prophoto, params.late.z, params.late.w);
     }
     let out = from_prophoto(prophoto);
     let at = vec2i(gid.xy + place.origins.zw);

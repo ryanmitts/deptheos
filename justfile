@@ -101,6 +101,16 @@ test name:
 bless-goldens:
     DEPTHEOS_BLESS_GOLDENS=1 cargo test -p deptheos_core --test integration output_is_pinned
 
+# Write the pixels every draw site hands over, on screen and in exports, to a folder (crates/deptheos_app/src/engine/handoff_tests.rs)
+[group('test')]
+handoff-capture dir:
+    DEPTHEOS_HANDOFF_WRITE={{quote(dir)}} cargo test --release -p deptheos_app --lib handoff_pixels -- --ignored --nocapture
+
+# Check every draw site still hands over the pixels `just handoff-capture` wrote, bit for bit, on the machine that wrote them
+[group('test')]
+handoff-check dir:
+    DEPTHEOS_HANDOFF_CHECK={{quote(dir)}} cargo test --release -p deptheos_app --lib handoff_pixels -- --ignored --nocapture
+
 # The user-facing sentences: every message's id and wording, both apps
 [group('test')]
 test-words:

@@ -15,6 +15,9 @@ pub(crate) mod preview;
 pub mod store;
 pub mod work;
 
+#[cfg(test)]
+mod handoff_tests;
+
 use std::path::{Path, PathBuf};
 use std::sync::{Arc, Condvar, Mutex};
 

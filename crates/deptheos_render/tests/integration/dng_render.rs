@@ -234,3 +234,70 @@ fn assert_file_render_matches(
         .fold(0f32, f32::max);
     assert!(worst < 0.01, "{label}: a sample {worst:.4} from the SDK's");
 }
+
+/// A white point and a raised exposure match the SDK's render at them,
+/// with the shoulder off: the SDK takes a positive exposure through its
+/// ramp, and the white through its color matrices.
+#[test]
+fn a_white_and_a_raised_exposure_render_like_the_sdk() {
+    use deptheos_dng::Temperature;
+    use deptheos_render::{Adjustments, Color, OutputSpace, resolve_adjusted};
+
+    let Some(ctx) = GpuContext::new_or_skip() else { return };
+    let synthetic = DngImage::from_raw_metadata(&synthetic_metadata().into()).expect("metadata");
+    // A real file's color science, its hue-saturation map among it, over a
+    // center crop of its own pixels.
+    let path = crate::common::core_fixture("converter.dng");
+    let read = DngImage::read_with_pixels(
+        &path,
+        deptheos_dng::FileCache::Use,
+        deptheos_dng::Budget::unlimited(),
+    )
+    .expect("read DNG");
+    let deptheos_dng::DngRead::Linear(file, pixels) = read else { panic!("a mosaic") };
+    let (width, height) = (file.width(), file.height());
+    let (x, y) = ((width - SIZE) / 2, (height - SIZE) / 2);
+    let crop: Vec<u16> = (y..y + SIZE)
+        .flat_map(|row| {
+            let start = ((row * width + x) * 3) as usize;
+            pixels[start..start + (SIZE * 3) as usize].iter().copied()
+        })
+        .collect();
+    let whites = [(3200.0, 0.0), (5200.0, 12.0), (7500.0, -20.0), (12_000.0, 40.0)];
+    let pipeline = DngRenderPipeline::new(&ctx);
+    let sources = [("synthetic", &synthetic, synthetic_linear_rgb16()), ("file", &file, crop)];
+    for ((kelvin, tint), (name, source, linear)) in
+        whites.iter().flat_map(|w| sources.iter().map(move |s| (*w, s)))
+    {
+        for exposure in [0.0, 0.5, 1.5] {
+            let label = format!("{name} at {kelvin} K, tint {tint:+}, {exposure:+} EV");
+            let white = Temperature { kelvin, tint }.white();
+            let sdk = source
+                .render_linear_to_srgb_at(linear, SIZE, SIZE, 3, Some(white), exposure)
+                .expect("SDK render");
+            let params = source.render_params_at(Some(white)).expect("params");
+            let adjustments = Adjustments { exposure, ..Adjustments::NEUTRAL };
+            let constants =
+                resolve_adjusted(Color::Linear(&params), &adjustments, OutputSpace::Srgb)
+                    .without_shoulder();
+            let output = pipeline.render(&ctx, &upload_linear(&ctx, linear), &constants);
+            let gpu = download_rgba(&ctx, &output);
+            let psnr = psnr_db(&gpu, sdk.pixels());
+            let worst = worst(&gpu, sdk.pixels());
+            println!("GPU vs SDK, {label}: {psnr:.1} dB, worst {worst:.4}");
+            assert!(psnr > 60.0, "{label}: PSNR {psnr:.1} dB below the 60 dB parity bar");
+            assert!(worst < WORST, "{label}: a sample {worst:.4} from the SDK's");
+        }
+    }
+}
+
+/// The largest gap of one sample from the SDK's, as a fraction of white:
+/// the bar a region can't hide under the PSNR of the whole picture.
+const WORST: f32 = 0.01;
+
+fn worst(gpu_rgba_f32: &[f32], sdk_rgb_u16: &[u16]) -> f32 {
+    let gpu = gpu_rgba_f32.as_chunks::<4>().0.iter();
+    gpu.zip(sdk_rgb_u16.as_chunks::<3>().0)
+        .flat_map(|(g, s)| (0..3).map(move |c| (g[c] - f32::from(s[c]) / 65535.0).abs()))
+        .fold(0f32, f32::max)
+}

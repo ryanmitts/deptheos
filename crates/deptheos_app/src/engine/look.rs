@@ -5,7 +5,9 @@
 //! adjustments, so a draw with none says so.
 
 use deptheos_core::io;
-use deptheos_render::{Adjustments, Color, Draw, OutputSpace, Reframe, resolve};
+use deptheos_dng::{RenderParams, Temperature, WhiteXy};
+use deptheos_render::{Adjustments, Color, Draw, OutputSpace, Reframe, WhiteBalance, resolve};
+use deptheos_render::{resolve_adjusted, slider};
 
 use crate::engine::present::display_space;
 use crate::runs::session::{CompletedStack, StackColor};
@@ -101,11 +103,46 @@ impl<'a> Look<'a> {
     /// How this look draws the stack's pixels.
     pub(crate) fn resolve(&self) -> Draw<'a> {
         let (color, output) = (self.color(), self.output());
+        let adjustments = match self.adjusted {
+            Adjusted::Stored => return resolve(color, None, output),
+            Adjusted::Set(adjustments) | Adjusted::Redrawn(adjustments) => adjustments,
+        };
+        if let Some(balanced) = self.balanced() {
+            let color = Color::Linear(&balanced);
+            return Draw::Rendered(resolve_adjusted(color, adjustments, output));
+        }
         match self.adjusted {
-            Adjusted::Stored => resolve(color, None, output),
-            Adjusted::Set(adjustments) => resolve(color, Some(adjustments), output),
-            Adjusted::Redrawn(adjustments) => {
-                Draw::Rendered(deptheos_render::resolve_adjusted(color, adjustments, output))
+            Adjusted::Redrawn(_) => Draw::Rendered(resolve_adjusted(color, adjustments, output)),
+            _ => resolve(color, Some(adjustments), output),
+        }
+    }
+
+    /// The white a camera RAW stack is set to, when not as shot: the DNG
+    /// SDK's white point for its kelvins and tint.
+    pub fn white(&self) -> Option<WhiteXy> {
+        let (Adjusted::Set(adjustments) | Adjusted::Redrawn(adjustments)) = self.adjusted else {
+            return None;
+        };
+        match (&self.stack.color, adjustments.white_balance) {
+            (StackColor::Linear { .. }, WhiteBalance::Kelvin { temperature, tint }) => {
+                let kelvin = slider::TEMPERATURE_KELVIN.clamp(temperature);
+                let tint = slider::TINT_RAW.clamp(tint);
+                Some(Temperature { kelvin, tint }.white())
+            }
+            _ => None,
+        }
+    }
+
+    /// A camera RAW stack's color science at [`Self::white`], the stored
+    /// one's if the SDK can't make it (logged).
+    fn balanced(&self) -> Option<RenderParams> {
+        let StackColor::Linear { metadata, .. } = &self.stack.color else { return None };
+        let white = self.white()?;
+        match metadata.render_params_at(Some(white)) {
+            Ok(params) => Some(params),
+            Err(e) => {
+                tracing::warn!("white balance at {white:?} not rendered, drawn as shot: {e}");
+                None
             }
         }
     }

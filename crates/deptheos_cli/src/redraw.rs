@@ -10,7 +10,9 @@ use deptheos_app::library::export::ExportFormat;
 use deptheos_app::library::render_folder::RenderFolder;
 use deptheos_app::reframe::{Flip, Rect, Reframe, Size, Turn};
 use deptheos_app::slider::{self, SliderSpec};
-use deptheos_app::{Adjustments, Engine, Look, OutputSpace, ProcessVersion, Words};
+use deptheos_app::{
+    Adjustments, Engine, Look, OutputSpace, ProcessVersion, Temperature, WhiteBalance, Words,
+};
 
 use crate::args::{Checks, SaveArgs};
 use crate::error::{Refusal, Result};
@@ -49,6 +51,18 @@ pub(crate) struct RedrawArgs {
     #[arg(long, value_name = "STOPS", allow_hyphen_values = true,
           value_parser = |s: &str| parse_slider(s, &slider::EXPOSURE), help_heading = "Adjust")]
     exposure: Option<f64>,
+
+    /// White balance: kelvins on a camera RAW render (2000 to 50000), -100
+    /// to 100 on a standard one [default: as shot]
+    #[arg(long, value_name = "T", allow_hyphen_values = true, value_parser = parse_number,
+          help_heading = "Adjust")]
+    temperature: Option<f64>,
+
+    /// Tint, positive toward magenta: -150 to 150 on a camera RAW render,
+    /// -100 to 100 on a standard one [default: as shot]
+    #[arg(long, value_name = "T", allow_hyphen_values = true, value_parser = parse_number,
+          help_heading = "Adjust")]
+    tint: Option<f64>,
 
     /// The process version the adjustments are read in [default: the
     /// latest]
@@ -104,6 +118,21 @@ fn parse_slider(s: &str, spec: &SliderSpec) -> std::result::Result<f64, String> 
     }
 }
 
+/// A finite number, its range checked against the render.
+fn parse_number(s: &str) -> std::result::Result<f64, String> {
+    s.trim().parse::<f64>().ok().filter(|v| v.is_finite()).ok_or_else(|| "expected a number".into())
+}
+
+/// The white-balance scale a render takes.
+#[derive(Clone, Copy, Debug)]
+pub(crate) enum WhiteScale {
+    /// A camera RAW render's kelvins, from its as-shot white (`None`: a
+    /// monochrome render, which has none to set).
+    Kelvin(Option<Temperature>),
+    /// A standard render's relative scale.
+    Relative,
+}
+
 /// A process version this build knows.
 fn parse_process(s: &str) -> std::result::Result<ProcessVersion, String> {
     let latest = ProcessVersion::LATEST.number();
@@ -112,12 +141,53 @@ fn parse_process(s: &str) -> std::result::Result<ProcessVersion, String> {
 }
 
 impl RedrawArgs {
-    /// The adjustments the flags give, the rest neutral.
-    fn adjustments(&self) -> Adjustments {
+    /// The adjustments the flags give on a render of `scale`, the rest
+    /// neutral.
+    fn adjustments(&self, scale: WhiteScale) -> std::result::Result<Adjustments, Refusal> {
         let neutral = Adjustments::NEUTRAL;
-        let adjustments =
-            Adjustments { exposure: self.exposure.unwrap_or(neutral.exposure), ..neutral };
-        adjustments.in_process(self.process.unwrap_or(ProcessVersion::LATEST))
+        let adjustments = Adjustments {
+            exposure: self.exposure.unwrap_or(neutral.exposure),
+            white_balance: self.white_balance(scale)?,
+            ..neutral
+        };
+        Ok(adjustments.in_process(self.process.unwrap_or(ProcessVersion::LATEST)))
+    }
+
+    /// The white balance `--temperature` and `--tint` give on a render of
+    /// `scale`, the one not given as shot.
+    fn white_balance(&self, scale: WhiteScale) -> std::result::Result<WhiteBalance, Refusal> {
+        if self.temperature.is_none() && self.tint.is_none() {
+            return Ok(WhiteBalance::AsShot);
+        }
+        let within = |flag: &'static str, spec: &SliderSpec, v: f64| {
+            let (min, max) = (spec.min, spec.max);
+            match (min..=max).contains(&v) {
+                true => Ok(v),
+                false => Err(Refusal::SliderRange { flag, min, max }),
+            }
+        };
+        let (temperature_spec, tint_spec, (temperature, tint)) = match scale {
+            WhiteScale::Kelvin(None) => return Err(Refusal::NoWhiteBalance),
+            WhiteScale::Kelvin(Some(shot)) => {
+                (&slider::TEMPERATURE_KELVIN, &slider::TINT_RAW, (shot.kelvin, shot.tint))
+            }
+            WhiteScale::Relative => {
+                (&slider::TEMPERATURE_RELATIVE, &slider::TINT_RELATIVE, (0.0, 0.0))
+            }
+        };
+        let temperature = self.temperature.unwrap_or(temperature);
+        let tint = self.tint.unwrap_or(tint);
+        let temperature = within("--temperature", temperature_spec, temperature)?;
+        let tint = within("--tint", tint_spec, tint)?;
+        Ok(match scale {
+            WhiteScale::Kelvin(_) => WhiteBalance::Kelvin { temperature, tint },
+            WhiteScale::Relative => WhiteBalance::Relative { temperature, tint },
+        })
+    }
+
+    /// Whether a slider's flag is given off its default.
+    fn sets_a_slider(&self) -> bool {
+        self.exposure.is_some_and(|e| e != 0.0) || self.temperature.is_some() || self.tint.is_some()
     }
 
     /// The reframe the flags give.
@@ -139,7 +209,7 @@ impl RedrawArgs {
 
     pub(crate) fn check(&self, c: &mut Checks) {
         self.save.check(ExportFormat::of(&self.output).as_slice(), c);
-        if self.process.is_some() && self.adjustments().is_neutral() {
+        if self.process.is_some() && !self.sets_a_slider() {
             c.refuse("--process needs an adjustment to read");
         }
     }
@@ -167,7 +237,11 @@ pub(crate) fn run(args: RedrawArgs, words: &Words) -> Result<()> {
     if let Err(outside) = reframe.window(picture) {
         return Err(Refusal::CropOutside(outside).into());
     }
-    let adjustments = args.adjustments();
+    let scale = match folder.stack.is_linear() {
+        true => WhiteScale::Kelvin(folder.stack.as_shot()),
+        false => WhiteScale::Relative,
+    };
+    let adjustments = args.adjustments(scale)?;
     let look = Look::redrawn(&folder.stack, &adjustments, reframe, output);
     let drawn = std::time::Instant::now();
     Engine::save_pixels(&engine, look, folder.pixels(), &args.output, args.save.options())?;
@@ -262,7 +336,7 @@ mod tests {
                 Ok(crate::args::Command::Redraw(args)) => {
                     let mut checks = Checks::default();
                     args.check(&mut checks);
-                    Ok((args.adjustments(), checks.is_empty()))
+                    Ok((args.adjustments(WhiteScale::Relative).unwrap(), checks.is_empty()))
                 }
                 Ok(_) => panic!("not redraw"),
                 Err(e) => Err(e.kind()),
@@ -275,5 +349,28 @@ mod tests {
         for bad in [&["--exposure", "6"][..], &["--exposure", "nan"], &["--process", "0"]] {
             assert!(parsed(bad).is_err(), "{bad:?}");
         }
+    }
+
+    #[test]
+    fn white_balance_takes_the_renders_scale() {
+        use clap::Parser;
+        let white = |flags: &[&str], scale| {
+            let line = [&["deptheos", "redraw", "r", "-o", "a.tif"], flags].concat();
+            match crate::args::Cli::try_parse_from(line).unwrap().command {
+                crate::args::Command::Redraw(args) => {
+                    args.white_balance(scale).map_err(|e| e.to_string())
+                }
+                _ => panic!("not redraw"),
+            }
+        };
+        let shot = WhiteScale::Kelvin(Some(Temperature { kelvin: 5200.0, tint: 7.0 }));
+        assert_eq!(white(&[], shot), Ok(WhiteBalance::AsShot));
+        let warmer = WhiteBalance::Kelvin { temperature: 6000.0, tint: 7.0 };
+        assert_eq!(white(&["--temperature", "6000"], shot), Ok(warmer));
+        let greener = WhiteBalance::Relative { temperature: 0.0, tint: -20.0 };
+        assert_eq!(white(&["--tint", "-20"], WhiteScale::Relative), Ok(greener));
+        assert!(white(&["--temperature", "6000"], WhiteScale::Relative).is_err());
+        assert!(white(&["--temperature", "-20"], shot).is_err());
+        assert!(white(&["--tint", "1"], WhiteScale::Kelvin(None)).is_err());
     }
 }

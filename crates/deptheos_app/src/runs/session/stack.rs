@@ -270,6 +270,19 @@ impl CompletedStack {
         }
     }
 
+    /// A camera RAW stack's as-shot white balance, where its sliders
+    /// start; `None` for a standard or monochrome stack.
+    pub fn as_shot(&self) -> Option<deptheos_dng::Temperature> {
+        let StackColor::Linear { metadata, .. } = &self.color else { return None };
+        match metadata.as_shot_white() {
+            Ok(white) => white.map(deptheos_dng::Temperature::of),
+            Err(e) => {
+                tracing::warn!("the as-shot white balance is unread: {e}");
+                None
+            }
+        }
+    }
+
     /// How linear pixels render to sRGB; `None` for sRGB stacks.
     pub fn render_params(&self) -> Option<&deptheos_dng::RenderParams> {
         match &self.color {
@@ -411,7 +424,7 @@ pub(crate) fn export(
                 xmp: tags.xmp.as_deref().unwrap_or_default(),
                 capture_time: &crate::library::export_tags::capture_time_iso(tags),
                 fields: &crate::library::export_tags::dng_fields(tags),
-                white: None,
+                white: look.white(),
             };
             if !look.reframe().is_none() {
                 return Err(Error::InvalidState("a DNG keeps the whole picture".into()));

@@ -20,7 +20,10 @@ pub mod test_support;
 pub mod view;
 pub mod words;
 
-pub use deptheos_render::{Adjustments, OutputSpace, ProcessVersion, Reframe, reframe, slider};
+pub use deptheos_dng::Temperature;
+pub use deptheos_render::{
+    Adjustments, OutputSpace, ProcessVersion, Reframe, WhiteBalance, reframe, slider, temperature,
+};
 pub use engine::look::Look;
 pub use engine::present::{
     CpuImage, PresentedImage, TILE_CORE, TiledLevel, fit_long_edge, level_index,

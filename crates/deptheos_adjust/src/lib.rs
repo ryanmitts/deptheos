@@ -40,11 +40,50 @@ pub struct Adjustments {
     pub process: ProcessVersion,
     /// Stops ([`slider::EXPOSURE`]).
     pub exposure: f64,
+    pub white_balance: WhiteBalance,
+}
+
+/// What a render's white is set to. A camera RAW stack takes kelvins,
+/// a standard stack the relative scale; a value of the other kind reads
+/// as as shot.
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub enum WhiteBalance {
+    /// The stack's own: a camera RAW stack's as-shot white, a standard
+    /// stack's values as stored.
+    AsShot,
+    /// A camera RAW stack's, in kelvins ([`slider::TEMPERATURE_KELVIN`])
+    /// and the DNG SDK's tint ([`slider::TINT_RAW`]), positive toward
+    /// magenta.
+    Kelvin { temperature: f64, tint: f64 },
+    /// A standard stack's, on the relative scale
+    /// ([`slider::TEMPERATURE_RELATIVE`], [`temperature`]), positive
+    /// warmer, and its tint ([`slider::TINT_RELATIVE`]), positive toward
+    /// magenta.
+    Relative { temperature: f64, tint: f64 },
+}
+
+impl WhiteBalance {
+    /// Whether this draws the stack's own white. Kelvins always draw
+    /// through the SDK's white point, as-shot values too.
+    pub fn is_as_shot(self) -> bool {
+        match self {
+            Self::AsShot => true,
+            Self::Kelvin { .. } => false,
+            Self::Relative { temperature, tint } => {
+                at_default(&slider::TEMPERATURE_RELATIVE, temperature)
+                    && at_default(&slider::TINT_RELATIVE, tint)
+            }
+        }
+    }
 }
 
 impl Adjustments {
     /// Every slider at its default, in the latest process.
-    pub const NEUTRAL: Self = Self { process: ProcessVersion::LATEST, exposure: 0.0 };
+    pub const NEUTRAL: Self = Self {
+        process: ProcessVersion::LATEST,
+        exposure: 0.0,
+        white_balance: WhiteBalance::AsShot,
+    };
 
     pub fn process(&self) -> ProcessVersion {
         self.process
@@ -57,8 +96,8 @@ impl Adjustments {
 
     /// Whether every slider is at its default.
     pub fn is_neutral(&self) -> bool {
-        let Self { process: _, exposure } = self;
-        at_default(&slider::EXPOSURE, *exposure)
+        let Self { process: _, exposure, white_balance } = self;
+        at_default(&slider::EXPOSURE, *exposure) && white_balance.is_as_shot()
     }
 }
 
@@ -89,6 +128,11 @@ mod tests {
         assert!(!exposure(0.01).is_neutral());
         assert!(exposure(f64::NAN).is_neutral());
         assert_eq!(exposure(1.0).in_process(ProcessVersion::V1).exposure, 1.0);
+        let white = |white_balance| Adjustments { white_balance, ..Adjustments::NEUTRAL };
+        let kelvin = WhiteBalance::Kelvin { temperature: 5000.0, tint: 0.0 };
+        assert!(!white(kelvin).is_neutral());
+        assert!(white(WhiteBalance::Relative { temperature: 0.0, tint: f64::NAN }).is_neutral());
+        assert!(!white(WhiteBalance::Relative { temperature: 0.0, tint: 1.0 }).is_neutral());
     }
 
     #[test]

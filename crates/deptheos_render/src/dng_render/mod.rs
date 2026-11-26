@@ -4,13 +4,28 @@
 //! (`tests/integration/dng_render.rs`; ADR-130).
 
 use deptheos_gpu::GpuContext;
-use deptheos_gpu::gpu_utils::{WORKGROUP_SIZE, create_bind_group, dispatch_compute_with, tex};
 use glam::{Mat3, UVec4, Vec4};
 
 use deptheos_core::pack::{QUANTIZE_MODULE, threshold_bind_group};
 use deptheos_core::pipelines::COLOR_MODULE;
 
 pub use deptheos_dng::{HueSatMap, RenderParams};
+pub use draw::{NeighborStage, Region, Source, TILE};
+
+mod draw;
+
+mod place {
+    #![allow(dead_code)] // encase derive emits layout-check fns flagged as unused
+
+    use glam::UVec4;
+
+    /// Mirror of the WGSL `Placement` uniform: one tile of a draw.
+    #[derive(Clone, Copy, Debug, encase::ShaderType)]
+    pub(super) struct Placement {
+        pub(super) origins: UVec4,
+        pub(super) size: UVec4,
+    }
+}
 
 mod params {
     #![allow(dead_code)] // encase derive emits layout-check fns flagged as unused
@@ -59,8 +74,8 @@ impl DngRenderPipeline {
         Self { pipeline, thresholds }
     }
 
-    /// Render a linear camera-RGB texture to a new sRGB-encoded one in
-    /// `ctx.source_format()`; as Rgba16Unorm it holds exactly the codes
+    /// Render a whole linear camera-RGB texture to a new sRGB-encoded one
+    /// in `ctx.source_format()`; as Rgba16Unorm it holds exactly the codes
     /// `io::quantize_u16` would give the float render.
     pub fn render(
         &self,
@@ -71,11 +86,11 @@ impl DngRenderPipeline {
         let (width, height) = (input.width(), input.height());
         let output = Self::create_output(ctx, width, height);
         let prepared = PreparedRender::new(ctx, constants);
-        self.render_into(ctx, &prepared, input, &output, [width, height]);
+        self.draw(ctx, &prepared, Source::whole(input), Region::whole(width, height), &output);
         output
     }
 
-    /// A texture [`Self::render_into`] can write: `ctx.source_format()`,
+    /// A texture [`Self::draw`] can write: `ctx.source_format()`,
     /// readable back.
     pub fn create_output(ctx: &GpuContext, width: u32, height: u32) -> wgpu::Texture {
         ctx.create_texture(
@@ -87,48 +102,6 @@ impl DngRenderPipeline {
                 | wgpu::TextureUsages::COPY_SRC,
             "dng_render_out",
         )
-    }
-
-    /// Render the top-left `extent` of `input` into the same pixels of
-    /// `output`. Both may be larger (pooled); the render is per pixel, so a
-    /// rect renders as it would within the whole image.
-    pub fn render_into(
-        &self,
-        ctx: &GpuContext,
-        prepared: &PreparedRender,
-        input: &wgpu::Texture,
-        output: &wgpu::Texture,
-        [width, height]: [u32; 2],
-    ) {
-        let mut encoder = ctx.encoder("dng_render");
-        let (in_view, out_view) =
-            (input.create_view(&Default::default()), output.create_view(&Default::default()));
-        let group0 = create_bind_group(
-            &ctx.device,
-            &self.pipeline,
-            0,
-            "dng_render",
-            &[
-                tex(&in_view),                       // in_tex
-                tex(&out_view),                      // out_tex
-                prepared.params.as_entire_binding(), // params
-                prepared.tone.as_entire_binding(),   // tone_curve
-                prepared.hsm.as_entire_binding(),    // hsm_lut
-                prepared.look.as_entire_binding(),   // look_lut
-            ],
-        );
-        let groups: Vec<&wgpu::BindGroup> =
-            std::iter::once(&group0).chain(self.thresholds.as_ref()).collect();
-        dispatch_compute_with(
-            &mut encoder,
-            &self.pipeline,
-            &groups,
-            "dng_render",
-            width,
-            height,
-            WORKGROUP_SIZE,
-        );
-        ctx.submit(encoder);
     }
 }
 
@@ -360,7 +333,7 @@ mod tests {
         deptheos_gpu::wgsl_mirror::assert_mirrors(
             include_str!("mod.rs"),
             include_str!("dng_render.wgsl"),
-            &["DngColorParams"],
+            &["DngColorParams", "Placement"],
         );
     }
 }

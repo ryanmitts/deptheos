@@ -14,7 +14,7 @@ use std::time::Instant;
 use deptheos_app::engine::present::present_texture;
 use deptheos_gpu::GpuContext;
 use deptheos_gpu::gpu_utils::download_texture_rows;
-use deptheos_render::dng_render::{DngRenderPipeline, PreparedRender};
+use deptheos_render::dng_render::{DngRenderPipeline, PreparedRender, Region, Source};
 use deptheos_render::{Color, Draw, OutputSpace, resolve};
 use image::imageops::FilterType;
 
@@ -136,7 +136,8 @@ fn main() {
             let ms = |t: Instant| t.elapsed().as_secs_f64() * 1e3;
 
             let t = Instant::now();
-            pipeline.render_into(&ctx, &prepared, &source, &output, case.region);
+            let region = Region { x: 0, y: 0, width: case.region[0], height: case.region[1] };
+            pipeline.draw(&ctx, &prepared, Source::whole(&source), region, &output);
             wait(&ctx);
             let p = ms(t);
 
@@ -151,7 +152,8 @@ fn main() {
             // One tick as the viewer would see it: render, then the
             // display image, with no wait between.
             let t = Instant::now();
-            pipeline.render_into(&ctx, &prepared, &source, &output, case.region);
+            let region = Region { x: 0, y: 0, width: case.region[0], height: case.region[1] };
+            pipeline.draw(&ctx, &prepared, Source::whole(&source), region, &output);
             let again = present_texture(&ctx, &output, None).unwrap();
             let k = ms(t);
 

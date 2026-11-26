@@ -13,7 +13,7 @@ use deptheos_core::upload::ImageUploader;
 use deptheos_gpu::GpuContext;
 use deptheos_gpu::gpu_utils::download_texture_with;
 use deptheos_render::Draw;
-use deptheos_render::dng_render::{Constants, DngRenderPipeline, PreparedRender};
+use deptheos_render::dng_render::{Constants, DngRenderPipeline, PreparedRender, Region, Source};
 
 use crate::engine::look::Look;
 use crate::engine::present::{CpuImage, conversion, display_pixel, display_rgb16, source_rgb};
@@ -88,7 +88,9 @@ impl RectRenderer {
         prep.dispatch_to_rgba(ctx, &mut encoder, &input);
         ctx.submit(encoder);
         let prepared = &self.prepared.as_ref().expect("prepared above").1;
-        color.render_into(ctx, prepared, &input, &output, [width, height]);
+        // The rect is its own frame: paint's draws read no neighbors.
+        let whole = Region::whole(width, height);
+        color.draw(ctx, prepared, Source::part(&input, whole, [width, height]), whole, &output);
 
         let mut out = Vec::with_capacity(w * h * 4);
         let texel = output.format().block_copy_size(None).unwrap_or(8) as usize;

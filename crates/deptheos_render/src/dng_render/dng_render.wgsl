@@ -6,9 +6,13 @@
 // Not implemented: RGBTables, ProfileGainTableMap and overrange (HDR)
 // profiles; no installed Adobe camera profile carries the first two.
 //
-// The tone curve is a storage buffer lerped by hand, so no float32-filterable
-// texture is needed. The output is the source format: rgba16unorm quantized
-// exactly as the CPU would, or rgba32float.
+// Each stage is a function, run in one fused pass with f32 values between
+// them. The tone curve is a storage buffer lerped by hand, so no
+// float32-filterable texture is needed. The output is the source format:
+// rgba16unorm quantized exactly as the CPU would, or rgba32float.
+//
+// One dispatch draws one tile (`place`): source texel src_origin + p into
+// output texel out_origin + p, for p within size.
 
 #import deptheos::quantize::quantize_rgb_u16
 #import deptheos::color::{linear_to_srgb_channel, srgb_to_linear_channel}
@@ -23,6 +27,14 @@
 @group(0) @binding(3) var<storage, read> tone_curve: array<f32>;
 @group(0) @binding(4) var<storage, read> hsm_lut: array<f32>;
 @group(0) @binding(5) var<storage, read> look_lut: array<f32>;
+@group(0) @binding(6) var<uniform> place: Placement;
+
+struct Placement {
+    // xy = the tile's first source texel, zw = its first output texel.
+    origins: vec4u,
+    // xy = the tile's width and height.
+    size: vec4u,
+}
 
 struct DngColorParams {
     // xyz = 1/(1 - black), broadcast; w = Stage3 black level / 65535.
@@ -229,64 +241,83 @@ fn apply_hsv_lut(rgb: vec3f, dims: vec4u, use_look: bool) -> vec3f {
     return hsv_to_rgb(h_new, s_new, v_new);
 }
 
-@compute @workgroup_size(16, 16)
-fn dng_render(@builtin(global_invocation_id) gid: vec3u) {
-    let size = textureDimensions(out_tex);
-    if (gid.x >= size.x || gid.y >= size.y) {
-        return;
-    }
+// Out the Stage3 black level, then clipped at camera white so oversaturated
+// channels can't skew colors through the matrix.
+fn normalize_camera(camera: vec3f) -> vec3f {
+    let c = (camera - params.range_inv.w) * params.range_inv.xyz;
+    return min(c, params.camera_white.xyz);
+}
 
-    var c = textureLoad(in_tex, vec2i(gid.xy), 0).rgb;
-
-    // Normalize out the Stage3 black level, then clip at camera white so
-    // oversaturated channels can't skew colors through the matrix.
-    c = (c - params.range_inv.w) * params.range_inv.xyz;
-    c = min(c, params.camera_white.xyz);
-
-    let cam_to_prophoto = mat3x3f(
+// Camera RGB to ProPhoto (white balance is inside the matrix), clamped.
+fn camera_to_prophoto(c: vec3f) -> vec3f {
+    let m = mat3x3f(
         params.cam_to_prophoto_c0.xyz,
         params.cam_to_prophoto_c1.xyz,
         params.cam_to_prophoto_c2.xyz,
     );
-    var prophoto = clamp(cam_to_prophoto * c, vec3f(0.0), vec3f(1.0));
+    return clamp(m * c, vec3f(0.0), vec3f(1.0));
+}
 
+fn hue_sat_map(prophoto: vec3f) -> vec3f {
     if (params.flags.x != 0u) {
-        prophoto = apply_hsv_lut(prophoto, params.hsm_dims, false);
+        return apply_hsv_lut(prophoto, params.hsm_dims, false);
     }
+    return prophoto;
+}
 
-    let black = params.exposure.x;
-    let slope = params.exposure.y;
-    let radius = params.exposure.z;
-    let q_scale = params.exposure.w;
-    prophoto = vec3f(
-        exposure_ramp(prophoto.r, black, slope, radius, q_scale),
-        exposure_ramp(prophoto.g, black, slope, radius, q_scale),
-        exposure_ramp(prophoto.b, black, slope, radius, q_scale),
+fn exposure(prophoto: vec3f) -> vec3f {
+    let e = params.exposure;
+    return vec3f(
+        exposure_ramp(prophoto.r, e.x, e.y, e.z, e.w),
+        exposure_ramp(prophoto.g, e.x, e.y, e.z, e.w),
+        exposure_ramp(prophoto.b, e.x, e.y, e.z, e.w),
     );
+}
 
-    // LookTable comes before the tone curve, per the DNG spec.
+// The LookTable comes before the tone curve, per the DNG spec.
+fn look_table(prophoto: vec3f) -> vec3f {
     if (params.flags.y != 0u) {
-        prophoto = apply_hsv_lut(prophoto, params.lt_dims, true);
+        return apply_hsv_lut(prophoto, params.lt_dims, true);
     }
+    return prophoto;
+}
 
-    prophoto = hue_preserving_tone_curve(prophoto);
-
-    let pro_to_srgb = mat3x3f(
+// ProPhoto to linear sRGB, clamped.
+fn prophoto_to_srgb(prophoto: vec3f) -> vec3f {
+    let m = mat3x3f(
         params.pro_to_srgb_c0.xyz,
         params.pro_to_srgb_c1.xyz,
         params.pro_to_srgb_c2.xyz,
     );
-    let linear_srgb = clamp(pro_to_srgb * prophoto, vec3f(0.0), vec3f(1.0));
+    return clamp(m * prophoto, vec3f(0.0), vec3f(1.0));
+}
 
-    let srgb = vec3f(
-        linear_to_srgb_channel(linear_srgb.r),
-        linear_to_srgb_channel(linear_srgb.g),
-        linear_to_srgb_channel(linear_srgb.b),
+fn encode_srgb(linear: vec3f) -> vec3f {
+    return vec3f(
+        linear_to_srgb_channel(linear.r),
+        linear_to_srgb_channel(linear.g),
+        linear_to_srgb_channel(linear.b),
     );
+}
 
+@compute @workgroup_size(16, 16)
+fn dng_render(@builtin(global_invocation_id) gid: vec3u) {
+    if (gid.x >= place.size.x || gid.y >= place.size.y) {
+        return;
+    }
+    let camera = textureLoad(in_tex, vec2i(gid.xy + place.origins.xy), 0).rgb;
+
+    var prophoto = camera_to_prophoto(normalize_camera(camera));
+    prophoto = hue_sat_map(prophoto);
+    prophoto = exposure(prophoto);
+    prophoto = look_table(prophoto);
+    prophoto = hue_preserving_tone_curve(prophoto);
+    let srgb = encode_srgb(prophoto_to_srgb(prophoto));
+
+    let at = vec2i(gid.xy + place.origins.zw);
 #ifdef SOURCE_RGBA16UNORM
-    textureStore(out_tex, vec2i(gid.xy), vec4f(quantize_rgb_u16(srgb), 1.0));
+    textureStore(out_tex, at, vec4f(quantize_rgb_u16(srgb), 1.0));
 #else
-    textureStore(out_tex, vec2i(gid.xy), vec4f(srgb, 1.0));
+    textureStore(out_tex, at, vec4f(srgb, 1.0));
 #endif
 }

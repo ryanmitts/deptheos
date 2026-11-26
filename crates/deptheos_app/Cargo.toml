@@ -120,5 +120,9 @@ name = "mimalloc_shed"
 required-features = ["examples"]
 
 [[example]]
+name = "preview_tick"
+required-features = ["examples"]
+
+[[example]]
 name = "thumb_bench"
 required-features = ["examples"]

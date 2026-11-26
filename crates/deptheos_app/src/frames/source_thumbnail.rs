@@ -87,7 +87,7 @@ pub fn thumbnail(path: &Path, size: u32) -> Result<Thumbnail, ThumbnailError> {
 
 /// Convert from `profile`'s space (`None`: sRGB) to sRGB.
 fn in_srgb(rgb: RgbImage, profile: Option<&io::IccProfile>) -> RgbImage {
-    let Some(to_srgb) = crate::engine::present::to_srgb(profile) else { return rgb };
+    let Some(to_srgb) = crate::engine::present::display_to_srgb(profile) else { return rgb };
     let (w, h) = rgb.dimensions();
     let wide: Vec<u16> = rgb.as_raw().iter().map(|&v| u16::from(v) * 257).collect();
     let mut out = vec![0u16; wide.len()];

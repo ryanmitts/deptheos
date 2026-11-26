@@ -107,7 +107,7 @@ pub(crate) fn assert_renders_like_sdk(ctx: &GpuContext, source: &DngImage, label
     let render_params = source.render_params().expect("render params");
     let input = upload_linear(ctx, &linear);
     let pipeline = DngRenderPipeline::new(ctx);
-    let output = pipeline.render(ctx, &input, &render_params);
+    let output = pipeline.render(ctx, &input, &crate::common::constants(&render_params));
     let gpu_pixels = &download_rgba(ctx, &output)[..];
 
     let psnr = psnr_db(gpu_pixels, cpu_pixels);
@@ -137,7 +137,8 @@ fn srgb_identity_params_encode_linear_input() {
     let linear = synthetic_linear_rgb16();
     let input = upload_linear(&ctx, &linear);
     let pipeline = DngRenderPipeline::new(&ctx);
-    let output = pipeline.render(&ctx, &input, &RenderParams::srgb_identity());
+    let output =
+        pipeline.render(&ctx, &input, &crate::common::constants(&RenderParams::srgb_identity()));
     let gpu_pixels = &download_rgba(&ctx, &output)[..];
 
     // Identity params reduce the pipeline to the sRGB transfer function.
@@ -214,7 +215,8 @@ fn assert_file_render_matches(
         crop.extend_from_slice(&linear[start..start + (SIZE * 3) as usize]);
     }
     let input = upload_linear(ctx, &crop);
-    let output = DngRenderPipeline::new(ctx).render(ctx, &input, &render_params);
+    let output =
+        DngRenderPipeline::new(ctx).render(ctx, &input, &crate::common::constants(&render_params));
     let gpu_pixels = &download_rgba(ctx, &output)[..];
 
     let sdk = deptheos_dng::sdk_render_file_srgb(path, dcp, [x, y, SIZE, SIZE])

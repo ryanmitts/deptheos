@@ -15,6 +15,7 @@ use deptheos_app::engine::present::present_texture;
 use deptheos_gpu::GpuContext;
 use deptheos_gpu::gpu_utils::download_texture_rows;
 use deptheos_render::dng_render::{DngRenderPipeline, PreparedRender};
+use deptheos_render::{Color, Draw, OutputSpace, resolve};
 use image::imageops::FilterType;
 
 /// The full-size picture: 45 MP.
@@ -116,7 +117,9 @@ fn main() {
     ];
 
     let pipeline = DngRenderPipeline::new(&ctx);
-    let prepared = PreparedRender::new(&ctx, &params);
+    let draw = resolve(Color::Linear(&params), None, OutputSpace::Display);
+    let Draw::Rendered(constants) = draw else { unreachable!("a RAW renders on the GPU") };
+    let prepared = PreparedRender::new(&ctx, &constants);
     println!(
         "{:<26} {:>12} {:>12} {:>12} {:>12} {:>12}",
         "case (median / p95 ms)", "pass", "readback", "display img", "pass+display", "tiles+levels"

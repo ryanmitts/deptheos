@@ -3,7 +3,7 @@
 //!
 //! Paint owns its uploader, as `CommonPipelines::uploader`'s lock is held
 //! through a preview's full-frame upload. Buffers are prepared once per
-//! [`RenderParams`] and textures pooled, so a dab costs one small upload,
+//! [`Constants`] and textures pooled, so a dab costs one small upload,
 //! dispatch and readback.
 
 use std::sync::Arc;
@@ -12,9 +12,11 @@ use deptheos_core::io;
 use deptheos_core::upload::ImageUploader;
 use deptheos_gpu::GpuContext;
 use deptheos_gpu::gpu_utils::download_texture_with;
-use deptheos_render::dng_render::{DngRenderPipeline, PreparedRender, RenderParams};
+use deptheos_render::Draw;
+use deptheos_render::dng_render::{Constants, DngRenderPipeline, PreparedRender};
 
-use crate::engine::present::{CpuImage, display_pixel, display_rgb16, source_rgb, to_srgb};
+use crate::engine::look::Look;
+use crate::engine::present::{CpuImage, conversion, display_pixel, display_rgb16, source_rgb};
 use crate::{Error, Result};
 
 /// A rect of interleaved RGB u16 pixels, `width`×`height`.
@@ -27,7 +29,7 @@ pub(crate) struct RectPixels<'a> {
 
 pub(crate) struct RectRenderer {
     uploader: ImageUploader,
-    prepared: Option<(RenderParams, PreparedRender)>,
+    prepared: Option<(Box<Constants>, PreparedRender)>,
     /// The upload target and the render output, grown to the largest rect
     /// lately; a rect uses their top-left corner.
     pool: Option<(wgpu::Texture, wgpu::Texture)>,
@@ -50,15 +52,14 @@ impl RectRenderer {
     }
 
     /// The display pixels of `rect`, equal to that rect of the whole
-    /// display: rendered through `params`, or rounded when `None`, and
-    /// converted from `profile`'s color space if any.
+    /// display in `look`: rendered on the GPU, or rounded and converted on
+    /// the CPU.
     pub(crate) fn render(
         &mut self,
         ctx: &Arc<GpuContext>,
         color: &DngRenderPipeline,
         rect: RectPixels<'_>,
-        params: Option<&RenderParams>,
-        profile: Option<&io::IccProfile>,
+        look: Look<'_>,
     ) -> Result<CpuImage> {
         let RectPixels { pixels, width, height } = rect;
         let (w, h) = (width as usize, height as usize);
@@ -68,14 +69,18 @@ impl RectRenderer {
                 pixels.len()
             )));
         }
-        let Some(params) = params else {
-            let mut out = vec![0; w * h * 4];
-            display_rgb16(pixels, &mut out, to_srgb(profile).as_ref());
-            return Ok(CpuImage { width, height, pixels: out });
+        let constants = match look.resolve() {
+            Draw::Rendered(constants) => constants,
+            Draw::Stored { profile, output } => {
+                let mut out = vec![0; w * h * 4];
+                display_rgb16(pixels, &mut out, conversion(profile, output).as_ref());
+                return Ok(CpuImage { width, height, pixels: out });
+            }
         };
 
-        if self.prepared.as_ref().is_none_or(|(p, _)| p != params) {
-            self.prepared = Some((params.clone(), PreparedRender::new(ctx, params)));
+        if self.prepared.as_ref().is_none_or(|(c, _)| *c != constants) {
+            let prepared = PreparedRender::new(ctx, &constants);
+            self.prepared = Some((constants, prepared));
         }
         let (input, output) = self.textures(ctx, width, height);
         let prep = self.uploader.prepare_rgb16(ctx, pixels, width, height).map_err(Error::Core)?;

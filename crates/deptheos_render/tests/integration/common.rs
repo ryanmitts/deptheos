@@ -41,3 +41,12 @@ pub fn download_rgba(ctx: &GpuContext, texture: &wgpu::Texture) -> Vec<f32> {
 pub fn core_fixture(name: &str) -> PathBuf {
     Path::new(env!("CARGO_MANIFEST_DIR")).join("../deptheos_core/tests/fixtures").join(name)
 }
+
+/// The constants a linear stack of `params` renders with.
+pub fn constants(params: &deptheos_dng::RenderParams) -> deptheos_render::dng_render::Constants {
+    use deptheos_render::{Color, Draw, OutputSpace, resolve};
+    match resolve(Color::Linear(params), None, OutputSpace::Srgb) {
+        Draw::Rendered(constants) => *constants,
+        Draw::Stored { .. } => panic!("a linear stack renders on the GPU"),
+    }
+}

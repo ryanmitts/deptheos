@@ -394,7 +394,9 @@ impl Inner {
         let (engine, stack, told) = (self.engine.clone(), stack.clone(), self.told.clone());
         Some(match kind {
             SourceKind::Original => Arc::new(move |_| {
-                let display = engine.present_pixels(&stack, &stack.pixels).map_err(|e| told(&e))?;
+                let display = engine
+                    .present_pixels(crate::Look::stored(&stack), &stack.pixels)
+                    .map_err(|e| told(&e))?;
                 Ok((None, display))
             }),
             SourceKind::Frame { path } => {

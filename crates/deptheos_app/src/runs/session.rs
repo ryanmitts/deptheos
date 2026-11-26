@@ -15,7 +15,7 @@ use deptheos_core::{
 };
 use deptheos_gpu::GpuContext;
 use deptheos_gpu::profile::cpu_scope;
-use deptheos_render::dng_render::DngRenderPipeline;
+use deptheos_render::dng_render::{Constants, DngRenderPipeline};
 use image::math::Rect;
 
 use crate::frames::names::file_label;
@@ -44,7 +44,7 @@ pub use stack::{
     CompletedStack, Gray16Image, LeftOut, SaveOptions, StackColor, StackGeometry, left_out_line,
     left_out_message,
 };
-pub(crate) use stack::{left_out_limit, render_linear};
+pub(crate) use stack::{export, export_pixels, left_out_limit};
 
 /// How far past 1 the second frame's magnification must be to restart the
 /// stack reversed; the aligner's estimate wavers around 1 by less.
@@ -179,16 +179,15 @@ pub struct SessionOutput {
 pub struct LinearDisplay {
     ctx: Arc<GpuContext>,
     cropped: wgpu::Texture,
-    params: deptheos_dng::RenderParams,
 }
 
 impl LinearDisplay {
-    /// The cropped result rendered to sRGB through the reference's color
-    /// science: Rgba16Unorm where the adapter stores it
+    /// The cropped result rendered through `constants` (the stack's look,
+    /// resolved): Rgba16Unorm where the adapter stores it
     /// (`GpuContext::source_format`), else Rgba32Float.
-    pub fn render(self, color: &DngRenderPipeline) -> wgpu::Texture {
+    pub fn render(self, color: &DngRenderPipeline, constants: &Constants) -> wgpu::Texture {
         let _t = cpu_scope("complete: display render");
-        color.render(&self.ctx, &self.cropped, &self.params)
+        color.render(&self.ctx, &self.cropped, constants)
     }
 }
 
@@ -1018,8 +1017,7 @@ impl StackingSession {
         let (color, display) = match finish {
             Finish::Linear { metadata, cropped } => {
                 let render_params = render_params_or_identity(&metadata);
-                let display =
-                    LinearDisplay { ctx: self.ctx.clone(), cropped, params: render_params.clone() };
+                let display = LinearDisplay { ctx: self.ctx.clone(), cropped };
                 (StackColor::Linear { metadata, render_params }, Some(display))
             }
             Finish::Srgb { profile } => {

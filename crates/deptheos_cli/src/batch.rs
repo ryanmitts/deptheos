@@ -10,7 +10,8 @@ use clap::{Args, Subcommand, ValueEnum};
 use deptheos_app::library::export::batch_target;
 use deptheos_app::runs::batch::{self, Split};
 use deptheos_app::{
-    CompletedStack, CoreError, Engine, SaveOptions, SessionOptions, StackerConfig, Words,
+    Adjustments, CompletedStack, CoreError, Engine, Look, SaveOptions, SessionOptions,
+    StackerConfig, Words,
 };
 
 use crate::args::{
@@ -212,12 +213,14 @@ impl Runner for BatchRunner<'_> {
         let path = batch_target(&args.output, label, format.extension(), None, |p| p.exists());
         // An unwritten stack is warned of here; the summary and exit status
         // count it.
-        let result = engine.save(&completed, &path, self.save).map_err(|e| {
-            let told = tell_engine(&e, engine.words());
-            ui::warn(batch::export_failure(engine.words(), label, &told.message));
-            told.print_details();
-            told.message
-        });
+        let result = engine
+            .save(Look::exported(&completed, Some(&Adjustments::NEUTRAL)), &path, self.save)
+            .map_err(|e| {
+                let told = tell_engine(&e, engine.words());
+                ui::warn(batch::export_failure(engine.words(), label, &told.message));
+                told.print_details();
+                told.message
+            });
         if result.is_ok() {
             ui::wrote(&path);
         }

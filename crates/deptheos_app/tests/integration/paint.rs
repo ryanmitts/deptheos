@@ -12,7 +12,7 @@ use deptheos_app::paint::{
     Brush, Command, Dab, Output, PaintState, PaintWorker, SourceKind, SourceLoader,
 };
 use deptheos_app::test_support::engine;
-use deptheos_app::{CompletedStack, Engine, PresentedImage, RenderId, SessionOptions};
+use deptheos_app::{CompletedStack, Engine, Look, PresentedImage, RenderId, SessionOptions};
 
 /// A frame the render didn't stack is lined up through another render that
 /// did, listed once per open; a frame no render stacked says why it can't be
@@ -117,7 +117,8 @@ fn flat_source(engine: &Arc<Engine>, stack: &Arc<CompletedStack>, value: u16) ->
     let (engine, stack) = (engine.clone(), stack.clone());
     Arc::new(move |with_pixels| {
         let pixels = vec![value; stack.pixels.len()];
-        let display = engine.present_pixels(&stack, &pixels).map_err(|e| e.to_string())?;
+        let display =
+            engine.present_pixels(Look::stored(&stack), &pixels).map_err(|e| e.to_string())?;
         Ok((with_pixels.then_some(pixels), display))
     })
 }
@@ -259,7 +260,7 @@ fn strokes_patch_the_display_and_survive_a_render_switch() {
 
     open(&h, 1, &a);
     let mut shown = h.canvas();
-    same(&shown, &engine.present_pixels(&a, &a.pixels).unwrap(), "fresh canvas");
+    same(&shown, &engine.present_pixels(Look::stored(&a), &a.pixels).unwrap(), "fresh canvas");
     let source = SourceKind::Frame { path: frame_file("a.png") };
     h.worker.send(Command::SetSource {
         kind: source.clone(),
@@ -292,13 +293,13 @@ fn strokes_patch_the_display_and_survive_a_render_switch() {
     h.worker.send(Command::Undo);
     h.worker.send(Command::Undo);
     h.settle(&mut shown, |s| s.undo == 0 && s.redo == 2 && !s.painted && s.painted_from.is_empty());
-    same(&shown, &engine.present_pixels(&a, &a.pixels).unwrap(), "A undone");
+    same(&shown, &engine.present_pixels(Look::stored(&a), &a.pixels).unwrap(), "A undone");
 
     // Redo, then Reset: the original, with no history left.
     h.worker.send(Command::Redo);
     h.worker.send(Command::Reset);
     h.settle(&mut shown, |s| s.undo == 0 && s.redo == 0 && !s.painted);
-    same(&shown, &engine.present_pixels(&a, &a.pixels).unwrap(), "A reset");
+    same(&shown, &engine.present_pixels(Look::stored(&a), &a.pixels).unwrap(), "A reset");
 
     // B kept its stroke throughout.
     open(&h, 2, &b);
@@ -339,7 +340,7 @@ fn undoing_a_diagonal_stroke_updates_only_the_tiles_along_it() {
     assert!(full.contains(&[0, 0]) && full.contains(&[3, 2]), "the stroke's ends: {full:?}");
     assert!(!full.contains(&[3, 0]) && !full.contains(&[0, 2]), "the other corners: {full:?}");
     assert!(full.len() <= 8, "the tiles along the stroke, of 12: {full:?}");
-    same(&shown, &engine.present_pixels(&a, &a.pixels).unwrap(), "undone");
+    same(&shown, &engine.present_pixels(Look::stored(&a), &a.pixels).unwrap(), "undone");
 }
 
 /// A source's display names its render, so a shell that moved on drops it.
@@ -415,7 +416,7 @@ fn paint_survives_a_restart_and_history_does_not() {
     let (reply, flat) = channel();
     h.worker.send(Command::Flatten { key: key(1), stack: a.clone(), reply });
     let flat = flat.recv().unwrap().unwrap().expect("painted");
-    same(&engine.present_pixels(&a, &flat).unwrap(), &painted, "flattened from disk");
+    same(&engine.present_pixels(Look::stored(&a), &flat).unwrap(), &painted, "flattened from disk");
 
     open(&h, 1, &a);
     let mut shown = h.canvas();
@@ -429,7 +430,11 @@ fn paint_survives_a_restart_and_history_does_not() {
     let h = Harness::new(&engine, &renders);
     open(&h, 1, &a);
     let mut shown = h.canvas();
-    same(&shown, &engine.present_pixels(&a, &a.pixels).unwrap(), "reset after a restart");
+    same(
+        &shown,
+        &engine.present_pixels(Look::stored(&a), &a.pixels).unwrap(),
+        "reset after a restart",
+    );
     h.settle(&mut shown, |s| s.undo == 0 && s.redo == 0 && !s.painted);
 }
 
@@ -497,7 +502,8 @@ fn a_source_that_fails_to_load_refuses_the_stroke() {
         if with_pixels {
             return Err("the frame is gone".into());
         }
-        let display = engine2.present_pixels(&a2, &a2.pixels).map_err(|e| e.to_string())?;
+        let display =
+            engine2.present_pixels(Look::stored(&a2), &a2.pixels).map_err(|e| e.to_string())?;
         Ok((None, display))
     });
     let kind = SourceKind::Frame { path: frame_file("gone.png") };
@@ -527,7 +533,7 @@ fn a_source_that_fails_to_load_refuses_the_stroke() {
         }
     }
     assert_eq!(failures, [Some(kind), None]);
-    same(&shown, &engine.present_pixels(&a, &a.pixels).unwrap(), "unpainted");
+    same(&shown, &engine.present_pixels(Look::stored(&a), &a.pixels).unwrap(), "unpainted");
 }
 
 /// Undo mid-stroke is ignored; the state names the undo and redo steps.

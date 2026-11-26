@@ -2,14 +2,19 @@
 //! ([`StackGeometry`]), color model ([`StackColor`]) and saving
 //! ([`SaveOptions`]).
 
+use std::borrow::Cow;
 use std::path::{Path, PathBuf};
 
 use deptheos_core::{Affine2, FrameAlignment, PlaneRamp, io};
+use deptheos_render::Draw;
+use deptheos_render::dng_render::Constants;
 use image::math::Rect;
 use image::{ImageBuffer, Luma};
 
 use super::SessionOptions;
 use super::readback::download_rgb;
+use crate::engine::look::Look;
+use crate::engine::present::conversion;
 use crate::engine::present::{PresentedImage, present_frame_map};
 use crate::frames::names::file_label;
 use crate::runs::stacker::StackerConfig;
@@ -322,74 +327,6 @@ impl CompletedStack {
             .map(|(i, _)| i)
     }
 
-    /// Save the result, its format from the extension: `.dng` writes the
-    /// linear pixels (linear stacks only), others sRGB, rendered on the GPU
-    /// for linear stacks. JPEG, PNG and TIFF carry the reference's EXIF and
-    /// the stack's XMP ([`crate::library::export_tags`]).
-    pub(crate) fn save(&self, engine: &Engine, path: &Path, save: SaveOptions) -> Result<()> {
-        self.save_pixels(engine, &self.pixels, path, save)
-    }
-
-    /// [`Self::save`] with `pixels` (a retouched copy) in place of the own.
-    pub(crate) fn save_pixels(
-        &self,
-        engine: &Engine,
-        pixels: &[u16],
-        path: &Path,
-        save: SaveOptions,
-    ) -> Result<()> {
-        let tags = crate::library::export_tags::export_metadata(self);
-        self.save_tagged(engine, pixels, path, save, &tags)
-    }
-
-    /// [`Self::save_pixels`] with `tags` in place of the stack's own
-    /// ([`crate::runs::aligned`]).
-    pub(crate) fn save_tagged(
-        &self,
-        engine: &Engine,
-        pixels: &[u16],
-        path: &Path,
-        save: SaveOptions,
-        tags: &io::metadata::ExportMetadata,
-    ) -> Result<()> {
-        let (encoding, allow_sixteen) = (save.encoding(), save.sixteen_bit);
-        match &self.color {
-            StackColor::Linear { metadata, .. } if io::is_dng(path) => {
-                let dng_tags = deptheos_dng::DngTags {
-                    software: &tags.software,
-                    comment: tags.comment.as_deref().unwrap_or_default(),
-                    xmp: tags.xmp.as_deref().unwrap_or_default(),
-                    capture_time: &crate::library::export_tags::capture_time_iso(tags),
-                    fields: &crate::library::export_tags::dng_fields(tags),
-                };
-                // Written to a temporary moved into place, as every save.
-                io::write_replacing(path, |tmp| {
-                    Ok(metadata.write_tagged(tmp, pixels, self.width, self.height, 3, &dng_tags)?)
-                })?;
-            }
-            _ if io::is_dng(path) => {
-                return Err(Error::NotRaw);
-            }
-            StackColor::Linear { render_params, .. } => {
-                let srgb = render_linear(engine, pixels, self.width, self.height, render_params)?;
-                io::save_rgb16(
-                    path,
-                    &srgb,
-                    self.width,
-                    self.height,
-                    allow_sixteen,
-                    encoding,
-                    tags,
-                )?;
-            }
-            StackColor::Srgb { sixteen_bit, .. } => {
-                let bits16 = *sixteen_bit && allow_sixteen;
-                io::save_rgb16(path, pixels, self.width, self.height, bits16, encoding, tags)?;
-            }
-        }
-        Ok(())
-    }
-
     /// The backward map from this stack's full-frame coordinates to
     /// `other`'s result pixels, for [`deptheos_core::warp`].
     ///
@@ -452,14 +389,75 @@ impl StackGeometry {
     }
 }
 
-/// Linear `pixels` rendered to sRGB through `params` on the GPU: the color
-/// step of a linear stack's non-DNG save.
-pub(crate) fn render_linear(
+/// Writes `pixels` (`look`'s stack's own, or retouched) to `path` tagged
+/// `tags`, its format from the extension: `.dng` the linear pixels (linear
+/// stacks only), others drawn in `look` ([`export_pixels`]).
+pub(crate) fn export(
+    engine: &Engine,
+    look: Look<'_>,
+    pixels: &[u16],
+    path: &Path,
+    save: SaveOptions,
+    tags: &io::metadata::ExportMetadata,
+) -> Result<()> {
+    let stack = look.stack();
+    let (width, height) = (stack.width, stack.height);
+    let (encoding, allow_sixteen) = (save.encoding(), save.sixteen_bit);
+    let sixteen = match &stack.color {
+        StackColor::Linear { metadata, .. } if io::is_dng(path) => {
+            let dng_tags = deptheos_dng::DngTags {
+                software: &tags.software,
+                comment: tags.comment.as_deref().unwrap_or_default(),
+                xmp: tags.xmp.as_deref().unwrap_or_default(),
+                capture_time: &crate::library::export_tags::capture_time_iso(tags),
+                fields: &crate::library::export_tags::dng_fields(tags),
+            };
+            // Written to a temporary moved into place, as every save.
+            return io::write_replacing(path, |tmp| {
+                Ok(metadata.write_tagged(tmp, pixels, width, height, 3, &dng_tags)?)
+            })
+            .map_err(Error::from);
+        }
+        _ if io::is_dng(path) => return Err(Error::NotRaw),
+        StackColor::Linear { .. } => allow_sixteen,
+        StackColor::Srgb { sixteen_bit, .. } => *sixteen_bit && allow_sixteen,
+    };
+    let drawn = export_pixels(engine, look, pixels, (width, height))?;
+    io::save_rgb16(path, &drawn, width, height, sixteen, encoding, tags)?;
+    Ok(())
+}
+
+/// `pixels` (`width`×`height`, of `look`'s stack or a region or snapshot
+/// of it) as an export holds them: rendered on the GPU, converted, or as
+/// stored.
+pub(crate) fn export_pixels<'p>(
+    engine: &Engine,
+    look: Look<'_>,
+    pixels: &'p [u16],
+    (width, height): (u32, u32),
+) -> Result<Cow<'p, [u16]>> {
+    Ok(match look.resolve() {
+        Draw::Rendered(constants) => {
+            Cow::Owned(render_pixels(engine, pixels, width, height, &constants)?)
+        }
+        Draw::Stored { profile, output } => match conversion(profile, output) {
+            Some(to_srgb) => {
+                let mut out = vec![0; pixels.len()];
+                to_srgb.convert(pixels, &mut out);
+                Cow::Owned(out)
+            }
+            None => Cow::Borrowed(pixels),
+        },
+    })
+}
+
+/// `pixels` rendered through `constants` on the GPU and read back.
+fn render_pixels(
     engine: &Engine,
     pixels: &[u16],
     width: u32,
     height: u32,
-    params: &deptheos_dng::RenderParams,
+    constants: &Constants,
 ) -> Result<Vec<u16>> {
     let ctx = engine.gpu();
     let linear = {
@@ -470,7 +468,7 @@ pub(crate) fn render_linear(
         uploader.release_resources();
         linear?
     };
-    let rendered = engine.color().render(ctx, &linear, params);
+    let rendered = engine.color().render(ctx, &linear, constants);
     download_rgb(ctx, &rendered, Rect { x: 0, y: 0, width, height })
 }
 

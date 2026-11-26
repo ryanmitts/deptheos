@@ -11,6 +11,7 @@ use super::canvas::Canvas;
 use super::render::{RectPixels, RectRenderer};
 use super::tile::{self, TileId};
 use crate::Error;
+use crate::engine::look::Look;
 use crate::engine::present::{
     CpuImage, PixelRect, PresentedImage, TILE_CORE, core_rect, cut_tile, present_rect, stored_rect,
     tiles_touching,
@@ -123,7 +124,8 @@ impl CanvasDisplay {
         let pixels = canvas.read(rect);
         let stack = canvas.stack();
         let input = RectPixels { pixels: &pixels, width: rect.width, height: rect.height };
-        self.renderer.render(ctx, color, input, stack.render_params(), stack.profile())
+        // Retouch shows the stored picture.
+        self.renderer.render(ctx, color, input, Look::stored(stack))
     }
 }
 

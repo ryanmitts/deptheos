@@ -7,6 +7,7 @@ use std::path::PathBuf;
 use std::sync::{Arc, OnceLock};
 
 use super::worker::{Failure, SourceLoader};
+use crate::engine::look::Look;
 use crate::library::history::{History, Render, RenderId};
 use crate::words::{Words, say};
 use crate::{CompletedStack, Engine, Explain, SourceInput};
@@ -83,7 +84,7 @@ pub fn frame_loader(
             .frame_alignment(&paths, &path, geometries.iter().map(|(p, g)| (p.as_slice(), g)))
             .ok_or_else(|| say!(engine.words(), "paint-frame-not-lined-up"))?;
         let input = SourceInput::Frame { path: &path, alignment };
-        engine.paint_source(&stack, input, with_pixels).map_err(|e| told(&e))
+        engine.paint_source(Look::stored(&stack), input, with_pixels).map_err(|e| told(&e))
     })
 }
 
@@ -100,6 +101,6 @@ pub fn render_loader(
         let alignment =
             stack.alignment_to(&other).ok_or_else(|| no_shared_frame(engine.words()))?;
         let input = SourceInput::Render { other: &other, pixels: &other.pixels, alignment };
-        engine.paint_source(&stack, input, with_pixels).map_err(|e| told(&e))
+        engine.paint_source(Look::stored(&stack), input, with_pixels).map_err(|e| told(&e))
     })
 }

@@ -22,8 +22,8 @@ use std::time::{Duration, Instant};
 use clap::{Args, ValueEnum};
 use deptheos_app::library::export::ExportFormat;
 use deptheos_app::{
-    CoreError, Engine, GpuContext, GridConfig, LIVE_PREVIEW_SIDE, SaveOptions, SessionEvent,
-    SessionOptions, StackerConfig, StackerKind,
+    Adjustments, CoreError, Engine, GpuContext, GridConfig, LIVE_PREVIEW_SIDE, Look, SaveOptions,
+    SessionEvent, SessionOptions, StackerConfig, StackerKind,
 };
 use deptheos_gpu::profile::{self, Stage};
 use serde::Serialize;
@@ -434,7 +434,11 @@ fn write_result(
     if let Some(dir) = &args.output {
         std::fs::create_dir_all(dir).map_err(CoreError::from)?;
         let path = dir.join(format!("{}-{}.jpg", stacker.key(), align.key()));
-        engine.save(&result.stack, &path, SaveOptions::default())?;
+        engine.save(
+            Look::exported(&result.stack, Some(&Adjustments::NEUTRAL)),
+            &path,
+            SaveOptions::default(),
+        )?;
         progress!("wrote {}", path.display());
     }
     let raw_name = format!("{}-{}.u16", stacker.key(), align.key());
@@ -505,7 +509,16 @@ fn time_one(
     let stack = if live {
         let options = SessionOptions { live_map: true, ..options };
         engine
-            .stack(paths.to_vec(), config, options, LIVE_PREVIEW_SIDE, cancel, &mut mark, |_| {})?
+            .stack(
+                paths.to_vec(),
+                config,
+                options,
+                &Adjustments::NEUTRAL,
+                LIVE_PREVIEW_SIDE,
+                cancel,
+                &mut mark,
+                |_| {},
+            )?
             .stack
     } else {
         let session = engine.session(paths.to_vec(), config, options)?;

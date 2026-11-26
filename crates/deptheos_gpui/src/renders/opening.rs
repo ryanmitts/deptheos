@@ -27,7 +27,7 @@ impl Renders {
             let loaded = work::interactive("render-open", move || {
                 let stack = store.load_render(&render.id).map_err(deptheos_app::Error::Store)?;
                 work::current().check()?;
-                let presented = engine.present_stack(stack)?;
+                let presented = engine.present_stack(stack, &deptheos_app::Adjustments::NEUTRAL)?;
                 Ok::<_, deptheos_app::Error>(OpenedRender { render, presented })
             })
             .await;

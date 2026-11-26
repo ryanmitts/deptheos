@@ -464,7 +464,10 @@ fn result(engine: &Engine, stacked: &[PathBuf], options: SessionOptions) -> Arc<
         notes: Vec::new(),
         contributions: Default::default(),
     };
-    StackResult::new(engine.engine.clone(), engine.engine.present_stack(stack).unwrap())
+    StackResult::new(
+        engine.engine.clone(),
+        engine.engine.present_stack(stack, &deptheos_app::Adjustments::NEUTRAL).unwrap(),
+    )
 }
 
 /// Stack `stacked` (from `listed`) as iOS does, into `stack`.
@@ -792,7 +795,10 @@ fn frames_and_renders_compare_with_the_result() {
             color: StackColor::Srgb { sixteen_bit: false, profile: None },
             ..CompletedStack::srgb(width, height, pixels, paths.clone())
         };
-        StackResult::new(engine.engine.clone(), engine.engine.present_stack(stack).unwrap())
+        StackResult::new(
+            engine.engine.clone(),
+            engine.engine.present_stack(stack, &deptheos_app::Adjustments::NEUTRAL).unwrap(),
+        )
     };
     let (gray, black) = (result(128 * 257), result(0));
 
@@ -1017,7 +1023,10 @@ fn left_out_frames_and_summary_line_are_reported() {
         CompletedStack::srgb(width, height, vec![0; 3 * width as usize * height as usize], paths);
     stack.geometry.left_out =
         vec![deptheos_app::LeftOut { index: 1, reason: "couldn't be aligned".into() }];
-    let res = StackResult::new(engine.engine.clone(), engine.engine.present_stack(stack).unwrap());
+    let res = StackResult::new(
+        engine.engine.clone(),
+        engine.engine.present_stack(stack, &deptheos_app::Adjustments::NEUTRAL).unwrap(),
+    );
     let want = vec![LeftOutInfo {
         path: listed[1].clone(),
         reason: "Left out b.jpg (couldn't be aligned)".into(),
@@ -1362,8 +1371,10 @@ fn the_depth_map_is_lit_frame_by_frame() {
         )
     };
     stack.geometry.left_out = vec![deptheos_app::LeftOut { index: 1, reason: "blurry".into() }];
-    let result =
-        StackResult::new(engine.engine.clone(), engine.engine.present_stack(stack).unwrap());
+    let result = StackResult::new(
+        engine.engine.clone(),
+        engine.engine.present_stack(stack, &deptheos_app::Adjustments::NEUTRAL).unwrap(),
+    );
 
     let colors = result.frame_colors();
     assert_eq!(colors.len(), 3, "one per frame, in the order given");

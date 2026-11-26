@@ -13,6 +13,7 @@ publish = false
 deptheos_gpu = { workspace = true }
 deptheos_core = { workspace = true }
 deptheos_dng = { workspace = true }
+deptheos_adjust = { workspace = true }
 wgpu = { workspace = true }
 encase = { workspace = true }
 glam = { workspace = true }

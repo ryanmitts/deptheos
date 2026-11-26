@@ -1,7 +1,7 @@
 use clap::Parser;
 use deptheos_app::{
-    CompletedStack, CoreError, Engine, Overlay, Platform, SessionEvent, SessionOutput,
-    StackGeometry, StackerConfig, StackingSession, Words,
+    Adjustments, CompletedStack, CoreError, Engine, Look, Overlay, Platform, SessionEvent,
+    SessionOutput, StackGeometry, StackerConfig, StackingSession, Words,
 };
 use error::{Error, Result};
 use std::path::{Path, PathBuf};
@@ -248,7 +248,11 @@ impl Runner<'_> {
         }
         let completed = run_with_progress(session)?.stack;
         ui::warn_stack(&completed, self.words, None);
-        engine.save(&completed, &run.output, self.stack.save.options())?;
+        engine.save(
+            Look::exported(&completed, Some(&Adjustments::NEUTRAL)),
+            &run.output,
+            self.stack.save.options(),
+        )?;
         ui::wrote(&run.output);
         if let Some(dir) = contributions {
             write_contributions(engine, &completed, &dir)?;
@@ -262,7 +266,8 @@ impl Runner<'_> {
 fn write_contributions(engine: &Engine, stack: &CompletedStack, dir: &Path) -> Result<()> {
     std::fs::create_dir_all(dir).map_err(CoreError::from)?;
     for (index, path) in stack.paths.iter().enumerate() {
-        let image = engine.compare_rgb(path, Some(index), stack, Overlay::Contribution)?;
+        let image =
+            engine.compare_rgb(path, Some(index), Look::stored(stack), Overlay::Contribution)?;
         image.save(dir.join(contribution_name(index, path))).map_err(CoreError::from)?;
     }
     match stack.paths.len() {

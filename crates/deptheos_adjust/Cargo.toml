@@ -1,0 +1,13 @@
+[package]
+name = "deptheos_adjust"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+authors.workspace = true
+license.workspace = true
+repository.workspace = true
+homepage.workspace = true
+publish = false
+
+# Plain data, with no other Deptheos crate under it.
+[dependencies]

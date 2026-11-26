@@ -152,7 +152,14 @@ impl AppView {
                 probe.wait();
                 let target =
                     export::batch_target(&folder, &stem, extension, slot.as_deref(), Path::exists);
-                let saved = engine.save(&completed, &target, options);
+                let saved = engine.save(
+                    deptheos_app::Look::exported(
+                        &completed,
+                        Some(&deptheos_app::Adjustments::NEUTRAL),
+                    ),
+                    &target,
+                    options,
+                );
                 #[cfg(test)]
                 probe.wrote();
                 saved.map(|()| target)

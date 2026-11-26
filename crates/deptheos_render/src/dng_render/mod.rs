@@ -18,7 +18,7 @@ mod params {
     use glam::{UVec4, Vec4};
 
     /// Mirror of the WGSL `DngColorParams` uniform.
-    #[derive(Clone, Copy, encase::ShaderType)]
+    #[derive(Clone, Copy, Debug, PartialEq, encase::ShaderType)]
     pub(super) struct DngColorParams {
         pub(super) range_inv: Vec4,
         pub(super) cam_to_prophoto_c0: Vec4,
@@ -66,11 +66,11 @@ impl DngRenderPipeline {
         &self,
         ctx: &GpuContext,
         input: &wgpu::Texture,
-        render_params: &RenderParams,
+        constants: &Constants,
     ) -> wgpu::Texture {
         let (width, height) = (input.width(), input.height());
         let output = Self::create_output(ctx, width, height);
-        let prepared = PreparedRender::new(ctx, render_params);
+        let prepared = PreparedRender::new(ctx, constants);
         self.render_into(ctx, &prepared, input, &output, [width, height]);
         output
     }
@@ -132,8 +132,36 @@ impl DngRenderPipeline {
     }
 }
 
-/// One [`RenderParams`]' GPU buffers (uniform, composed tone curve, LUTs),
-/// built once and reused by every render with those params.
+/// What the shader is given for one draw, on the CPU: the uniform, the
+/// composed tone curve and the profile's tables. Made by
+/// [`crate::resolve`]; equal values draw equal pictures.
+#[derive(Clone, Debug, PartialEq)]
+pub struct Constants {
+    uniform: params::DngColorParams,
+    tone: Vec<f32>,
+    /// Empty when the profile has none (or an incomplete one).
+    hsm: Vec<f32>,
+    look: Vec<f32>,
+}
+
+impl Constants {
+    /// A linear stack's constants from its render parameters.
+    pub(crate) fn linear(rp: &RenderParams) -> Self {
+        let lut = |map: Option<&HueSatMap>| match map {
+            Some(map) if lut_is_complete(map) => map.data.clone(),
+            _ => Vec::new(),
+        };
+        Self {
+            uniform: pack_params(rp),
+            tone: precompose_tone_curve(&rp.tone_curve, exposure_tone(rp), TONE_CURVE_SAMPLES),
+            hsm: lut(rp.hue_sat_map.as_ref()),
+            look: lut(rp.look_table.as_ref()),
+        }
+    }
+}
+
+/// One [`Constants`]' GPU buffers, built once and reused by every render
+/// with those constants.
 pub struct PreparedRender {
     params: wgpu::Buffer,
     tone: wgpu::Buffer,
@@ -142,18 +170,12 @@ pub struct PreparedRender {
 }
 
 impl PreparedRender {
-    pub fn new(ctx: &GpuContext, render_params: &RenderParams) -> Self {
-        let uniform = pack_params(render_params);
-        let tone = precompose_tone_curve(
-            &render_params.tone_curve,
-            exposure_tone(render_params),
-            TONE_CURVE_SAMPLES,
-        );
+    pub fn new(ctx: &GpuContext, constants: &Constants) -> Self {
         Self {
-            params: ctx.create_uniform_buffer(&uniform, "dng_color_params"),
-            tone: storage_buffer(ctx, &tone, "dng_tone_curve"),
-            hsm: lut_buffer(ctx, render_params.hue_sat_map.as_ref(), "dng_hsm"),
-            look: lut_buffer(ctx, render_params.look_table.as_ref(), "dng_look"),
+            params: ctx.create_uniform_buffer(&constants.uniform, "dng_color_params"),
+            tone: storage_buffer(ctx, &constants.tone, "dng_tone_curve"),
+            hsm: lut_buffer(ctx, &constants.hsm, "dng_hsm"),
+            look: lut_buffer(ctx, &constants.look, "dng_look"),
         }
     }
 }
@@ -290,13 +312,10 @@ fn storage_buffer(ctx: &GpuContext, data: &[f32], label: &str) -> wgpu::Buffer {
     ctx.create_buffer_with_data(label, bytemuck::cast_slice(data), wgpu::BufferUsages::STORAGE)
 }
 
-/// LUT storage buffer; absent LUTs bind a one-float placeholder (the shader
-/// gates reads on `flags`).
-fn lut_buffer(ctx: &GpuContext, lut: Option<&HueSatMap>, label: &str) -> wgpu::Buffer {
-    match lut {
-        Some(map) if lut_is_complete(map) => storage_buffer(ctx, &map.data, label),
-        _ => storage_buffer(ctx, &[0.0], label),
-    }
+/// LUT storage buffer; an absent (empty) LUT binds a one-float placeholder
+/// (the shader gates reads on `flags`).
+fn lut_buffer(ctx: &GpuContext, lut: &[f32], label: &str) -> wgpu::Buffer {
+    storage_buffer(ctx, if lut.is_empty() { &[0.0] } else { lut }, label)
 }
 
 #[cfg(test)]

@@ -125,6 +125,7 @@ impl Sequences {
             sequence::export_grow(
                 &engine,
                 &stack,
+                &deptheos_app::Adjustments::NEUTRAL,
                 Some(job.render.as_str()),
                 &job.name,
                 &job.parent,

@@ -9,6 +9,7 @@
 
 pub(crate) mod colormap;
 pub mod logs;
+pub mod look;
 pub mod memory;
 pub mod present;
 pub(crate) mod preview;
@@ -39,7 +40,11 @@ use crate::runs::stacker::StackerConfig;
 use crate::words::Words;
 use crate::{Converted, DngCache, RawBackend, StackConversions};
 use crate::{Error, RenderUse};
-use present::{PresentedImage, present_map, present_rgb, present_rgb16, present_texture};
+use deptheos_render::{Adjustments, Color, Draw, OutputSpace, resolve};
+use look::Look;
+use present::{
+    PresentedImage, conversion, present_map, present_rgb, present_rgb16, present_texture,
+};
 
 type Result<T> = std::result::Result<T, Error>;
 
@@ -82,6 +87,13 @@ pub enum SourceInput<'a> {
     /// Another render's unpainted pixels, placed and exposure-matched by
     /// [`CompletedStack::alignment_to`].
     Render { other: &'a CompletedStack, pixels: &'a [u16], alignment: FrameAlignment },
+}
+
+/// A texture in a draw's colors as far as the GPU takes them, and the
+/// conversion left for the CPU ([`Engine::colored`]).
+struct Colored {
+    texture: wgpu::Texture,
+    to_srgb: Option<io::ToSrgb>,
 }
 
 /// A finished stack with its display and half-size map ready to show.
@@ -220,19 +232,24 @@ impl Engine {
         std::mem::forget(self);
     }
 
-    /// A file for display. RAW and DNG render on the GPU through their own
-    /// color science; anything else is shown as stored, without the GPU.
+    /// A file for display, as stored: RAW and DNG render on the GPU through
+    /// their own color science; anything else is shown without the GPU.
     pub fn load_preview(&self, path: &Path, backend: RawBackend) -> Result<PresentedImage> {
         if !backend.decodes_linear(path) {
             let frame =
                 io::load_frame(path, io::FileCache::Use, backend.camera_raw(), io::Target::Own)?;
-            return Ok(present_image(&frame.image, frame.profile.as_ref()));
+            let color = Color::Standard(frame.profile.as_ref());
+            let Draw::Stored { profile, output } = resolve(color, None, OutputSpace::Display)
+            else {
+                unreachable!("a file shows as stored");
+            };
+            return Ok(present_image(&frame.image, conversion(profile, output).as_ref()));
         }
         let (image, metadata) = preview::decode_linear_with_metadata(path, self.camera_profile())?;
         let params = render_params_or_identity(&metadata);
         let linear = self.upload(&image)?;
-        let rendered = self.color.render(&self.gpu, &linear, &params);
-        self.present(&rendered, None)
+        let draw = resolve(Color::Linear(&params), None, OutputSpace::Display);
+        self.show(self.colored(linear, draw))
     }
 
     /// A source frame in `stack`'s color space and geometry, warped and
@@ -251,52 +268,40 @@ impl Engine {
         Ok(self.common.warper.warp(&self.gpu, &uploaded, transform, stack.geometry.crop))
     }
 
-    /// [`Self::aligned_source`] rendered through the stack's color science.
-    fn compare_source(
-        &self,
-        path: &Path,
-        frame_index: Option<usize>,
-        stack: &CompletedStack,
-    ) -> Result<wgpu::Texture> {
-        let aligned = self.aligned_source(path, frame_index, stack)?;
-        match stack.render_params() {
-            Some(params) => Ok(self.color.render(&self.gpu, &aligned, params)),
-            None => Ok(aligned),
-        }
-    }
-
-    /// A frame aligned and colored as the stack's result, with `overlay`,
-    /// for display. A frame left out, or a render without a frame map, has
-    /// no contribution to show.
+    /// A frame aligned to `look`'s stack and drawn in `look`, with
+    /// `overlay`, for display. A frame left out, or a render without a frame
+    /// map, has no contribution to show.
     pub fn load_compare(
         &self,
         path: &Path,
         frame_index: Option<usize>,
-        stack: &CompletedStack,
+        look: Look<'_>,
         overlay: Overlay,
     ) -> Result<PresentedImage> {
-        let source = self.compare_source(path, frame_index, stack)?;
-        let source = match (overlay, frame_index, stack.frame_map.as_ref()) {
+        let stack = look.stack();
+        let aligned = self.aligned_source(path, frame_index, stack)?;
+        let Colored { texture, to_srgb } = self.colored(aligned, look.resolve());
+        let texture = match (overlay, frame_index, stack.frame_map.as_ref()) {
             (Overlay::Contribution, Some(index), Some(map))
                 if !stack.geometry.is_left_out(index) =>
             {
                 let _t = cpu_scope("contribution");
-                self.common.contribution.light(&self.gpu, &source, map, stack.frame_plane(index))
+                self.common.contribution.light(&self.gpu, &texture, map, stack.frame_plane(index))
             }
-            _ => source,
+            _ => texture,
         };
-        self.present(&source, stack.profile())
+        self.show(Colored { texture, to_srgb })
     }
 
-    /// [`Self::load_compare`] as a full-size sRGB image, for the CLI.
+    /// [`Self::load_compare`] as a full-size image, for the CLI.
     pub fn compare_rgb(
         &self,
         path: &Path,
         frame_index: Option<usize>,
-        stack: &CompletedStack,
+        look: Look<'_>,
         overlay: Overlay,
     ) -> Result<RgbImage> {
-        let presented = self.load_compare(path, frame_index, stack, overlay)?;
+        let presented = self.load_compare(path, frame_index, look, overlay)?;
         let level = presented
             .levels
             .first()
@@ -304,20 +309,20 @@ impl Engine {
         Ok(level.assemble().to_rgb())
     }
 
-    /// [`Self::load_compare`] for another render: `other` in `base`'s
-    /// geometry, in its own color, aligned through a shared frame
+    /// [`Self::load_compare`] for another render: `other`'s stack in
+    /// `base`'s geometry, drawn in `other`, aligned through a shared frame
     /// ([`CompletedStack::alignment_to`]).
     pub fn load_render_compare(
         &self,
         base: &CompletedStack,
-        other: &CompletedStack,
+        other: Look<'_>,
     ) -> Result<PresentedImage> {
+        let stack = other.stack();
         // Placed only: its own exposure, to compare it as it came out.
         let alignment =
-            base.alignment_to(other).map(|a| FrameAlignment::from_transform(a.transform));
-        let warped = self.warp_render(base, other, &other.pixels, alignment, RenderUse::Compare)?;
-        // Compared as rendered, so presented in its own color.
-        self.present_colored(&warped, other)
+            base.alignment_to(stack).map(|a| FrameAlignment::from_transform(a.transform));
+        let warped = self.warp_render(base, stack, &stack.pixels, alignment, RenderUse::Compare)?;
+        self.show(self.colored(warped, other.resolve()))
     }
 
     /// `pixels` of `other` warped into `base`'s geometry (`alignment`
@@ -340,16 +345,17 @@ impl Engine {
         Ok(self.common.warper.warp(&self.gpu, &uploaded, Some(&alignment), Some(area)))
     }
 
-    /// A paint source: `input` warped into `stack`'s geometry and exposure,
-    /// with its pixels (RGB u16, the stack's kind) when `with_pixels`, and
-    /// its display. Without pixels the display starts at half size, for
-    /// scrubbing at a quarter of the memory.
+    /// A paint source: `input` warped into `look`'s stack's geometry and
+    /// exposure, with its pixels (RGB u16, the stack's kind) when
+    /// `with_pixels`, and its display in `look`. Without pixels the display
+    /// starts at half size, for scrubbing at a quarter of the memory.
     pub fn paint_source(
         &self,
-        stack: &CompletedStack,
+        look: Look<'_>,
         input: SourceInput<'_>,
         with_pixels: bool,
     ) -> Result<(Option<Vec<u16>>, PresentedImage)> {
+        let stack = look.stack();
         let warped = match input {
             SourceInput::Frame { path, alignment } => {
                 let uploaded = self.upload_frame(path, stack)?;
@@ -362,31 +368,42 @@ impl Engine {
         };
         let pixels =
             if with_pixels { Some(download_rgb(&self.gpu, &warped, whole(stack))?) } else { None };
-        let display = self.present_colored(&warped, stack)?;
+        let display = self.show(self.colored(warped, look.resolve()))?;
         Ok((pixels, if with_pixels { display } else { display.below_full_size() }))
     }
 
-    /// `pixels` (the stack's own or painted) shown in `stack`'s color.
-    pub fn present_pixels(&self, stack: &CompletedStack, pixels: &[u16]) -> Result<PresentedImage> {
-        if !stack.is_linear() {
-            let (w, h) = (stack.width, stack.height);
-            return Ok(present_rgb16(pixels, w, h, stack.profile()));
+    /// `pixels` (`look`'s stack's own or painted) shown in `look`.
+    pub fn present_pixels(&self, look: Look<'_>, pixels: &[u16]) -> Result<PresentedImage> {
+        let stack = look.stack();
+        match look.resolve() {
+            Draw::Stored { profile, output } => {
+                let to_srgb = conversion(profile, output);
+                Ok(present_rgb16(pixels, stack.width, stack.height, to_srgb.as_ref()))
+            }
+            draw @ Draw::Rendered(_) => {
+                let texture = self.upload_rgb16(pixels, stack.width, stack.height)?;
+                self.show(self.colored(texture, draw))
+            }
         }
-        let texture = self.upload_rgb16(pixels, stack.width, stack.height)?;
-        self.present_colored(&texture, stack)
     }
 
-    /// `texture` read back in `stack`'s color: rendered first if linear,
-    /// else converted from its profile.
-    fn present_colored(
-        &self,
-        texture: &wgpu::Texture,
-        stack: &CompletedStack,
-    ) -> Result<PresentedImage> {
-        match stack.render_params() {
-            Some(params) => self.present(&self.color.render(&self.gpu, texture, params), None),
-            None => self.present(texture, stack.profile()),
+    /// `texture` of stored pixels in `draw`'s colors as far as the GPU
+    /// takes them, with the conversion left for the CPU.
+    fn colored(&self, texture: wgpu::Texture, draw: Draw<'_>) -> Colored {
+        match draw {
+            Draw::Rendered(constants) => Colored {
+                texture: self.color.render(&self.gpu, &texture, &constants),
+                to_srgb: None,
+            },
+            Draw::Stored { profile, output } => {
+                Colored { texture, to_srgb: conversion(profile, output) }
+            }
         }
+    }
+
+    /// A [`Colored`] texture read back for display.
+    fn show(&self, colored: Colored) -> Result<PresentedImage> {
+        self.present(&colored.texture, colored.to_srgb.as_ref())
     }
 
     /// Runs a stack on the calling thread. With [`SessionOptions::live_map`],
@@ -404,6 +421,7 @@ impl Engine {
         paths: Vec<PathBuf>,
         config: StackerConfig,
         options: SessionOptions,
+        adjustments: &Adjustments,
         live_side: u32,
         cancel: &deptheos_core::Cancel,
         mut on_event: impl FnMut(SessionEvent),
@@ -444,7 +462,13 @@ impl Engine {
                 cancel,
             )
         })?;
-        Ok(self.presented(output.stack, output.display.map(|d| d.render(&self.color))))
+        let display = match (output.display, Look::shown(&output.stack, adjustments).resolve()) {
+            (Some(display), Draw::Rendered(constants)) => {
+                Some(display.render(&self.color, &constants))
+            }
+            _ => None,
+        };
+        Ok(self.presented(output.stack, adjustments, display))
     }
 
     /// A session over `paths`, ready to run; every stack starts here. With
@@ -506,34 +530,42 @@ impl Engine {
         Ok(Some(Arc::new(StackConversions::start(cache, paths.to_vec(), backend, jobs))))
     }
 
-    /// A finished stack read from disk, made ready to show as
-    /// [`Self::stack`] does.
-    pub fn present_stack(&self, stack: CompletedStack) -> Result<PresentedStack> {
-        let display = match stack.render_params() {
-            Some(params) => {
+    /// A finished stack read from disk, made ready to show under
+    /// `adjustments` as [`Self::stack`] does.
+    pub fn present_stack(
+        &self,
+        stack: CompletedStack,
+        adjustments: &Adjustments,
+    ) -> Result<PresentedStack> {
+        let display = match Look::shown(&stack, adjustments).resolve() {
+            Draw::Rendered(constants) => {
                 let _t = cpu_scope("present: display render");
                 let linear = self.upload_rgb16(&stack.pixels, stack.width, stack.height)?;
-                Some(self.color.render(&self.gpu, &linear, params))
+                Some(self.color.render(&self.gpu, &linear, &constants))
             }
-            None => None,
+            Draw::Stored { .. } => None,
         };
-        Ok(self.presented(stack, display))
+        Ok(self.presented(stack, adjustments, display))
     }
 
-    /// Save a finished stack (see [`CompletedStack::save`]).
-    pub fn save(&self, stack: &CompletedStack, path: &Path, save: SaveOptions) -> Result<()> {
-        stack.save(self, path, save)
+    /// Save `look`'s stack, its format from the extension: `.dng` writes
+    /// the linear pixels (linear stacks only), others drawn in `look`.
+    /// JPEG, PNG and TIFF carry the reference's EXIF and the stack's XMP
+    /// ([`crate::library::export_tags`]).
+    pub fn save(&self, look: Look<'_>, path: &Path, save: SaveOptions) -> Result<()> {
+        self.save_pixels(look, &look.stack().pixels, path, save)
     }
 
-    /// Save `stack` with `pixels` (retouched) in place of its own.
+    /// [`Self::save`] with `pixels` (retouched) in place of the stack's own.
     pub fn save_pixels(
         &self,
-        stack: &CompletedStack,
+        look: Look<'_>,
         pixels: &[u16],
         path: &Path,
         save: SaveOptions,
     ) -> Result<()> {
-        stack.save_pixels(self, pixels, path, save)
+        let tags = crate::library::export_tags::export_metadata(look);
+        crate::runs::session::export(self, look, pixels, path, save, &tags)
     }
 
     /// Saves `stack` with the paint `flattened` answers
@@ -542,7 +574,7 @@ impl Engine {
     /// fails the save rather than drop the retouching. Blocks until written.
     pub fn save_flattened(
         &self,
-        stack: &CompletedStack,
+        look: Look<'_>,
         flattened: Option<std::sync::mpsc::Receiver<crate::paint::Flattened>>,
         path: &Path,
         save: SaveOptions,
@@ -557,35 +589,37 @@ impl Engine {
             }
         };
         match pixels {
-            Some(pixels) => self.save_pixels(stack, &pixels, path, save),
-            None => self.save(stack, path, save),
+            Some(pixels) => self.save_pixels(look, &pixels, path, save),
+            None => self.save(look, path, save),
         }
     }
 
-    /// A rendered texture read back for display, from `profile` (`None`:
-    /// sRGB).
+    /// A texture read back for display, through `to_srgb` if any.
     pub(crate) fn present(
         &self,
         texture: &wgpu::Texture,
-        profile: Option<&io::IccProfile>,
+        to_srgb: Option<&io::ToSrgb>,
     ) -> Result<PresentedImage> {
-        present_texture(&self.gpu, texture, profile)
+        present_texture(&self.gpu, texture, to_srgb)
     }
 
-    /// The display and map for `stack`. A linear stack's render is read
-    /// back once and dropped; an sRGB stack's pixels are the display.
-    fn presented(&self, stack: CompletedStack, display: Option<wgpu::Texture>) -> PresentedStack {
+    /// The display and map for `stack` under `adjustments`. A rendered
+    /// display (`display`) is read back once and dropped; otherwise the
+    /// stack's pixels are drawn.
+    fn presented(
+        &self,
+        stack: CompletedStack,
+        adjustments: &Adjustments,
+        display: Option<wgpu::Texture>,
+    ) -> PresentedStack {
         let display = {
             let _t = cpu_scope("present: display");
             match display {
-                Some(texture) => self
-                    .present(&texture, None)
-                    .inspect_err(|e| tracing::warn!("the stack's display readback failed: {e}"))
-                    .ok(),
-                None => {
-                    Some(present_rgb16(&stack.pixels, stack.width, stack.height, stack.profile()))
-                }
+                Some(texture) => self.present(&texture, None),
+                None => self.present_pixels(Look::shown(&stack, adjustments), &stack.pixels),
             }
+            .inspect_err(|e| tracing::warn!("the stack's display readback failed: {e}"))
+            .ok()
         };
         let _t = cpu_scope("present: map");
         let map = stack.present_map(None);
@@ -639,13 +673,13 @@ impl Engine {
     }
 }
 
-/// A non-RAW file as displayed; anything but RGB8 or RGB16, or not sRGB,
-/// is widened to RGB16 first.
-fn present_image(image: &DynamicImage, profile: Option<&io::IccProfile>) -> PresentedImage {
+/// A non-RAW file as displayed through `to_srgb` if any; anything but RGB8
+/// or RGB16, or converted, is widened to RGB16 first.
+fn present_image(image: &DynamicImage, to_srgb: Option<&io::ToSrgb>) -> PresentedImage {
     let (w, h) = (image.width(), image.height());
-    if crate::engine::present::to_srgb(profile).is_some() {
+    if to_srgb.is_some() {
         let rgb = image.to_rgb16();
-        return present_rgb16(rgb.as_raw(), w, h, profile);
+        return present_rgb16(rgb.as_raw(), w, h, to_srgb);
     }
     match image {
         DynamicImage::ImageRgb8(i) => present_rgb(i.as_raw(), w, h, |v| v),

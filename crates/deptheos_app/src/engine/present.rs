@@ -17,6 +17,7 @@ use std::sync::atomic::{AtomicBool, Ordering};
 use deptheos_core::{FramePlane, PlaneRamp, UNLIT, io};
 use deptheos_gpu::GpuContext;
 use deptheos_gpu::gpu_utils::download_texture_rows;
+use deptheos_render::OutputSpace;
 use image::GrayImage;
 use rayon::prelude::*;
 
@@ -263,11 +264,29 @@ pub fn color_managed() -> bool {
     COLOR_MANAGED.load(Ordering::Relaxed)
 }
 
-/// The conversion from `profile` to sRGB: `None` for sRGB or while color
-/// management is off. The last one is cached, as paint asks every stroke.
-pub(crate) fn to_srgb(profile: Option<&io::IccProfile>) -> Option<io::ToSrgb> {
+/// The conversion from `profile` to the screen: to sRGB, or `None` for
+/// sRGB or while color management is off.
+pub(crate) fn display_to_srgb(profile: Option<&io::IccProfile>) -> Option<io::ToSrgb> {
+    profile_to_srgb(profile.filter(|_| color_managed())?)
+}
+
+/// The CPU conversion a draw of stored values in `profile` (`None`: sRGB)
+/// into `output` needs; `None` when they pass through.
+pub(crate) fn conversion(
+    profile: Option<&io::IccProfile>,
+    output: OutputSpace,
+) -> Option<io::ToSrgb> {
+    match output {
+        OutputSpace::Display => display_to_srgb(profile),
+        OutputSpace::Srgb => profile_to_srgb(profile?),
+        OutputSpace::StackProfile => None,
+    }
+}
+
+/// The conversion from `profile` to sRGB. The last one is cached, as paint
+/// asks every stroke.
+fn profile_to_srgb(profile: &io::IccProfile) -> Option<io::ToSrgb> {
     static LAST: Mutex<Option<(io::IccProfile, Option<io::ToSrgb>)>> = Mutex::new(None);
-    let profile = profile.filter(|_| color_managed())?;
     let mut last = LAST.lock().unwrap_or_else(|e| e.into_inner());
     if let Some((p, t)) = last.as_ref()
         && p == profile
@@ -302,15 +321,15 @@ pub(crate) fn display_rgb16(src: &[u16], dst: &mut [u8], to_srgb: Option<&io::To
     }
 }
 
-/// [`present_rgb`] for u16 pixels in `profile` (`None`: sRGB).
+/// [`present_rgb`] for u16 pixels, through `to_srgb` if any
+/// ([`conversion`]).
 pub(crate) fn present_rgb16(
     pixels: &[u16],
     width: u32,
     height: u32,
-    profile: Option<&io::IccProfile>,
+    to_srgb: Option<&io::ToSrgb>,
 ) -> PresentedImage {
-    let to_srgb = to_srgb(profile);
-    present_rows(pixels, width, height, |src, dst| display_rgb16(src, dst, to_srgb.as_ref()))
+    present_rows(pixels, width, height, |src, dst| display_rgb16(src, dst, to_srgb))
 }
 
 /// Where red, green and blue sit in a [`DISPLAY_FORMAT`] pixel.
@@ -367,13 +386,13 @@ fn present_rows<T: Sync>(
 }
 
 /// A rendered Rgba16Unorm or Rgba32Float texture as displayed, read back
-/// in bands and converted from `profile` to sRGB straight from the mapping.
+/// in bands and converted through `to_srgb` ([`conversion`]) straight from
+/// the mapping.
 pub fn present_texture(
     ctx: &GpuContext,
     texture: &wgpu::Texture,
-    profile: Option<&io::IccProfile>,
+    to_srgb: Option<&io::ToSrgb>,
 ) -> Result<PresentedImage> {
-    let to_srgb = to_srgb(profile);
     let source = texture.format();
     let texel = match source {
         wgpu::TextureFormat::Rgba16Unorm => 8,
@@ -394,7 +413,7 @@ pub fn present_texture(
                 dst.par_chunks_mut(w * 4).zip(mapped.par_chunks(stride)).for_each(|(d, s)| {
                     let rgb: Vec<u16> =
                         s[..bytes].chunks_exact(texel).flat_map(source_rgb).collect();
-                    display_rgb16(&rgb, d, to_srgb.as_ref());
+                    display_rgb16(&rgb, d, to_srgb);
                 });
             });
         },
@@ -1212,7 +1231,9 @@ mod tests {
         let p3 = moxcms::ColorProfile::new_display_p3().encode().unwrap();
         let p3 = io::IccProfile::from_bytes(p3).unwrap();
         let pixel = [202u16, 74, 81].map(|v| v * 257);
-        let shown = |profile| present_rgb16(&pixel, 1, 1, profile);
+        let shown = |profile| {
+            present_rgb16(&pixel, 1, 1, conversion(profile, OutputSpace::Display).as_ref())
+        };
         let rgb = |image: PresentedImage| {
             let [b, g, r, _] = image.levels[0].assemble().pixels[..4] else { unreachable!() };
             vec![r, g, b]

@@ -20,6 +20,8 @@ pub mod test_support;
 pub mod view;
 pub mod words;
 
+pub use deptheos_render::{Adjustments, ProcessVersion};
+pub use engine::look::Look;
 pub use engine::present::{
     CpuImage, PresentedImage, TILE_CORE, TiledLevel, fit_long_edge, level_index,
 };

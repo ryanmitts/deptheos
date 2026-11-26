@@ -288,7 +288,9 @@ impl Rig {
         let (engine, stack) = (self.engine.clone(), self.stack.clone());
         Arc::new(move |pixels| {
             let flat = vec![value; stack.pixels.len()];
-            let display = engine.present_pixels(&stack, &flat).map_err(|e| e.to_string())?;
+            let display = engine
+                .present_pixels(crate::Look::stored(&stack), &flat)
+                .map_err(|e| e.to_string())?;
             Ok((pixels.then_some(flat), display))
         })
     }

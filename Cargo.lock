@@ -1681,6 +1681,10 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "be1e0bca6c3637f992fc1cc7cbc52a78c1ef6db076dbf1059c4323d6a2048376"
 
 [[package]]
+name = "deptheos_adjust"
+version = "0.2.1"
+
+[[package]]
 name = "deptheos_aligner"
 version = "0.2.1"
 dependencies = [
@@ -1899,6 +1903,7 @@ name = "deptheos_render"
 version = "0.2.1"
 dependencies = [
  "bytemuck",
+ "deptheos_adjust",
  "deptheos_core",
  "deptheos_dng",
  "deptheos_gpu",

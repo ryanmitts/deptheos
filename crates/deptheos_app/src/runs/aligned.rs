@@ -12,6 +12,7 @@ use std::path::{Path, PathBuf};
 use image::math::Rect;
 
 use crate::engine::Engine;
+use crate::engine::look::Look;
 use crate::runs::session::{
     CompletedStack, LiveMap, SaveOptions, SessionEvent, SessionOptions, StackGeometry, download_rgb,
 };
@@ -94,7 +95,8 @@ impl Engine {
     }
 
     /// Frame `index` re-read, aligned and saved at `path` as
-    /// [`CompletedStack::save`] would, with its own camera metadata.
+    /// [`Engine::save`] would, as stored (no adjustments), with its own
+    /// camera metadata.
     pub fn save_aligned(
         &self,
         frames: &AlignedFrames,
@@ -128,7 +130,8 @@ impl Engine {
         let rect = Rect { x: 0, y: 0, width: size.0, height: size.1 };
         let pixels = download_rgb(self.gpu(), &warped, rect)?;
         drop(warped);
-        let tags = crate::library::export_tags::aligned_frame_metadata(stack, index);
-        stack.save_tagged(self, &pixels, path, save, &tags)
+        let look = Look::exported(stack, None);
+        let tags = crate::library::export_tags::aligned_frame_metadata(look, index);
+        crate::runs::session::export(self, look, &pixels, path, save, &tags)
     }
 }

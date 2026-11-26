@@ -421,6 +421,7 @@ impl Stacking {
                     paths,
                     config,
                     options,
+                    &deptheos_app::Adjustments::NEUTRAL,
                     live_side,
                     &flag,
                     |event| {

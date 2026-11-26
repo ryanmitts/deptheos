@@ -403,7 +403,16 @@ fn time_one(
     };
     let stack = if live {
         engine
-            .stack(paths.to_vec(), config, options, LIVE_PREVIEW_SIDE, cancel, &mut mark, |_| {})?
+            .stack(
+                paths.to_vec(),
+                config,
+                options,
+                &crate::Adjustments::NEUTRAL,
+                LIVE_PREVIEW_SIDE,
+                cancel,
+                &mut mark,
+                |_| {},
+            )?
             .stack
     } else {
         let session = engine.session(paths.to_vec(), config, options)?;

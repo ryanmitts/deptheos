@@ -10,7 +10,10 @@ use super::{
     Direction, FrameOptions, MANIFEST_VERSION, Manifest, ManifestFrame, ManifestGap, SequencePhase,
     SequenceProgress, SequenceReport, SequenceWriter, missing_sources, rect_array, replay_order,
 };
+use deptheos_render::Adjustments;
+
 use crate::engine::Engine;
+use crate::engine::look::Look;
 use crate::frames::names::file_label;
 use crate::library::export_tags::{SequenceFrame, StackTags};
 use crate::runs::session::{CompletedStack, SessionEvent, Snapshot, SnapshotPlan, StackGeometry};
@@ -368,10 +371,11 @@ impl TurntableRun<'_> {
                 ),
                 None => (Cow::Borrowed(stack.pixels.as_slice()), stack.width, stack.height),
             };
-            let frame = writer.finish(pixels, w, h, &stack.color)?;
+            let look = neutral(stack);
+            let frame = writer.finish(pixels, w, h, look)?;
             let n = entry.stacked();
             let frame_no = SequenceFrame { k: n, of: n, stack: Some(i + 1) };
-            let tags = StackTags::read(stack).metadata(Some(frame_no));
+            let tags = StackTags::read(look).metadata(Some(frame_no));
             writer.write(&frame, &tags, |file| ManifestFrame {
                 file,
                 stack: Some(i + 1),
@@ -419,7 +423,7 @@ impl TurntableRun<'_> {
                     files: missing,
                 });
             }
-            let base_tags = StackTags::read(stack);
+            let base_tags = StackTags::read(neutral(stack));
             // The replay's frames, which its depths and snapshots count.
             let of = entry.stacked();
             let plan = SnapshotPlan {
@@ -442,7 +446,7 @@ impl TurntableRun<'_> {
                     Cow::Owned(shot.pixels),
                     shot.width,
                     shot.height,
-                    &stack.color,
+                    neutral(stack),
                 )?;
                 // A depth asked twice (a short stack's cap) is written twice.
                 let repeats = wanted.iter().filter(|&&w| w == k).count();
@@ -484,6 +488,12 @@ impl TurntableRun<'_> {
         }
         Ok(())
     }
+}
+
+/// How a turntable's frames export: its renders come from a Batch run, so
+/// they have no adjustments of their own.
+fn neutral(stack: &CompletedStack) -> Look<'_> {
+    Look::exported(stack, Some(&Adjustments::NEUTRAL))
 }
 
 #[cfg(test)]

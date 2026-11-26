@@ -3,6 +3,7 @@
 use std::path::PathBuf;
 use std::sync::{Arc, Mutex};
 
+use deptheos_app::Adjustments;
 use deptheos_app::engine::work::Lane;
 use deptheos_app::library::history::{
     Batch, History, PaintClosed, Render, RenderId, StackId, StoreError, Unsaved,
@@ -119,6 +120,7 @@ impl Engine {
                     paths,
                     config,
                     options,
+                    &Adjustments::NEUTRAL,
                     live_side.max(64),
                     cancel,
                     |event| {
@@ -282,7 +284,7 @@ impl Engine {
         let open = Ask::Latest("render-open", &self.engine);
         self.pool(&request, Lane::Interactive, open, move |e| {
             let stack = e.read_render(&id)?;
-            let presented = e.told(e.engine.present_stack(stack))?;
+            let presented = e.told(e.engine.present_stack(stack, &Adjustments::NEUTRAL))?;
             Ok(StackResult::new(e.engine.clone(), presented))
         })
         .await

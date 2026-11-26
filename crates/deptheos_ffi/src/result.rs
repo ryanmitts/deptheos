@@ -6,7 +6,8 @@ use std::sync::{Arc, Mutex};
 use deptheos_app::engine::work::Lane;
 use deptheos_app::library::export::{self, ExportFormat, NameParts};
 use deptheos_app::{
-    CompletedStack, Engine as AppEngine, PresentedImage, PresentedStack, SaveOptions,
+    Adjustments, CompletedStack, Engine as AppEngine, Look, PresentedImage, PresentedStack,
+    SaveOptions,
 };
 
 use crate::request::{Ask, on_pool};
@@ -201,13 +202,17 @@ impl StackResult {
             true => deptheos_app::Overlay::Contribution,
             false => deptheos_app::Overlay::None,
         };
-        self.engine.load_compare(path, index, &self.stack, overlay).told(self.engine.words())
+        self.engine
+            .load_compare(path, index, Look::stored(&self.stack), overlay)
+            .told(self.engine.words())
     }
 
     /// In this result's geometry, as [`PictureOf::ComparedRender`] shows
     /// it, every level.
     pub(crate) fn compared_render(&self, other: &StackResult) -> Result<PresentedImage> {
-        self.engine.load_render_compare(&self.stack, &other.stack).told(self.engine.words())
+        self.engine
+            .load_render_compare(&self.stack, Look::shown(&other.stack, &Adjustments::NEUTRAL))
+            .told(self.engine.words())
     }
 
     /// Drop the map's levels, keeping the display: a save, having taken its
@@ -399,7 +404,9 @@ impl StackResult {
         save: SaveOptions,
     ) -> Result<PathBuf> {
         let path = export_target(&self.stack, directory, name, format).told(self.engine.words())?;
-        self.engine.save(&self.stack, &path, save).told(self.engine.words())?;
+        self.engine
+            .save(Look::exported(&self.stack, Some(&Adjustments::NEUTRAL)), &path, save)
+            .told(self.engine.words())?;
         Ok(path)
     }
 }

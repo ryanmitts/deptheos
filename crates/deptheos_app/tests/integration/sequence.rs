@@ -9,8 +9,8 @@ use deptheos_app::runs::sequence::{
     TurntableMode, TurntableOptions, TurntableStack, replay_order,
 };
 use deptheos_app::{
-    Alignment, CompletedStack, Engine, LeftOut, SaveOptions, SessionOptions, StackGeometry,
-    StackerConfig, StackingSession,
+    Adjustments, Alignment, CompletedStack, Engine, LeftOut, SaveOptions, SessionOptions,
+    StackGeometry, StackerConfig, StackingSession,
 };
 use deptheos_core::pyramid::PyramidConfig;
 use deptheos_core::{Affine2, CommonPipelines, FrameAlignment};
@@ -138,6 +138,7 @@ fn check_grow(reversed: bool, left_out: Option<usize>, direction: Direction) {
     let report = sequence::export_grow(
         &engine,
         &render,
+        &Adjustments::NEUTRAL,
         Some("0123"),
         "bee",
         &out,
@@ -214,8 +215,17 @@ fn a_grow_that_cannot_start_leaves_a_manifest() {
     let words = deptheos_app::Words::english(deptheos_app::Platform::Desktop);
     let engine = Engine::with_gpu(ctx.clone(), words);
     let cancel = deptheos_app::Cancel::root();
-    let ended =
-        sequence::export_grow(&engine, &render, None, "bee", &out, &options, &mut |_| {}, &cancel);
+    let ended = sequence::export_grow(
+        &engine,
+        &render,
+        &Adjustments::NEUTRAL,
+        None,
+        "bee",
+        &out,
+        &options,
+        &mut |_| {},
+        &cancel,
+    );
     assert!(ended.is_err());
     let folder = out.join("bee grow");
     let names: Vec<String> = std::fs::read_dir(&folder)
@@ -255,9 +265,18 @@ fn a_grow_numbers_its_frames_by_frame_when_the_replay_leaves_one_out() {
     let words = deptheos_app::Words::english(deptheos_app::Platform::Desktop);
     let engine = Engine::with_gpu(ctx.clone(), words);
     let cancel = deptheos_app::Cancel::root();
-    let report =
-        sequence::export_grow(&engine, &render, None, "bee", &out, &options, &mut |_| {}, &cancel)
-            .unwrap();
+    let report = sequence::export_grow(
+        &engine,
+        &render,
+        &Adjustments::NEUTRAL,
+        None,
+        "bee",
+        &out,
+        &options,
+        &mut |_| {},
+        &cancel,
+    )
+    .unwrap();
     let manifest: serde_json::Value =
         serde_json::from_slice(&std::fs::read(report.folder.join(MANIFEST_FILE)).unwrap()).unwrap();
     let frames = manifest["frames"].as_array().unwrap();
@@ -289,8 +308,17 @@ fn a_grow_that_wont_fit_is_refused_before_it_writes() {
     let words = deptheos_app::Words::english(deptheos_app::Platform::Desktop);
     let engine = Engine::with_gpu(ctx.clone(), words);
     let cancel = deptheos_app::Cancel::root();
-    let refused =
-        sequence::export_grow(&engine, &render, None, "bee", &out, &options, &mut |_| {}, &cancel);
+    let refused = sequence::export_grow(
+        &engine,
+        &render,
+        &Adjustments::NEUTRAL,
+        None,
+        "bee",
+        &out,
+        &options,
+        &mut |_| {},
+        &cancel,
+    );
     assert!(matches!(refused, Err(deptheos_app::Error::NoSpace { .. })), "{refused:?}");
     assert!(!out.exists(), "nothing written");
 }
@@ -389,8 +417,18 @@ fn frames_of_another_size_are_refused_up_front() {
     let frame = std::mem::replace(&mut render.paths[3], small.clone());
     let options = GrowOptions { direction: Direction::FrontToBack, every: 1, frames };
     refused(
-        sequence::export_grow(&engine, &render, None, "bee", &out, &options, &mut |_| {}, &cancel)
-            .unwrap_err(),
+        sequence::export_grow(
+            &engine,
+            &render,
+            &Adjustments::NEUTRAL,
+            None,
+            "bee",
+            &out,
+            &options,
+            &mut |_| {},
+            &cancel,
+        )
+        .unwrap_err(),
     );
     render.paths[3] = frame;
 

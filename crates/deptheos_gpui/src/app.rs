@@ -973,8 +973,12 @@ fn engine_loader(engine: Arc<Engine>) -> Loader {
         // result: LibRaw for camera RAW (converted DNGs are only for stacking).
         Source::File(path) => engine.load_preview(path, deptheos_app::RawBackend::LibRaw),
         Source::Compare { path, frame_index, stack, overlay } => {
-            engine.load_compare(path, *frame_index, stack, *overlay)
+            engine.load_compare(path, *frame_index, deptheos_app::Look::stored(stack), *overlay)
         }
-        Source::Render { stack, other } => engine.load_render_compare(stack, &other()?),
+        Source::Render { stack, other } => {
+            let other = other()?;
+            let look = deptheos_app::Look::shown(&other, &deptheos_app::Adjustments::NEUTRAL);
+            engine.load_render_compare(stack, look)
+        }
     })
 }

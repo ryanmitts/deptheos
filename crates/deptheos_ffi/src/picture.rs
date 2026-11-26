@@ -13,7 +13,7 @@ use std::path::PathBuf;
 use std::sync::Arc;
 
 use deptheos_app::engine::work::Lane;
-use deptheos_app::{PresentedImage, RawBackend};
+use deptheos_app::{Adjustments, Look, PresentedImage, RawBackend};
 
 use crate::request::{Ask, on_pool};
 use crate::{DisplayImage, Engine, Request, Result, StackResult, Told, level_image};
@@ -285,7 +285,10 @@ impl StackResult {
                 if let Some(held) = self.held(false) {
                     return Ok(Some(Picture::shared(held)));
                 }
-                let made = self.engine.present_pixels(&self.stack, &self.stack.pixels);
+                let made = self.engine.present_pixels(
+                    Look::shown(&self.stack, &Adjustments::NEUTRAL),
+                    &self.stack.pixels,
+                );
                 Some(made.told(self.engine.words())?)
             }
             PictureOf::Map => {
@@ -440,8 +443,10 @@ mod tests {
                 vec!["a.png".into(), "b.png".into()],
             )
         };
-        let result =
-            StackResult::new(engine.engine.clone(), engine.engine.present_stack(stack).unwrap());
+        let result = StackResult::new(
+            engine.engine.clone(),
+            engine.engine.present_stack(stack, &deptheos_app::Adjustments::NEUTRAL).unwrap(),
+        );
         let display = result.picture_of(&PictureOf::Display).unwrap().unwrap();
         let map = result.picture_of(&PictureOf::Map).unwrap().unwrap();
         for side in [64, 600, 4096] {

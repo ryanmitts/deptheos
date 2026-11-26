@@ -6,8 +6,8 @@ use std::sync::Arc;
 use std::sync::atomic::Ordering;
 
 use deptheos_app::{
-    AlignMode, AlignSettings, Alignment, FrameKind, GridConfig, SaveOptions, SessionEvent,
-    SessionOptions, SessionOutput, StackerConfig, StackingSession,
+    Adjustments, AlignMode, AlignSettings, Alignment, FrameKind, GridConfig, Look, SaveOptions,
+    SessionEvent, SessionOptions, SessionOutput, StackerConfig, StackingSession,
 };
 use deptheos_core::CommonPipelines;
 use deptheos_core::depth::DepthConfig;
@@ -127,7 +127,7 @@ fn pyramid_event_sequence_and_save() {
     let out = dir.path().join("result.png");
     deptheos_app::test_support::engine()
         .unwrap()
-        .save(&stack, &out, SaveOptions::default())
+        .save(Look::exported(&stack, Some(&Adjustments::NEUTRAL)), &out, SaveOptions::default())
         .unwrap();
     let saved = image::open(&out).unwrap();
     assert_eq!((saved.width(), saved.height()), (SIZE, SIZE));
@@ -137,7 +137,7 @@ fn pyramid_event_sequence_and_save() {
     assert!(
         deptheos_app::test_support::engine()
             .unwrap()
-            .save(&stack, &dng, SaveOptions::default())
+            .save(Look::exported(&stack, Some(&Adjustments::NEUTRAL)), &dng, SaveOptions::default())
             .is_err()
     );
 }
@@ -446,10 +446,16 @@ fn a_linear_display_renders_on_request() {
     .unwrap();
     let output = session.run(&mut |_, _| {}, &deptheos_app::Cancel::root()).unwrap();
     assert!(output.stack.is_linear());
-    let display = output
-        .display
-        .expect("a linear stack has a display to render")
-        .render(&deptheos_render::dng_render::DngRenderPipeline::new(&ctx));
+    let deptheos_render::Draw::Rendered(constants) = deptheos_render::resolve(
+        deptheos_render::Color::Linear(output.stack.render_params().unwrap()),
+        None,
+        deptheos_render::OutputSpace::Display,
+    ) else {
+        panic!("a linear stack renders on the GPU");
+    };
+    let color = deptheos_render::dng_render::DngRenderPipeline::new(&ctx);
+    let display =
+        output.display.expect("a linear stack has a display to render").render(&color, &constants);
     assert_eq!((display.width(), display.height()), (w, h));
 }
 
@@ -531,8 +537,9 @@ fn compare_source_lines_up_with_result() {
         deptheos_app::Words::english(deptheos_app::Platform::Desktop),
     );
     // BGRA8 with half-size levels; 256 px is under the 1024 px floor: one level.
-    let presented =
-        engine.load_compare(&paths[1], Some(1), &stack, deptheos_app::Overlay::None).unwrap();
+    let presented = engine
+        .load_compare(&paths[1], Some(1), Look::stored(&stack), deptheos_app::Overlay::None)
+        .unwrap();
     assert_eq!((presented.width(), presented.height()), (stack.width, stack.height));
     assert_eq!(presented.levels.len(), 1);
     assert_eq!(
@@ -581,9 +588,18 @@ fn contribution_lights_the_frames_share_of_the_result() {
 
         // Frame 0 is sharp on the right, frame 1 on the left.
         for (index, sharp_right) in [(0, true), (1, false)] {
-            let plain = engine.load_compare(&paths[index], Some(index), &stack, Overlay::None);
-            let tinted =
-                engine.load_compare(&paths[index], Some(index), &stack, Overlay::Contribution);
+            let plain = engine.load_compare(
+                &paths[index],
+                Some(index),
+                Look::stored(&stack),
+                Overlay::None,
+            );
+            let tinted = engine.load_compare(
+                &paths[index],
+                Some(index),
+                Look::stored(&stack),
+                Overlay::Contribution,
+            );
             let (plain, tinted) =
                 (plain.unwrap().levels[0].assemble(), tinted.unwrap().levels[0].assemble());
             let changed = |x_from: u32, x_to: u32| {
@@ -606,8 +622,11 @@ fn contribution_lights_the_frames_share_of_the_result() {
             assert!(other > half * 9 / 10, "{name} frame {index}: the other half is dim ({other})");
         }
         // A frame the stack did not include has no share to show.
-        let outside = engine.load_compare(&paths[0], None, &stack, Overlay::Contribution).unwrap();
-        let plain = engine.load_compare(&paths[0], None, &stack, Overlay::None).unwrap();
+        let outside = engine
+            .load_compare(&paths[0], None, Look::stored(&stack), Overlay::Contribution)
+            .unwrap();
+        let plain =
+            engine.load_compare(&paths[0], None, Look::stored(&stack), Overlay::None).unwrap();
         assert!(outside.levels[0].assemble().pixels == plain.levels[0].assemble().pixels);
     }
     let _ = ctx.device.poll(wgpu::PollType::wait_indefinitely());
@@ -629,7 +648,12 @@ fn compare_refuses_the_other_source_kind() {
     let engine =
         Engine::with_gpu(ctx, deptheos_app::Words::english(deptheos_app::Platform::Desktop));
     let err = engine
-        .load_compare(&dir.path().join("frame.cr3"), None, &stack, deptheos_app::Overlay::None)
+        .load_compare(
+            &dir.path().join("frame.cr3"),
+            None,
+            Look::stored(&stack),
+            deptheos_app::Overlay::None,
+        )
         .err()
         .unwrap();
     assert!(
@@ -708,6 +732,7 @@ fn engine_stack_delivers_live_maps_and_final_images() {
                 live_map: true,
                 ..Default::default()
             },
+            &Adjustments::NEUTRAL,
             deptheos_app::LIVE_PREVIEW_SIDE,
             &deptheos_app::Cancel::root(),
             |e| events.push(e),
@@ -1163,7 +1188,7 @@ fn a_wide_gamut_stack_keeps_its_profile() {
         let out = dir.path().join(format!("result.{ext}"));
         deptheos_app::test_support::engine()
             .unwrap()
-            .save(&stack, &out, SaveOptions::default())
+            .save(Look::exported(&stack, Some(&Adjustments::NEUTRAL)), &out, SaveOptions::default())
             .unwrap();
         let reader = image::ImageReader::open(&out).unwrap().with_guessed_format().unwrap();
         let icc = reader.into_decoder().unwrap().icc_profile().unwrap();

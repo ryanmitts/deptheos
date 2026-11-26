@@ -872,7 +872,7 @@ impl Worker {
         // An unpainted canvas is the stack itself: no frame-sized copy.
         let flat = doc.is_painted().then(|| doc.canvas().expect("just opened").flatten());
         let pixels = flat.as_deref().unwrap_or(&stack.pixels);
-        let display = match self.engine.present_pixels(&stack, pixels) {
+        let display = match self.engine.present_pixels(crate::Look::stored(&stack), pixels) {
             Ok(display) => display,
             Err(e) => {
                 doc.put_away();
@@ -892,7 +892,7 @@ impl Worker {
         let painted = self.painted(key, stack.clone());
         let words = self.engine.words();
         let error = match painted {
-            Ok(flat) => match self.engine.present_pixels(stack, &flat?) {
+            Ok(flat) => match self.engine.present_pixels(crate::Look::stored(stack), &flat?) {
                 Ok(display) => return Some(display),
                 Err(e) => failed(words, Lead::Shown, &e),
             },

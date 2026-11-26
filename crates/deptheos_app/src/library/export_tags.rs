@@ -8,11 +8,11 @@ use std::path::Path;
 use deptheos_core::io::IccProfile;
 use deptheos_core::io::metadata::{ExportMetadata, Value, exif_now, xml_escape};
 
+use crate::engine::look::Look;
 use crate::frames::capture::{
     SourceTags, TAG_DATE_TIME_ORIGINAL, TAG_OFFSET_TIME_ORIGINAL, TAG_SUB_SEC_TIME_ORIGINAL,
     read_source_tags,
 };
-use crate::runs::session::{CompletedStack, StackColor};
 
 /// The `Software` and `xmp:CreatorTool` value.
 pub(crate) fn software() -> String {
@@ -26,9 +26,9 @@ pub(crate) const XMP_NAMESPACE: &str = "https://deptheos.com/ns/stack/1.0/";
 /// ingredients past it are left out.
 const XMP_BUDGET: usize = 60_000;
 
-/// The metadata to export `stack` with.
-pub(crate) fn export_metadata(stack: &CompletedStack) -> ExportMetadata {
-    StackTags::read(stack).metadata(None)
+/// The metadata to export `look`'s stack with.
+pub(crate) fn export_metadata(look: Look<'_>) -> ExportMetadata {
+    StackTags::read(look).metadata(None)
 }
 
 /// What a stack's export metadata is made from: the reference frame's
@@ -55,11 +55,13 @@ pub(crate) struct SequenceFrame {
 }
 
 impl StackTags {
-    pub(crate) fn read(stack: &CompletedStack) -> Self {
+    /// The tags of `look`'s stack exported in `look`.
+    pub(crate) fn read(look: Look<'_>) -> Self {
+        let stack = look.stack();
         let reference = stack.geometry.reference().map(|i| stack.paths[i].as_path());
         Self {
             tags: reference.map(source_tags).unwrap_or_default(),
-            icc: icc(stack),
+            icc: look.icc(),
             names: stack.paths.iter().map(|p| file_name(p)).collect(),
             reference: reference.map(file_name),
             method: stack.config.kind().english_name(),
@@ -111,10 +113,11 @@ impl SequenceFrame {
     }
 }
 
-/// The metadata for frame `index` of `stack` exported aligned
+/// The metadata for frame `index` of `look`'s stack exported aligned
 /// ([`crate::runs::aligned`]): that frame's tags (no GPS) and the frame it
 /// was aligned to; its one ingredient is the frame.
-pub(crate) fn aligned_frame_metadata(stack: &CompletedStack, index: usize) -> ExportMetadata {
+pub(crate) fn aligned_frame_metadata(look: Look<'_>, index: usize) -> ExportMetadata {
+    let stack = look.stack();
     let frame = stack.paths[index].as_path();
     let tags = source_tags(frame);
     let reference = stack.geometry.reference().map(|i| file_name(&stack.paths[i]));
@@ -136,7 +139,7 @@ pub(crate) fn aligned_frame_metadata(stack: &CompletedStack, index: usize) -> Ex
         comment: Some(comment),
         xmp: Some(xmp(&modified, &props, &[file_name(frame)], XMP_BUDGET)),
         modified,
-        icc: icc(stack),
+        icc: look.icc(),
     }
 }
 
@@ -146,15 +149,6 @@ fn source_tags(path: &Path) -> SourceTags {
         tracing::debug!("no tags from {}: {e}", path.display());
         SourceTags::default()
     })
-}
-
-/// The ICC profile an export of `stack` carries: its own when sRGB. A
-/// linear stack renders to sRGB but for DNG.
-fn icc(stack: &CompletedStack) -> Option<IccProfile> {
-    match &stack.color {
-        StackColor::Srgb { profile, .. } => profile.clone(),
-        StackColor::Linear { .. } => None,
-    }
 }
 
 /// Unlike [`crate::frames::names::file_label`], nothing when there is no
@@ -279,6 +273,7 @@ fn exif_to_iso(exif: &str) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::runs::session::CompletedStack;
 
     fn info(names: &[String]) -> StackTags {
         StackTags {
@@ -357,7 +352,7 @@ mod tests {
         let paths = ["d/IMG_1.jpg", "d/A&B.jpg", "d/IMG_3.jpg"].map(std::path::PathBuf::from);
         let mut stack = CompletedStack::srgb(1, 1, vec![0; 3], paths.to_vec());
         stack.geometry.reversed = true;
-        let tags = aligned_frame_metadata(&stack, 1);
+        let tags = aligned_frame_metadata(Look::exported(&stack, None), 1);
         assert_eq!(
             tags.comment.as_deref(),
             Some("Frame 2 of 3 of a focus stack, aligned to IMG_3.jpg")

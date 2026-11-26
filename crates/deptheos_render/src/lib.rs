@@ -3,3 +3,7 @@
 //! (`deptheos_core` doesn't depend on it).
 
 pub mod dng_render;
+mod resolve;
+
+pub use deptheos_adjust::{Adjustments, ProcessVersion};
+pub use resolve::{Color, Draw, OutputSpace, resolve};

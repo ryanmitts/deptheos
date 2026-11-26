@@ -32,6 +32,7 @@ use deptheos_app::paint::{
     Observer, OpenRender, RADIUS_RANGE, Report, SourceKind, Status, TOLERANCE_RANGE,
     Told as SourceTold,
 };
+use deptheos_app::{Adjustments, Look};
 
 use crate::picture::{TileAsk, TileFetched, fetch_tiles};
 use crate::request::{Ask, on_pool};
@@ -645,7 +646,12 @@ impl PaintSession {
         // Every failure leads with what didn't happen: paint unreadable, the
         // worker gone, or the write.
         self.engine
-            .save_flattened(&stack, Some(flattened), &path, save)
+            .save_flattened(
+                Look::exported(&stack, Some(&Adjustments::NEUTRAL)),
+                Some(flattened),
+                &path,
+                save,
+            )
             .map_err(|e| EngineError::led(Line::RetouchedExportFailed, &e, self.engine.words()))?;
         Ok(path)
     }
@@ -990,7 +996,8 @@ pub(crate) mod tests {
             frame_map: Some(frame_map),
             ..CompletedStack::srgb(width, height, pixels, frames.clone())
         };
-        let presented = engine.engine.present_stack(stack).unwrap();
+        let presented =
+            engine.engine.present_stack(stack, &deptheos_app::Adjustments::NEUTRAL).unwrap();
         let result = StackResult::new(engine.engine.clone(), presented);
         let saving =
             engine.clone().save_render(frames.clone(), result.clone(), crate::new_stack_id(), None);
@@ -1187,7 +1194,8 @@ pub(crate) mod tests {
         image::RgbImage::from_pixel(width, height, image::Rgb([0, 0, 0])).save(&frame).unwrap();
         let pixels = vec![128 * 257; (3 * width * height) as usize];
         let stack = CompletedStack::srgb(width, height, pixels, vec![frame.clone()]);
-        let presented = engine.engine.present_stack(stack).unwrap();
+        let presented =
+            engine.engine.present_stack(stack, &deptheos_app::Adjustments::NEUTRAL).unwrap();
         let result = StackResult::new(engine.engine.clone(), presented);
         let saving =
             engine.clone().save_render(vec![frame], result.clone(), crate::new_stack_id(), None);
@@ -1226,7 +1234,8 @@ pub(crate) mod tests {
         let frame = dir.path().join("f.png");
         image::RgbImage::from_pixel(64, 64, image::Rgb([0, 0, 0])).save(&frame).unwrap();
         let stack = CompletedStack::srgb(64, 64, vec![0; 3 * 64 * 64], vec![frame.clone()]);
-        let presented = engine.engine.present_stack(stack).unwrap();
+        let presented =
+            engine.engine.present_stack(stack, &deptheos_app::Adjustments::NEUTRAL).unwrap();
         let result = StackResult::new(engine.engine.clone(), presented);
         let render = now(engine.clone().save_render(
             vec![frame.clone()],

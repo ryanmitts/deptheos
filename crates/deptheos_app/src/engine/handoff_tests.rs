@@ -17,12 +17,13 @@ use image::math::Rect;
 use crate::engine::present::PresentedImage;
 use crate::engine::present::set_color_managed;
 use crate::paint::render::{RectPixels, RectRenderer};
-use crate::runs::session::{CompletedStack, SaveOptions, StackColor, render_linear};
+use crate::runs::session::{CompletedStack, SaveOptions, StackColor, export_pixels};
 use crate::test_support::engine;
-use crate::{Engine, Overlay, RawBackend, SourceInput};
+use crate::{Adjustments, Engine, Look, Overlay, RawBackend, SourceInput};
 
 /// A synthetic stack's size: several display tiles and levels.
 const SIZE: (u32, u32) = (1100, 700);
+const NEUTRAL: Adjustments = Adjustments::NEUTRAL;
 /// Where a real frame is cut, from its top left.
 const CUT: (u32, u32) = (1800, 1200);
 
@@ -297,17 +298,23 @@ fn draw(engine: &Arc<Engine>, case: &Case, dir: &Path, out: &mut Captures) {
     let size = (stack.width, stack.height);
 
     // The result as opened, painted, and as another render shows it.
-    let presented = engine.present_stack(case.with(&stack.pixels)).unwrap();
+    let presented = engine.present_stack(case.with(&stack.pixels), &NEUTRAL).unwrap();
     out.image(&at("present_stack"), presented.display.as_ref().unwrap());
-    out.image(&at("present_pixels"), &engine.present_pixels(stack, other).unwrap());
+    out.image(
+        &at("present_pixels"),
+        &engine.present_pixels(Look::shown(stack, &NEUTRAL), other).unwrap(),
+    );
     let other_stack = case.with(other);
-    out.image(&at("render_compare"), &engine.load_render_compare(stack, &other_stack).unwrap());
+    out.image(
+        &at("render_compare"),
+        &engine.load_render_compare(stack, Look::shown(&other_stack, &NEUTRAL)).unwrap(),
+    );
     let input = SourceInput::Render {
         other: &other_stack,
         pixels: other,
         alignment: FrameAlignment::identity(),
     };
-    let (pixels, display) = engine.paint_source(stack, input, true).unwrap();
+    let (pixels, display) = engine.paint_source(Look::stored(stack), input, true).unwrap();
     out.rgb16(&at("paint_source/pixels"), size, &pixels.unwrap());
     out.image(&at("paint_source"), &display);
 
@@ -315,10 +322,10 @@ fn draw(engine: &Arc<Engine>, case: &Case, dir: &Path, out: &mut Captures) {
     if let Some(file) = file {
         let backend = stack.options.raw_backend;
         out.image(&at("load_preview"), &engine.load_preview(file, backend).unwrap());
-        let shown = engine.load_compare(file, Some(0), stack, Overlay::None).unwrap();
+        let shown = engine.load_compare(file, Some(0), Look::stored(stack), Overlay::None).unwrap();
         out.image(&at("load_compare"), &shown);
         let input = SourceInput::Frame { path: file, alignment: FrameAlignment::identity() };
-        let (_, display) = engine.paint_source(stack, input, false).unwrap();
+        let (_, display) = engine.paint_source(Look::stored(stack), input, false).unwrap();
         out.image(&at("paint_source/frame"), &display);
     }
 
@@ -332,30 +339,29 @@ fn draw(engine: &Arc<Engine>, case: &Case, dir: &Path, out: &mut Captures) {
         })
         .collect();
     let input = RectPixels { pixels: &rect_pixels, width: rect.width, height: rect.height };
-    let tile = renderer
-        .render(engine.gpu(), engine.color(), input, stack.render_params(), stack.profile())
-        .unwrap();
+    let tile = renderer.render(engine.gpu(), engine.color(), input, Look::stored(stack)).unwrap();
     out.record(&at("paint_rect"), format!("{}x{}", tile.width, tile.height), &tile.pixels);
 
     // Exports, and the color step sequences share.
-    if let Some(params) = stack.render_params() {
-        let srgb = render_linear(engine, other, size.0, size.1, params).unwrap();
+    let exported = Look::exported(stack, Some(&NEUTRAL));
+    if stack.is_linear() {
+        let srgb = export_pixels(engine, exported, other, size).unwrap();
         out.rgb16(&at("render_linear"), size, &srgb);
     }
     for (ext, sixteen) in [("png", true), ("png", false), ("tif", true), ("jpg", false)] {
         let path = dir.join(format!("{name}-{sixteen}.{ext}"));
         let options = SaveOptions { sixteen_bit: sixteen, ..SaveOptions::default() };
-        engine.save(stack, &path, options).unwrap();
+        engine.save(exported, &path, options).unwrap();
         out.export(&at(&format!("save/{ext}-{}", if sixteen { 16 } else { 8 })), &path);
         let painted = dir.join(format!("{name}-{sixteen}-painted.{ext}"));
-        engine.save_pixels(stack, other, &painted, options).unwrap();
+        engine.save_pixels(exported, other, &painted, options).unwrap();
         out.export(&at(&format!("save_pixels/{ext}-{}", if sixteen { 16 } else { 8 })), &painted);
     }
 
     // With color management off, a profile's values show as they are.
     if stack.profile().is_some() {
         set_color_managed(false);
-        let shown = engine.present_pixels(stack, &stack.pixels);
+        let shown = engine.present_pixels(Look::shown(stack, &NEUTRAL), &stack.pixels);
         set_color_managed(true);
         out.image(&at("present_pixels/unmanaged"), &shown.unwrap());
     }

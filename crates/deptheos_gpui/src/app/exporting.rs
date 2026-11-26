@@ -161,7 +161,14 @@ async fn save_stack(
     path: PathBuf,
     options: SaveOptions,
 ) -> Result<(), deptheos_app::Error> {
-    crate::work::write("export", move || engine.save_flattened(&stack, painted, &path, options))
-        .await
-        .unwrap_or_else(|e| Err(deptheos_app::Error::InvalidState(format!("save {e}"))))
+    crate::work::write("export", move || {
+        engine.save_flattened(
+            deptheos_app::Look::exported(&stack, Some(&deptheos_app::Adjustments::NEUTRAL)),
+            painted,
+            &path,
+            options,
+        )
+    })
+    .await
+    .unwrap_or_else(|e| Err(deptheos_app::Error::InvalidState(format!("save {e}"))))
 }

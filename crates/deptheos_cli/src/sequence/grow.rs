@@ -5,7 +5,7 @@ use std::path::PathBuf;
 use std::time::Instant;
 
 use deptheos_app::runs::sequence::{self, GrowOptions};
-use deptheos_app::{CompletedStack, Engine, Words};
+use deptheos_app::{Adjustments, CompletedStack, Engine, Words};
 
 use super::{GrowArgs, OutputArgs, direction, print_progress};
 use crate::error::Result;
@@ -31,6 +31,7 @@ pub(super) fn grow(args: GrowArgs, words: &Words) -> Result<()> {
     let report = sequence::export_grow(
         &engine,
         &stack,
+        &Adjustments::NEUTRAL,
         None,
         &name,
         &args.out.output,

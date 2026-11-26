@@ -9,7 +9,10 @@ use super::{
     Direction, FrameOptions, MANIFEST_VERSION, Manifest, ManifestFrame, ManifestGap, SequencePhase,
     SequenceProgress, SequenceReport, SequenceWriter, check_sizes, rect_array,
 };
+use deptheos_render::Adjustments;
+
 use crate::engine::Engine;
+use crate::engine::look::Look;
 use crate::frames::names::file_label;
 use crate::library::export_tags::{SequenceFrame, StackTags};
 use crate::runs::session::{
@@ -92,14 +95,16 @@ pub struct GrowOptions {
     pub frames: FrameOptions,
 }
 
-/// The grow sequence of pyramid `stack` into a new folder `<name> grow` in
-/// `parent`, one frame per [`grow_depths`] depth, the last the render.
+/// The grow sequence of pyramid `stack` under `adjustments` into a new
+/// folder `<name> grow` in `parent`, one frame per [`grow_depths`] depth,
+/// the last the render.
 /// Refused when it won't fit ([`crate::check_space`]); Cancel keeps what is
 /// written, marked incomplete, and returns [`Error::Canceled`].
 #[allow(clippy::too_many_arguments)]
 pub fn export_grow(
     engine: &Engine,
     stack: &CompletedStack,
+    adjustments: &Adjustments,
     render: Option<&str>,
     name: &str,
     parent: &Path,
@@ -127,7 +132,8 @@ pub fn export_grow(
     );
     crate::check_space(parent, bytes)?;
     check_sizes(&replay.paths, stack.options.raw_backend.camera_raw())?;
-    let base_tags = StackTags::read(stack);
+    let look = Look::exported(stack, Some(adjustments));
+    let base_tags = StackTags::read(look);
     let (out_w, out_h) = options.frames.output_size(stack.width, stack.height);
     let manifest = Manifest {
         version: MANIFEST_VERSION,
@@ -166,7 +172,7 @@ pub fn export_grow(
     report(0);
 
     let write = |writer: &mut SequenceWriter, pixels: Cow<[u16]>, (w, h): (u32, u32), k: usize| {
-        let frame = writer.finish(pixels, w, h, &stack.color)?;
+        let frame = writer.finish(pixels, w, h, look)?;
         let tags = base_tags.metadata(Some(SequenceFrame { k, of: n, stack: None }));
         writer.write(&frame, &tags, |file| ManifestFrame {
             file,

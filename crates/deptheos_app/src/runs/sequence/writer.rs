@@ -10,8 +10,9 @@ use serde::Serialize;
 
 use super::{Direction, FrameOptions, MANIFEST_FILE, SequenceReport, io_error, scaled_size};
 use crate::engine::Engine;
+use crate::engine::look::Look;
 use crate::library::export;
-use crate::runs::session::{StackColor, render_linear};
+use crate::runs::session::export_pixels;
 use crate::{Error, Result};
 
 // --- Names and folders.
@@ -82,22 +83,25 @@ impl<'a> SequenceWriter<'a> {
         Ok(Self { folder, name, total, options, engine, written: 0, manifest })
     }
 
-    /// `pixels` (interleaved RGB u16 in `color`'s space) finished: a linear
-    /// stack's color step, then the resize, the same for every frame so the
-    /// sequence ends on the render. Borrowed pixels are copied only when
-    /// they change.
+    /// `pixels` (interleaved RGB u16, stored as `look`'s stack's are)
+    /// finished: drawn in `look`, then resized, the same for every frame so
+    /// the sequence ends on the render. Borrowed pixels are copied only
+    /// when they change.
     pub(super) fn finish<'p>(
         &self,
         pixels: Cow<'p, [u16]>,
         width: u32,
         height: u32,
-        color: &StackColor,
+        look: Look<'_>,
     ) -> Result<Frame<'p>> {
-        let pixels = match color {
-            StackColor::Linear { render_params, .. } => {
-                Cow::Owned(render_linear(self.engine, &pixels, width, height, render_params)?)
-            }
-            StackColor::Srgb { .. } => pixels,
+        let color = &look.stack().color;
+        let pixels = match pixels {
+            Cow::Borrowed(stored) => export_pixels(self.engine, look, stored, (width, height))?,
+            Cow::Owned(stored) => match export_pixels(self.engine, look, &stored, (width, height))?
+            {
+                Cow::Borrowed(_) => Cow::Owned(stored),
+                Cow::Owned(drawn) => Cow::Owned(drawn),
+            },
         };
         let (pixels, width, height) = resize(pixels, width, height, self.options.long_edge)?;
         Ok(Frame { pixels, width, height, sixteen_bit: self.options.sixteen_bit(color) })

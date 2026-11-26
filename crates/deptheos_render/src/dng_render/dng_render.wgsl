@@ -51,9 +51,11 @@ struct DngColorParams {
     // (black, slope, radius, quadratic scale) for the exposure ramp.
     exposure: vec4f,
     // Column-major ProPhoto RGB -> linear sRGB.
-    pro_to_srgb_c0: vec4f,
-    pro_to_srgb_c1: vec4f,
-    pro_to_srgb_c2: vec4f,
+    // ProPhoto to the output's linear values; c0.w its encoding: 0 sRGB's
+    // curve, else the power 1 / gamma.
+    pro_to_output_c0: vec4f,
+    pro_to_output_c1: vec4f,
+    pro_to_output_c2: vec4f,
     // Max-normalized camera white (clip ceiling).
     camera_white: vec4f,
     // x = HueSatMap present, y = LookTable present, z = the exposure stage
@@ -301,17 +303,21 @@ fn look_table(prophoto: vec3f) -> vec3f {
     return prophoto;
 }
 
-// ProPhoto to linear sRGB, clamped.
-fn prophoto_to_srgb(prophoto: vec3f) -> vec3f {
+// ProPhoto to the output's linear values, clamped.
+fn prophoto_to_output(prophoto: vec3f) -> vec3f {
     let m = mat3x3f(
-        params.pro_to_srgb_c0.xyz,
-        params.pro_to_srgb_c1.xyz,
-        params.pro_to_srgb_c2.xyz,
+        params.pro_to_output_c0.xyz,
+        params.pro_to_output_c1.xyz,
+        params.pro_to_output_c2.xyz,
     );
     return clamp(m * prophoto, vec3f(0.0), vec3f(1.0));
 }
 
-fn encode_srgb(linear: vec3f) -> vec3f {
+fn encode_output(linear: vec3f) -> vec3f {
+    let power = params.pro_to_output_c0.w;
+    if (power != 0.0) {
+        return pow(linear, vec3f(power));
+    }
     return vec3f(
         linear_to_srgb_channel(linear.r),
         linear_to_srgb_channel(linear.g),
@@ -337,7 +343,7 @@ fn dng_render(@builtin(global_invocation_id) gid: vec3u) {
     if ((params.flags.w & 8u) != 0u) {
         prophoto = adjust::chroma(prophoto, params.late.z, params.late.w);
     }
-    let srgb = encode_srgb(prophoto_to_srgb(prophoto));
+    let srgb = encode_output(prophoto_to_output(prophoto));
 
     let at = vec2i(gid.xy + place.origins.zw);
 #ifdef SOURCE_RGBA16UNORM

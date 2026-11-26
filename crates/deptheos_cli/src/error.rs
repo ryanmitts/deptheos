@@ -70,6 +70,8 @@ pub(crate) enum Refusal {
     SliderRange { flag: &'static str, min: f64, max: f64 },
     /// `redraw`'s color flag on a render with no color.
     NoColor(&'static str),
+    /// `redraw`'s camera RAW space on a standard render.
+    WideOnStandard(&'static str),
 }
 
 impl fmt::Display for Refusal {
@@ -125,6 +127,10 @@ impl fmt::Display for Refusal {
                 write!(f, "{flag} takes {min} to {max} on this render")
             }
             Self::NoColor(flag) => write!(f, "{flag} needs a color render; this one is monochrome"),
+            Self::WideOnStandard(space) => write!(
+                f,
+                "--space {space} is for camera RAW renders; a standard one writes srgb or own"
+            ),
             Self::CropOutside(outside) => {
                 let (c, p) = (outside.crop, outside.picture);
                 write!(
@@ -294,6 +300,7 @@ mod tests {
             }),
             Refusal::SliderRange { flag: "--tint", min: -150.0, max: 150.0 },
             Refusal::NoColor("--vibrance"),
+            Refusal::WideOnStandard("display-p3"),
         ];
         for refusal in all {
             let line = refusal.to_string();

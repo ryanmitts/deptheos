@@ -277,7 +277,11 @@ pub(crate) fn conversion(
     output: OutputSpace,
 ) -> Option<io::ToSrgb> {
     match output {
-        OutputSpace::Srgb => profile_to_srgb(profile?),
+        // `resolve` draws a standard stack's wide spaces in sRGB.
+        OutputSpace::Srgb
+        | OutputSpace::DisplayP3
+        | OutputSpace::AdobeRgb
+        | OutputSpace::ProPhoto => profile_to_srgb(profile?),
         OutputSpace::StackProfile => None,
     }
 }

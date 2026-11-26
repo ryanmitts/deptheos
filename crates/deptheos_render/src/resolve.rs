@@ -19,6 +19,32 @@ pub enum OutputSpace {
     /// A standard stack's own profile, its values passed through when
     /// unadjusted; a linear stack's render is sRGB.
     StackProfile,
+    /// A camera RAW stack's export spaces, each with moxcms's profile; a
+    /// standard stack draws them in sRGB.
+    DisplayP3,
+    AdobeRgb,
+    /// At 16 bits only: its gamut needs more than 8.
+    ProPhoto,
+}
+
+impl OutputSpace {
+    /// The ICC profile an export in this space embeds, for the wide
+    /// spaces: moxcms's.
+    pub fn wide_icc(self) -> Option<IccProfile> {
+        let profile = match self {
+            Self::Srgb | Self::StackProfile => return None,
+            Self::DisplayP3 => moxcms::ColorProfile::new_display_p3(),
+            Self::AdobeRgb => moxcms::ColorProfile::new_adobe_rgb(),
+            Self::ProPhoto => moxcms::ColorProfile::new_pro_photo_rgb(),
+        };
+        IccProfile::from_bytes(profile.encode().ok()?)
+    }
+
+    /// The wide space's profile as its ICC reads back, its colorants
+    /// rounded as the file holds them: what the render encodes for.
+    pub fn wide_profile(self) -> Option<moxcms::ColorProfile> {
+        moxcms::ColorProfile::new_from_slice(self.wide_icc()?.bytes()).ok()
+    }
 }
 
 /// A stack's color, as the draw needs it.
@@ -59,6 +85,11 @@ pub fn resolve<'a>(
     adjustments: Option<&Adjustments>,
     output: OutputSpace,
 ) -> Draw<'a> {
+    // A standard stack draws the wide spaces in sRGB.
+    let output = match (color, output.wide_profile()) {
+        (Color::Standard(_), Some(_)) => OutputSpace::Srgb,
+        _ => output,
+    };
     match (color, adjustments) {
         (Color::Standard(profile), None) => Draw::Stored { profile, output },
         (Color::Standard(profile), Some(a)) if a.is_neutral() => Draw::Stored { profile, output },
@@ -91,7 +122,7 @@ pub fn resolve_adjusted(
             let exposure = linear_exposure(exposure, params.baseline_exposure);
             let curve = Curve::raw(contrast, whites, blacks);
             let stages = Stages { white_balance: None, exposure, curve, chroma };
-            Constants::linear(params, &stages)
+            Constants::linear(params, &stages, output)
         }
         Color::Standard(profile) => {
             let white_balance = relative_white_balance(adjustments.white_balance);
@@ -181,7 +212,11 @@ mod tests {
         let srgb = OutputSpace::Srgb;
         assert_eq!(
             resolve(Color::Linear(&params), None, srgb),
-            Draw::Rendered(Box::new(Constants::linear(&params, &Stages::default())))
+            Draw::Rendered(Box::new(Constants::linear(
+                &params,
+                &Stages::default(),
+                OutputSpace::Srgb
+            )))
         );
         assert_ne!(
             resolve(Color::Linear(&params), None, srgb),
@@ -197,6 +232,37 @@ mod tests {
     /// Exposure takes the total: the SDK's ramp and darkening curve as far
     /// as they go, a gain for the rest, the shoulder for what is raised
     /// past white.
+    /// A linear stack draws into a wide space, whose profile reads back
+    /// with its own primaries; a standard stack draws it in sRGB.
+    #[test]
+    fn the_wide_spaces_are_a_linear_stacks() {
+        let (params, profile) = (params(), IccProfile::adobe_rgb_compatible());
+        let colorants = |p: &moxcms::ColorProfile| {
+            [p.red_colorant, p.green_colorant, p.blue_colorant].map(|c| [c.x, c.y, c.z])
+        };
+        for wide in [OutputSpace::DisplayP3, OutputSpace::AdobeRgb, OutputSpace::ProPhoto] {
+            let linear = resolve(Color::Linear(&params), None, wide);
+            assert_eq!(linear.output(), wide);
+            let standard = resolve(Color::Standard(Some(&profile)), None, wide);
+            assert_eq!(standard.output(), OutputSpace::Srgb);
+            let adjusted = Adjustments { exposure: 1.0, ..Adjustments::NEUTRAL };
+            let standard = resolve(Color::Standard(Some(&profile)), Some(&adjusted), wide);
+            assert_eq!(standard.output(), OutputSpace::Srgb);
+            let read = wide.wide_profile().unwrap();
+            let made = match wide {
+                OutputSpace::DisplayP3 => moxcms::ColorProfile::new_display_p3(),
+                OutputSpace::AdobeRgb => moxcms::ColorProfile::new_adobe_rgb(),
+                _ => moxcms::ColorProfile::new_pro_photo_rgb(),
+            };
+            // s15Fixed16 in the file.
+            let (read, made) = (colorants(&read), colorants(&made));
+            let gap =
+                read.as_flattened().iter().zip(made.as_flattened()).map(|(a, b)| (a - b).abs());
+            assert!(gap.fold(0.0, f64::max) < 1e-4, "{wide:?}: {read:?} {made:?}");
+        }
+        assert_eq!(OutputSpace::Srgb.wide_icc(), None);
+    }
+
     #[test]
     fn exposure_is_a_law_on_the_total() {
         let e = |stops, baseline| linear_exposure(stops, baseline).unwrap();

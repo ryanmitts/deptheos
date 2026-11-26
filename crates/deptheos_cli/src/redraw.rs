@@ -30,7 +30,8 @@ pub(crate) struct RedrawArgs {
     output: PathBuf,
 
     /// The color space written [default: own for standard images, srgb for
-    /// camera RAW]
+    /// camera RAW]. display-p3, adobe-rgb and prophoto are for camera RAW;
+    /// prophoto writes 16 bits only
     #[arg(long, value_enum, help_heading = "Output")]
     space: Option<Space>,
 
@@ -105,6 +106,23 @@ pub(crate) enum Space {
     /// The stack's own profile (standard images only; a table-based one
     /// writes sRGB)
     Own,
+    #[value(name = "display-p3")]
+    DisplayP3,
+    #[value(name = "adobe-rgb")]
+    AdobeRgb,
+    Prophoto,
+}
+
+impl Space {
+    /// A camera RAW render's space other than sRGB.
+    fn wide(self) -> Option<(OutputSpace, &'static str)> {
+        match self {
+            Self::Srgb | Self::Own => None,
+            Self::DisplayP3 => Some((OutputSpace::DisplayP3, "display-p3")),
+            Self::AdobeRgb => Some((OutputSpace::AdobeRgb, "adobe-rgb")),
+            Self::Prophoto => Some((OutputSpace::ProPhoto, "prophoto")),
+        }
+    }
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, ValueEnum)]
@@ -261,6 +279,11 @@ impl RedrawArgs {
 
     pub(crate) fn check(&self, c: &mut Checks) {
         self.save.check(ExportFormat::of(&self.output).as_slice(), c);
+        let eight = ExportFormat::of(&self.output) == Some(ExportFormat::Jpeg)
+            || self.save.bit_depth == Some(crate::args::BitDepth::Eight);
+        if self.space == Some(Space::Prophoto) && eight {
+            c.refuse("--space prophoto writes 16 bits: a TIFF or PNG, not --bit-depth 8");
+        }
         if self.process.is_some() && !self.sets_a_slider() {
             c.refuse("--process needs an adjustment to read");
         }
@@ -280,9 +303,11 @@ pub(crate) fn run(args: RedrawArgs, words: &Words) -> Result<()> {
         if folder.painted.is_some() { ", retouched" } else { "" },
         secs(started.elapsed())
     );
-    let output = match (args.space, folder.stack.is_linear()) {
-        (Some(Space::Srgb), _) | (None, true) => OutputSpace::Srgb,
-        (Some(Space::Own), _) | (None, false) => OutputSpace::StackProfile,
+    let output = match (args.space.map(|s| (s, s.wide())), folder.stack.is_linear()) {
+        (Some((_, Some((wide, _)))), true) => wide,
+        (Some((_, Some((_, name)))), false) => return Err(Refusal::WideOnStandard(name).into()),
+        (Some((Space::Srgb, _)), _) | (None, true) => OutputSpace::Srgb,
+        (Some(_), _) | (None, false) => OutputSpace::StackProfile,
     };
     let reframe = args.reframe();
     let picture = Size { width: folder.stack.width, height: folder.stack.height };
@@ -419,6 +444,25 @@ mod tests {
         for bad in bad {
             assert!(parsed(bad).is_err(), "{bad:?}");
         }
+    }
+
+    /// ProPhoto writes 16 bits only.
+    #[test]
+    fn prophoto_needs_sixteen_bits() {
+        use clap::Parser;
+        let passes = |output: &str, flags: &[&str]| {
+            let line = [&["deptheos", "redraw", "r", "-o", output, "--space", "prophoto"], flags];
+            let Ok(crate::args::Command::Redraw(args)) =
+                crate::args::Cli::try_parse_from(line.concat()).map(|cli| cli.command)
+            else {
+                panic!("not redraw")
+            };
+            let mut checks = Checks::default();
+            args.check(&mut checks);
+            checks.is_empty()
+        };
+        assert!(passes("a.tif", &[]) && passes("a.png", &["--bit-depth", "16"]));
+        assert!(!passes("a.jpg", &[]) && !passes("a.tif", &["--bit-depth", "8"]));
     }
 
     #[test]

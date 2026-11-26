@@ -87,7 +87,8 @@ impl StandardConstants {
             (OutputSpace::StackProfile, Some(source)) => {
                 (output, prophoto.transform_matrix(source), true)
             }
-            (OutputSpace::StackProfile | OutputSpace::Srgb, _) => {
+            (OutputSpace::StackProfile | OutputSpace::Srgb, _)
+            | (OutputSpace::DisplayP3 | OutputSpace::AdobeRgb | OutputSpace::ProPhoto, _) => {
                 (OutputSpace::Srgb, prophoto.transform_matrix(&srgb), false)
             }
         };

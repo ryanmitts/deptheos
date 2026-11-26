@@ -449,8 +449,14 @@ pub(crate) fn export(
         }
         _ if io::is_dng(path) => return Err(Error::NotRaw),
         StackColor::Linear { .. } => allow_sixteen,
-        StackColor::Srgb { sixteen_bit, .. } => *sixteen_bit && allow_sixteen,
+        StackColor::Srgb { sixteen_bit, .. } => {
+            (*sixteen_bit || look.is_adjusted()) && allow_sixteen
+        }
     };
+    let jpeg = matches!(image::ImageFormat::from_path(path), Ok(image::ImageFormat::Jpeg));
+    if look.resolve().output() == deptheos_render::OutputSpace::ProPhoto && (jpeg || !sixteen) {
+        return Err(Error::InvalidState("ProPhoto exports at 16 bits".into()));
+    }
     let drawn = export_pixels(engine, look, pixels, (width, height))?;
     let reframe = look.reframe();
     if reframe.is_none() {

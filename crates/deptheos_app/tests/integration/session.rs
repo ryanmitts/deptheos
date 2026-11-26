@@ -457,6 +457,27 @@ fn a_linear_display_renders_on_request() {
     let display =
         output.display.expect("a linear stack has a display to render").render(&color, &constants);
     assert_eq!((display.width(), display.height()), (w, h));
+
+    // It exports into a wide space with that space's profile; ProPhoto
+    // at 16 bits only.
+    let engine = deptheos_app::test_support::engine().unwrap();
+    let export = |space, name: &str| {
+        let path = dir.path().join(name);
+        let (neutral, none) = (Adjustments::NEUTRAL, deptheos_app::reframe::Reframe::NONE);
+        let look = Look::redrawn(&output.stack, &neutral, none, space);
+        engine.save(look, &path, SaveOptions::default()).map(|()| path)
+    };
+    let icc = |path: &std::path::Path| {
+        use image::ImageDecoder;
+        let reader = image::ImageReader::open(path).unwrap().with_guessed_format().unwrap();
+        reader.into_decoder().unwrap().icc_profile().unwrap()
+    };
+    let p3 = deptheos_render::OutputSpace::DisplayP3;
+    let png = export(p3, "p3.png").unwrap();
+    assert_eq!(icc(&png).as_deref(), Some(p3.wide_icc().unwrap().bytes()));
+    let prophoto = deptheos_render::OutputSpace::ProPhoto;
+    assert!(export(prophoto, "prophoto.tif").is_ok());
+    assert!(export(prophoto, "prophoto.jpg").is_err());
 }
 
 /// With the live map on, every method shows the stack so far after each

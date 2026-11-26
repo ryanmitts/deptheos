@@ -18,7 +18,8 @@ A stack's stored pixels become colors on screen, in compares, Retouch, exports, 
   - `exported`: the render in a file. A linear stack exports in sRGB, a standard one in its own profile. Aligned frames export with no adjustments.
   - `redrawn`: the render in a file through the adjusted path even when neutral, with a reframe: the redraw command's (ADR-103).
 - **`Adjustments` lives in `deptheos_adjust`**, a crate with no Deptheos dependency, and carries its process version. A neutral value draws exactly as none: the tests check this bit for bit at every site.
-- **`OutputSpace` is Srgb or StackProfile.** The screen is sRGB while Color Management is on, else the stack's own profile, which the look resolves as it draws. StackProfile passes an unadjusted standard stack's values through, and the export carries the profile (`Look::icc`).
+- **`OutputSpace` is Srgb, StackProfile or a camera RAW stack's wide space.** The screen is sRGB while Color Management is on, else the stack's own profile, which the look resolves as it draws. StackProfile passes an unadjusted standard stack's values through, and the export carries the profile (`Look::icc`).
+- **A camera RAW stack also exports in Display P3, Adobe RGB or ProPhoto**, each with moxcms's profile (`OutputSpace::wide_icc`). The linear shader's last matrix and encoding are that profile's, as the embedded file reads back: sRGB's curve for P3, a pure power for the other two. A standard stack draws a wide space in sRGB, which its export then says. ProPhoto exports at 16 bits only, as 8 bits band across its gamut; the export refuses a JPEG or 8-bit file. An adjusted export of an 8-bit standard stack takes 16 bits when asked, since the adjustments make values between its codes (`Look::is_adjusted`).
 
 ### The resolve step
 

@@ -84,6 +84,17 @@ impl<'a> Look<'a> {
         Self { stack, adjusted, reframe, target }
     }
 
+    /// Whether a slider is off its default: such an export can take 16
+    /// bits from an 8-bit stack.
+    pub fn is_adjusted(&self) -> bool {
+        match self.adjusted {
+            Adjusted::Stored => false,
+            Adjusted::Set(adjustments) | Adjusted::Redrawn(adjustments) => {
+                !adjustments.is_neutral()
+            }
+        }
+    }
+
     pub fn reframe(&self) -> Reframe {
         self.reframe
     }
@@ -155,11 +166,14 @@ impl<'a> Look<'a> {
     }
 
     /// The ICC profile an export in this look carries: the stack's own when
-    /// its values are drawn in it, else none (sRGB).
+    /// its values are drawn in it, a wide space's, else none (sRGB).
     pub(crate) fn icc(&self) -> Option<io::IccProfile> {
         match self.resolve().output() {
             OutputSpace::StackProfile => self.stack.profile().cloned(),
             OutputSpace::Srgb => None,
+            wide @ (OutputSpace::DisplayP3 | OutputSpace::AdobeRgb | OutputSpace::ProPhoto) => {
+                wide.wide_icc()
+            }
         }
     }
 }

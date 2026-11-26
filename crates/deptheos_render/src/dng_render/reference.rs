@@ -83,8 +83,12 @@ pub(super) fn linear(
         toned = curve.apply(toned);
     }
     toned = chroma(u.flags.w, u.late, toned);
-    let pro_to_srgb = [u.pro_to_srgb_c0, u.pro_to_srgb_c1, u.pro_to_srgb_c2];
-    times(pro_to_srgb, toned).map(|v| srgb_encode(v.clamp(0.0, 1.0)))
+    let pro_to_output = [u.pro_to_output_c0, u.pro_to_output_c1, u.pro_to_output_c2];
+    let power = f64::from(u.pro_to_output_c0.w);
+    times(pro_to_output, toned).map(|v| match power {
+        0.0 => srgb_encode(v.clamp(0.0, 1.0)),
+        _ => v.clamp(0.0, 1.0).powf(power),
+    })
 }
 
 /// Vibrance and Saturation when the late stages (`late`) hold them.
@@ -204,6 +208,10 @@ mod tests {
     const OWN_BOUND: f64 = 16.0;
     /// A linear stack's: the tone curve's lerp in f32.
     const LINEAR_BOUND: f64 = 2.0;
+    /// Into a pure power (Adobe RGB's, ProPhoto's), whose slope is
+    /// unbounded at black: f32's rounding of the darkest values, magnified.
+    const POWER_BOUND: f64 = 4.0;
+
     /// With Whites raised: where a channel passes white by a hair, the
     /// pull toward luminance divides by that hair, and moves the codes
     /// the stages before it rounded by up to 8 times as many.
@@ -216,12 +224,15 @@ mod tests {
     /// 8-bit code.
     const CHROMA_BOUND: f64 = 2.0;
     const CHROMA_OWN_BOUND: f64 = 96.0;
+    /// Into ProPhoto, whose gamut keeps the colors chroma takes far out,
+    /// and whose pure power (no linear toe) magnifies their rounding at
+    /// black.
+    const CHROMA_PROPHOTO_BOUND: f64 = 8.0;
 
     /// `bound` for `adjustments`, wider where Whites lifts past white and
     /// through OkLab.
-    fn bound(bound: f64, adjustments: &Adjustments) -> f64 {
+    fn bound(bound: f64, chroma_bound: f64, adjustments: &Adjustments) -> f64 {
         let chroma = adjustments.vibrance != 0.0 || adjustments.saturation != 0.0;
-        let chroma_bound = if bound == OWN_BOUND { CHROMA_OWN_BOUND } else { CHROMA_BOUND };
         let bound = if chroma { bound.max(chroma_bound) } else { bound };
         if adjustments.whites > 0.0 { bound.max(WHITES_BOUND) } else { bound }
     }
@@ -275,9 +286,10 @@ mod tests {
             Some(IccProfile::adobe_rgb_compatible()),
         ];
         for icc in &profiles {
-            for (output, bound) in
-                [(OutputSpace::Srgb, SRGB_BOUND), (OutputSpace::StackProfile, OWN_BOUND)]
-            {
+            for (output, bound, chroma_bound) in [
+                (OutputSpace::Srgb, SRGB_BOUND, CHROMA_BOUND),
+                (OutputSpace::StackProfile, OWN_BOUND, CHROMA_OWN_BOUND),
+            ] {
                 for adjustments in adjustments() {
                     let color = Color::Standard(icc.as_ref());
                     let constants = resolve_adjusted(color, &adjustments, output);
@@ -286,7 +298,7 @@ mod tests {
                     let worst = worst(&pixels, &gpu, |stored| super::standard(standard, stored));
                     let name = icc.as_ref().and_then(IccProfile::name);
                     assert!(
-                        worst <= self::bound(bound, &adjustments),
+                        worst <= self::bound(bound, chroma_bound, &adjustments),
                         "{name:?} into {output:?} under {adjustments:?}: {worst:.2} codes off"
                     );
                 }
@@ -316,11 +328,22 @@ mod tests {
     fn the_linear_shader_matches_the_f64_reference() {
         let Some(ctx) = GpuContext::new_or_skip() else { return };
         let pixels = scenes();
-        for baseline in [0.35, -0.5] {
+        let outputs = [
+            (OutputSpace::Srgb, LINEAR_BOUND, CHROMA_BOUND),
+            (OutputSpace::DisplayP3, LINEAR_BOUND, CHROMA_BOUND),
+            (OutputSpace::AdobeRgb, POWER_BOUND, CHROMA_BOUND),
+            (OutputSpace::ProPhoto, POWER_BOUND, CHROMA_PROPHOTO_BOUND),
+        ];
+        for ((baseline, adjustments), (output, linear_bound, chroma_bound)) in [0.35, -0.5]
+            .into_iter()
+            .flat_map(|b| adjustments().into_iter().map(move |a| (b, a)))
+            .flat_map(|ba| outputs.map(move |o| (ba.clone(), o)))
+        {
             let params = linear_params(baseline);
-            for adjustments in adjustments() {
+            {
                 let color = Color::Linear(&params);
-                let constants = resolve_adjusted(color, &adjustments, OutputSpace::Srgb);
+                let constants = resolve_adjusted(color, &adjustments, output);
+                assert_eq!(constants.output(), output);
                 let Kind::Linear { uniform, tone, curve, .. } = &constants.0 else {
                     unreachable!()
                 };
@@ -330,8 +353,8 @@ mod tests {
                     super::linear(uniform, tone, curve.as_ref(), camera)
                 });
                 assert!(
-                    worst <= bound(LINEAR_BOUND, &adjustments),
-                    "baseline {baseline} under {adjustments:?}: {worst:.2} codes off"
+                    worst <= bound(linear_bound, chroma_bound, &adjustments),
+                    "baseline {baseline} into {output:?} under {adjustments:?}: {worst:.2} codes off"
                 );
             }
         }

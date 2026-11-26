@@ -47,9 +47,11 @@ mod params {
         pub(super) cam_to_prophoto_c1: Vec4,
         pub(super) cam_to_prophoto_c2: Vec4,
         pub(super) exposure: Vec4,
-        pub(super) pro_to_srgb_c0: Vec4,
-        pub(super) pro_to_srgb_c1: Vec4,
-        pub(super) pro_to_srgb_c2: Vec4,
+        /// ProPhoto to the output's linear values; `c0.w` its encoding:
+        /// 0 sRGB's curve, else the power `1 / gamma`.
+        pub(super) pro_to_output_c0: Vec4,
+        pub(super) pro_to_output_c1: Vec4,
+        pub(super) pro_to_output_c2: Vec4,
         pub(super) camera_white: Vec4,
         pub(super) flags: UVec4,
         pub(super) hsm_dims: UVec4,
@@ -157,14 +159,17 @@ enum Kind {
         look: Vec<f32>,
         /// Contrast, Whites and Blacks.
         curve: Option<crate::curve::Curve>,
+        /// sRGB or a wide space.
+        output: crate::OutputSpace,
     },
     Standard(standard::StandardConstants),
 }
 
 impl Constants {
     /// A linear stack's constants from its render parameters, through
-    /// `stages` (none: the SDK's render exactly).
-    pub(crate) fn linear(rp: &RenderParams, stages: &Stages) -> Self {
+    /// `stages` (none: the SDK's render exactly), into `output`: a wide
+    /// space, else sRGB.
+    pub(crate) fn linear(rp: &RenderParams, stages: &Stages, output: crate::OutputSpace) -> Self {
         let lut = |map: Option<&HueSatMap>| match map {
             Some(map) if lut_is_complete(map) => map.data.clone(),
             _ => Vec::new(),
@@ -172,13 +177,15 @@ impl Constants {
         // The ramp and the darkening curve take the exposure the stage
         // leaves them, else the baseline.
         let ramp = stages.exposure.map_or(rp.baseline_exposure, |e| e.ramp);
-        let mut uniform = pack_params(rp, ramp);
+        let (output, to_output) = output_encoding(output);
+        let mut uniform = pack_params(rp, ramp, to_output);
         if let Some(exposure) = stages.exposure {
             uniform.flags.z = 1;
             uniform.exposure_gain_knee = exposure.gain_knee();
         }
         (uniform.flags.w, uniform.late) = stages.late();
         Self(Kind::Linear {
+            output,
             curve: stages.curve.clone(),
             uniform,
             tone: precompose_tone_curve(&rp.tone_curve, exposure_tone(ramp), TONE_CURVE_SAMPLES),
@@ -212,7 +219,7 @@ impl Constants {
     /// drawn in its own profile.
     pub fn output(&self) -> crate::OutputSpace {
         match &self.0 {
-            Kind::Linear { .. } => crate::OutputSpace::Srgb,
+            Kind::Linear { output, .. } => *output,
             Kind::Standard(standard) => standard.output,
         }
     }
@@ -249,7 +256,7 @@ enum Prepared {
 impl PreparedRender {
     pub fn new(ctx: &GpuContext, constants: &Constants) -> Self {
         Self(match &constants.0 {
-            Kind::Linear { uniform, tone, hsm, look, curve } => Prepared::Linear {
+            Kind::Linear { uniform, tone, hsm, look, curve, output: _ } => Prepared::Linear {
                 params: ctx.create_uniform_buffer(uniform, "dng_color_params"),
                 tone: storage_buffer(ctx, tone, "dng_tone_curve"),
                 hsm: lut_buffer(ctx, hsm, "dng_hsm"),
@@ -270,7 +277,7 @@ impl PreparedRender {
 }
 
 /// Pack render params into the shader uniform, the ramp at `ramp` stops.
-fn pack_params(rp: &RenderParams, ramp: f64) -> params::DngColorParams {
+fn pack_params(rp: &RenderParams, ramp: f64, to_output: (Mat3, f32)) -> params::DngColorParams {
     // Stage3 black level, normalized; the shader subtracts then rescales.
     let s3bl = (rp.black_level / 65535.0) as f32;
     let range_scale = if s3bl < 1.0 { 1.0 / (1.0 - s3bl) } else { 1.0 };
@@ -300,7 +307,6 @@ fn pack_params(rp: &RenderParams, ramp: f64) -> params::DngColorParams {
     let q_scale = if radius > 0.0 { slope / (4.0 * radius) } else { 0.0 };
 
     let cam = Mat3::from_cols_array(&rp.camera_to_prophoto).transpose(); // row-major input
-    let pro_to_srgb = prophoto_to_srgb();
 
     let (hsm_flag, hsm_dims) = lut_dims(rp.hue_sat_map.as_ref());
     let (lt_flag, lt_dims) = lut_dims(rp.look_table.as_ref());
@@ -311,9 +317,9 @@ fn pack_params(rp: &RenderParams, ramp: f64) -> params::DngColorParams {
         cam_to_prophoto_c1: (cam.y_axis, 0.0).into(),
         cam_to_prophoto_c2: (cam.z_axis, 0.0).into(),
         exposure: Vec4::new(black, slope, radius, q_scale),
-        pro_to_srgb_c0: (pro_to_srgb.x_axis, 0.0).into(),
-        pro_to_srgb_c1: (pro_to_srgb.y_axis, 0.0).into(),
-        pro_to_srgb_c2: (pro_to_srgb.z_axis, 0.0).into(),
+        pro_to_output_c0: (to_output.0.x_axis, to_output.1).into(),
+        pro_to_output_c1: (to_output.0.y_axis, 0.0).into(),
+        pro_to_output_c2: (to_output.0.z_axis, 0.0).into(),
         camera_white,
         flags: UVec4::new(hsm_flag, lt_flag, 0, 0),
         hsm_dims,
@@ -340,6 +346,25 @@ fn lut_is_complete(map: &HueSatMap) -> bool {
         .saturating_mul(map.sat_divisions as usize)
         .saturating_mul(map.val_divisions as usize);
     entries > 0 && map.data.len() >= entries.saturating_mul(3)
+}
+
+/// The space a linear stack draws into for `output`, its matrix from
+/// ProPhoto, and its encoding (0: sRGB's curve; else `1 / gamma`): sRGB's
+/// own, or a wide space's profile, its matrix adapted through D50 and its
+/// curve a pure power (Display P3's is sRGB's).
+fn output_encoding(output: crate::OutputSpace) -> (crate::OutputSpace, (Mat3, f32)) {
+    let Some(profile) = output.wide_profile() else {
+        return (crate::OutputSpace::Srgb, (prophoto_to_srgb(), 0.0));
+    };
+    let m = moxcms::ColorProfile::new_pro_photo_rgb().transform_matrix(&profile).v;
+    let matrix =
+        Mat3::from_cols_array(&std::array::from_fn(|i| m[i / 3][i % 3] as f32)).transpose();
+    let power = match profile.red_trc {
+        // A one-entry curve is a gamma in u8Fixed8.
+        Some(moxcms::ToneReprCurve::Lut(ref v)) if v.len() == 1 => 256.0 / f32::from(v[0]),
+        _ => 0.0,
+    };
+    (output, (matrix, power))
 }
 
 /// ProPhoto RGB → linear sRGB (both D50 PCS): inverse(sRGB→XYZ) ·

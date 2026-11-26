@@ -90,7 +90,7 @@ sequenceDiagram
   `deptheos_raw::read` (LibRaw) → 16-bit linear camera RGB with its
   `LinearColor` (ADR-130). With Adobe DNG Converter chosen,
   `StackConversions` converts each frame to DNG first. Shown and exported
-  through `PreparedRender::render_into` (ADR-130).
+  in a look through `DngRenderPipeline::draw` (ADR-130, ADR-135).
 - iOS decode: `io::load_frame` → `HostAdapter` (`crates/deptheos_ffi/src/decode.rs`,
   installed by `set_host_decoder` in `Engine::new`) → Swift's
   `AppleFrameDecoder.openFrame` and `decodeInto` → `input_frame` (ADR-132).

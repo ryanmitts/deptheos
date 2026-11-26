@@ -48,6 +48,7 @@ of a record, cites only records in this folder.
 - [132](132-standard-images-one-handover-one-input-stage.md) Every decoder of standard images hands over the same thing; one input stage makes it a frame in the stack's color space
 - [133](133-exports-encoders-metadata-and-dither.md) Exports are encoded by Rust crates with metadata we write ourselves, and dithered at 8 bits
 - [134](134-native-libraries-and-the-license.md) The native libraries are vendored and built by our build scripts; GPL-3.0 with permissions for Adobe's SDKs and app stores
+- [135](135-every-draw-takes-a-look.md) Every draw of a stack takes a look (the stack, its adjustments, an output space), resolved once and drawn by one render function
 
 ## The model, the workflow and saved data
 

@@ -19,6 +19,7 @@ deptheos_aligner = { path = "crates/deptheos_aligner" }
 deptheos_raw = { path = "crates/deptheos_raw" }
 deptheos_dng = { path = "crates/deptheos_dng" }
 deptheos_app = { path = "crates/deptheos_app" }
+deptheos_render = { path = "crates/deptheos_render" }
 
 # Pinned to 29 (naga_oil 0.22 = naga 29). The GUI does not share this
 # device with a toolkit, so the pin is ours to move; gpui-kit's own wgpu

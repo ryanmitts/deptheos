@@ -131,7 +131,7 @@ static void fill_render_params(dng_negative &negative, DtDngRenderParams &out) {
         out.look_table_encoding = profile.LookTableEncoding();
     }
 
-    // The GPU render resamples this (deptheos_core's dng_render).
+    // The GPU render resamples this (deptheos_render's dng_render).
     {
         const dng_1d_function *toneCurve = nullptr;
         AutoPtr<dng_spline_solver> profileCurve;

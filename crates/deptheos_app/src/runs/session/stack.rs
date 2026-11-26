@@ -3,10 +3,8 @@
 //! ([`SaveOptions`]).
 
 use std::path::{Path, PathBuf};
-use std::sync::Arc;
 
-use deptheos_core::{Affine2, CommonPipelines, FrameAlignment, PlaneRamp, io};
-use deptheos_gpu::GpuContext;
+use deptheos_core::{Affine2, FrameAlignment, PlaneRamp, io};
 use image::math::Rect;
 use image::{ImageBuffer, Luma};
 
@@ -16,7 +14,7 @@ use crate::engine::present::{PresentedImage, present_frame_map};
 use crate::frames::names::file_label;
 use crate::runs::stacker::StackerConfig;
 use crate::words::{Words, say};
-use crate::{Error, Result};
+use crate::{Engine, Error, Result};
 
 /// How [`CompletedStack::save`] encodes PNG, TIFF and JPEG (DNG is always
 /// the linear pixels).
@@ -328,35 +326,27 @@ impl CompletedStack {
     /// linear pixels (linear stacks only), others sRGB, rendered on the GPU
     /// for linear stacks. JPEG, PNG and TIFF carry the reference's EXIF and
     /// the stack's XMP ([`crate::library::export_tags`]).
-    pub fn save(
-        &self,
-        ctx: &Arc<GpuContext>,
-        common: &CommonPipelines,
-        path: &Path,
-        save: SaveOptions,
-    ) -> Result<()> {
-        self.save_pixels(ctx, common, &self.pixels, path, save)
+    pub(crate) fn save(&self, engine: &Engine, path: &Path, save: SaveOptions) -> Result<()> {
+        self.save_pixels(engine, &self.pixels, path, save)
     }
 
     /// [`Self::save`] with `pixels` (a retouched copy) in place of the own.
     pub(crate) fn save_pixels(
         &self,
-        ctx: &Arc<GpuContext>,
-        common: &CommonPipelines,
+        engine: &Engine,
         pixels: &[u16],
         path: &Path,
         save: SaveOptions,
     ) -> Result<()> {
         let tags = crate::library::export_tags::export_metadata(self);
-        self.save_tagged(ctx, common, pixels, path, save, &tags)
+        self.save_tagged(engine, pixels, path, save, &tags)
     }
 
     /// [`Self::save_pixels`] with `tags` in place of the stack's own
     /// ([`crate::runs::aligned`]).
     pub(crate) fn save_tagged(
         &self,
-        ctx: &Arc<GpuContext>,
-        common: &CommonPipelines,
+        engine: &Engine,
         pixels: &[u16],
         path: &Path,
         save: SaveOptions,
@@ -381,8 +371,7 @@ impl CompletedStack {
                 return Err(Error::NotRaw);
             }
             StackColor::Linear { render_params, .. } => {
-                let srgb =
-                    render_linear(ctx, common, pixels, self.width, self.height, render_params)?;
+                let srgb = render_linear(engine, pixels, self.width, self.height, render_params)?;
                 io::save_rgb16(
                     path,
                     &srgb,
@@ -466,22 +455,22 @@ impl StackGeometry {
 /// Linear `pixels` rendered to sRGB through `params` on the GPU: the color
 /// step of a linear stack's non-DNG save.
 pub(crate) fn render_linear(
-    ctx: &Arc<GpuContext>,
-    common: &CommonPipelines,
+    engine: &Engine,
     pixels: &[u16],
     width: u32,
     height: u32,
     params: &deptheos_dng::RenderParams,
 ) -> Result<Vec<u16>> {
+    let ctx = engine.gpu();
     let linear = {
         // A one-off: its frame-sized staging buffer is not kept.
-        let mut uploader = common.uploader();
+        let mut uploader = engine.common().uploader();
         let linear =
             crate::engine::preview::upload_rgb16_texture(ctx, &mut uploader, pixels, width, height);
         uploader.release_resources();
         linear?
     };
-    let rendered = common.dng_render.render(ctx, &linear, params);
+    let rendered = engine.color().render(ctx, &linear, params);
     download_rgb(ctx, &rendered, Rect { x: 0, y: 0, width, height })
 }
 

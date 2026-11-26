@@ -25,14 +25,15 @@ use deptheos_core::converter::parallel_jobs as converter_parallel_jobs;
 use deptheos_core::{CommonPipelines, FrameAlignment, io};
 use deptheos_gpu::profile::cpu_scope;
 use deptheos_gpu::{DeviceChoice, GpuContext};
+use deptheos_render::dng_render::DngRenderPipeline;
 use image::math::Rect;
 use image::{DynamicImage, RgbImage};
 
 use crate::library::history::THUMBNAIL_SIDE;
 use crate::lock;
 use crate::runs::session::{
-    CompletedStack, DcpPreference, LinearDisplay, SaveOptions, SessionEvent, SessionOptions,
-    StackingSession, download_gray, download_rgb, mixed_kinds, render_params_or_identity,
+    CompletedStack, DcpPreference, SaveOptions, SessionEvent, SessionOptions, StackingSession,
+    download_gray, download_rgb, mixed_kinds, render_params_or_identity,
 };
 use crate::runs::stacker::StackerConfig;
 use crate::words::Words;
@@ -122,6 +123,8 @@ pub struct Engine {
     gpu: Arc<GpuContext>,
     /// Compiled once, shared with every session and save.
     common: Arc<CommonPipelines>,
+    /// The color render, which the stackers never use.
+    color: DngRenderPipeline,
     /// Adobe-converted frames, made on first use; a failure to make it is
     /// not kept, so a later conversion retries.
     dng_cache: Mutex<Option<Arc<DngCache>>>,
@@ -152,6 +155,7 @@ impl Engine {
         build_rayon_pool();
         Arc::new(Self {
             common: Arc::new(CommonPipelines::new(&gpu)),
+            color: DngRenderPipeline::new(&gpu),
             gpu,
             dng_cache: Mutex::new(None),
             camera_profile: Mutex::new(DcpPreference::default()),
@@ -170,6 +174,11 @@ impl Engine {
 
     pub fn common(&self) -> &Arc<CommonPipelines> {
         &self.common
+    }
+
+    /// The color render every view and export goes through.
+    pub fn color(&self) -> &DngRenderPipeline {
+        &self.color
     }
 
     /// Colors RAW previews with the profile the shell's stacks use
@@ -222,7 +231,7 @@ impl Engine {
         let (image, metadata) = preview::decode_linear_with_metadata(path, self.camera_profile())?;
         let params = render_params_or_identity(&metadata);
         let linear = self.upload(&image)?;
-        let rendered = self.common.dng_render.render(&self.gpu, &linear, &params);
+        let rendered = self.color.render(&self.gpu, &linear, &params);
         self.present(&rendered, None)
     }
 
@@ -251,7 +260,7 @@ impl Engine {
     ) -> Result<wgpu::Texture> {
         let aligned = self.aligned_source(path, frame_index, stack)?;
         match stack.render_params() {
-            Some(params) => Ok(self.common.dng_render.render(&self.gpu, &aligned, params)),
+            Some(params) => Ok(self.color.render(&self.gpu, &aligned, params)),
             None => Ok(aligned),
         }
     }
@@ -375,9 +384,7 @@ impl Engine {
         stack: &CompletedStack,
     ) -> Result<PresentedImage> {
         match stack.render_params() {
-            Some(params) => {
-                self.present(&self.common.dng_render.render(&self.gpu, texture, params), None)
-            }
+            Some(params) => self.present(&self.color.render(&self.gpu, texture, params), None),
             None => self.present(texture, stack.profile()),
         }
     }
@@ -437,7 +444,7 @@ impl Engine {
                 cancel,
             )
         })?;
-        Ok(self.presented(output.stack, output.display.map(LinearDisplay::render)))
+        Ok(self.presented(output.stack, output.display.map(|d| d.render(&self.color))))
     }
 
     /// A session over `paths`, ready to run; every stack starts here. With
@@ -506,7 +513,7 @@ impl Engine {
             Some(params) => {
                 let _t = cpu_scope("present: display render");
                 let linear = self.upload_rgb16(&stack.pixels, stack.width, stack.height)?;
-                Some(self.common.dng_render.render(&self.gpu, &linear, params))
+                Some(self.color.render(&self.gpu, &linear, params))
             }
             None => None,
         };
@@ -515,7 +522,7 @@ impl Engine {
 
     /// Save a finished stack (see [`CompletedStack::save`]).
     pub fn save(&self, stack: &CompletedStack, path: &Path, save: SaveOptions) -> Result<()> {
-        stack.save(&self.gpu, &self.common, path, save)
+        stack.save(self, path, save)
     }
 
     /// Save `stack` with `pixels` (retouched) in place of its own.
@@ -526,7 +533,7 @@ impl Engine {
         path: &Path,
         save: SaveOptions,
     ) -> Result<()> {
-        stack.save_pixels(&self.gpu, &self.common, pixels, path, save)
+        stack.save_pixels(self, pixels, path, save)
     }
 
     /// Saves `stack` with the paint `flattened` answers

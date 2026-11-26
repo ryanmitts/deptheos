@@ -4,8 +4,8 @@
 use std::collections::BTreeSet;
 use std::sync::Arc;
 
-use deptheos_core::CommonPipelines;
 use deptheos_gpu::GpuContext;
+use deptheos_render::dng_render::DngRenderPipeline;
 
 use super::canvas::Canvas;
 use super::render::{RectPixels, RectRenderer};
@@ -49,7 +49,7 @@ impl CanvasDisplay {
     pub(crate) fn update(
         &mut self,
         ctx: &Arc<GpuContext>,
-        common: &CommonPipelines,
+        color: &DngRenderPipeline,
         canvas: &Canvas,
         dirty: &BTreeSet<TileId>,
     ) -> Result<Vec<DisplayPatch>, Error> {
@@ -64,7 +64,7 @@ impl CanvasDisplay {
             // smaller levels are halved from.
             let core = core_rect(full, tx, ty);
             let rect = stored_rect(full, tx, ty).union(core.aligned(full[0], full[1]));
-            let patch = self.render_rect(ctx, common, canvas, rect)?;
+            let patch = self.render_rect(ctx, color, canvas, rect)?;
             let tile = cut_tile(&patch, [rect.x, rect.y], full, tx, ty);
             patches.push(DisplayPatch { level: 0, tx, ty, tile });
             // A tile whose gutter alone changed has nothing to halve.
@@ -96,7 +96,7 @@ impl CanvasDisplay {
     pub(crate) fn render_tiles(
         &mut self,
         ctx: &Arc<GpuContext>,
-        common: &CommonPipelines,
+        color: &DngRenderPipeline,
         canvas: &Canvas,
         tiles: &[[u32; 2]],
     ) -> Result<Vec<DisplayPatch>, Error> {
@@ -105,7 +105,7 @@ impl CanvasDisplay {
         let mut patches = Vec::with_capacity(tiles.len());
         for &[tx, ty] in tiles.iter().filter(|[tx, ty]| *tx < cols && *ty < rows) {
             let rect = stored_rect(full, tx, ty);
-            let patch = self.render_rect(ctx, common, canvas, rect)?;
+            let patch = self.render_rect(ctx, color, canvas, rect)?;
             let tile = cut_tile(&patch, [rect.x, rect.y], full, tx, ty);
             patches.push(DisplayPatch { level: 0, tx, ty, tile });
         }
@@ -116,14 +116,14 @@ impl CanvasDisplay {
     fn render_rect(
         &mut self,
         ctx: &Arc<GpuContext>,
-        common: &CommonPipelines,
+        color: &DngRenderPipeline,
         canvas: &Canvas,
         rect: PixelRect,
     ) -> Result<CpuImage, Error> {
         let pixels = canvas.read(rect);
         let stack = canvas.stack();
         let input = RectPixels { pixels: &pixels, width: rect.width, height: rect.height };
-        self.renderer.render(ctx, common, input, stack.render_params(), stack.profile())
+        self.renderer.render(ctx, color, input, stack.render_params(), stack.profile())
     }
 }
 

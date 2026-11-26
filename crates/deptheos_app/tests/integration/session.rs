@@ -125,13 +125,21 @@ fn pyramid_event_sequence_and_save() {
     assert_eq!(stack.paths, paths);
 
     let out = dir.path().join("result.png");
-    stack.save(&ctx, &common(&ctx), &out, SaveOptions::default()).unwrap();
+    deptheos_app::test_support::engine()
+        .unwrap()
+        .save(&stack, &out, SaveOptions::default())
+        .unwrap();
     let saved = image::open(&out).unwrap();
     assert_eq!((saved.width(), saved.height()), (SIZE, SIZE));
 
     // DNG save must refuse: sources were PNG, no metadata to carry.
     let dng = dir.path().join("result.dng");
-    assert!(stack.save(&ctx, &common(&ctx), &dng, SaveOptions::default()).is_err());
+    assert!(
+        deptheos_app::test_support::engine()
+            .unwrap()
+            .save(&stack, &dng, SaveOptions::default())
+            .is_err()
+    );
 }
 
 #[test]
@@ -438,7 +446,10 @@ fn a_linear_display_renders_on_request() {
     .unwrap();
     let output = session.run(&mut |_, _| {}, &deptheos_app::Cancel::root()).unwrap();
     assert!(output.stack.is_linear());
-    let display = output.display.expect("a linear stack has a display to render").render();
+    let display = output
+        .display
+        .expect("a linear stack has a display to render")
+        .render(&deptheos_render::dng_render::DngRenderPipeline::new(&ctx));
     assert_eq!((display.width(), display.height()), (w, h));
 }
 
@@ -1150,7 +1161,10 @@ fn a_wide_gamut_stack_keeps_its_profile() {
 
     for ext in ["tif", "jpg", "png"] {
         let out = dir.path().join(format!("result.{ext}"));
-        stack.save(&ctx, &common(&ctx), &out, SaveOptions::default()).unwrap();
+        deptheos_app::test_support::engine()
+            .unwrap()
+            .save(&stack, &out, SaveOptions::default())
+            .unwrap();
         let reader = image::ImageReader::open(&out).unwrap().with_guessed_format().unwrap();
         let icc = reader.into_decoder().unwrap().icc_profile().unwrap();
         assert_eq!(icc.as_deref(), Some(adobe.bytes()), ".{ext}");

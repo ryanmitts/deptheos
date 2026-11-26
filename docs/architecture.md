@@ -10,7 +10,8 @@ The front ends depend on `deptheos_app` and nothing below it but what they
 must: the desktop on `deptheos_app` alone, the iOS bridge on `deptheos_core`
 too for its decoder (`set_host_decoder`) and errors, the CLI on
 `deptheos_gpu` for `bench`'s GPU profile. The stackers in `deptheos_core`
-use the aligner only in their tests; `StackingSession` in `deptheos_app`
+use the aligner only in their tests, and can't reach the color render,
+which is `deptheos_render`'s, over them; `StackingSession` in `deptheos_app`
 joins the two (`crates/deptheos_app/src/runs/session.rs`). `deptheos_dng` reads a mosaic DNG's
 pixels through `deptheos_raw` (ADR-131). Dotted lines are build and dev
 dependencies.
@@ -33,6 +34,10 @@ graph TD
   app --> dng
   app --> gpu
   app --> raw
+  app --> render[deptheos_render]
+  render --> core
+  render --> dng
+  render --> gpu
   core[deptheos_core] --> gpu[deptheos_gpu]
   core --> dng[deptheos_dng]
   core --> raw[deptheos_raw]

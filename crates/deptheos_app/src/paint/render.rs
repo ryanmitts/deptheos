@@ -8,12 +8,11 @@
 
 use std::sync::Arc;
 
-use deptheos_core::CommonPipelines;
-use deptheos_core::dng_render::{DngRenderPipeline, PreparedRender, RenderParams};
 use deptheos_core::io;
 use deptheos_core::upload::ImageUploader;
 use deptheos_gpu::GpuContext;
 use deptheos_gpu::gpu_utils::download_texture_with;
+use deptheos_render::dng_render::{DngRenderPipeline, PreparedRender, RenderParams};
 
 use crate::engine::present::{CpuImage, display_pixel, display_rgb16, source_rgb, to_srgb};
 use crate::{Error, Result};
@@ -56,7 +55,7 @@ impl RectRenderer {
     pub(crate) fn render(
         &mut self,
         ctx: &Arc<GpuContext>,
-        common: &CommonPipelines,
+        color: &DngRenderPipeline,
         rect: RectPixels<'_>,
         params: Option<&RenderParams>,
         profile: Option<&io::IccProfile>,
@@ -84,7 +83,7 @@ impl RectRenderer {
         prep.dispatch_to_rgba(ctx, &mut encoder, &input);
         ctx.submit(encoder);
         let prepared = &self.prepared.as_ref().expect("prepared above").1;
-        common.dng_render.render_into(ctx, prepared, &input, &output, [width, height]);
+        color.render_into(ctx, prepared, &input, &output, [width, height]);
 
         let mut out = Vec::with_capacity(w * h * 4);
         let texel = output.format().block_copy_size(None).unwrap_or(8) as usize;

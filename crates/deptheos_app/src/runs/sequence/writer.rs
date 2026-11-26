@@ -4,11 +4,8 @@
 use std::borrow::Cow;
 use std::io;
 use std::path::{Path, PathBuf};
-use std::sync::Arc;
 
-use deptheos_core::CommonPipelines;
 use deptheos_core::io::metadata::ExportMetadata;
-use deptheos_gpu::GpuContext;
 use serde::Serialize;
 
 use super::{Direction, FrameOptions, MANIFEST_FILE, SequenceReport, io_error, scaled_size};
@@ -62,8 +59,7 @@ pub(super) struct SequenceWriter<'a> {
     total: usize,
     options: FrameOptions,
     /// For the color step of a linear stack.
-    ctx: &'a Arc<GpuContext>,
-    common: &'a CommonPipelines,
+    engine: &'a Engine,
     written: usize,
     manifest: Manifest,
 }
@@ -83,16 +79,7 @@ impl<'a> SequenceWriter<'a> {
         let name = folder
             .file_name()
             .map_or_else(|| "sequence".into(), |n| n.to_string_lossy().into_owned());
-        Ok(Self {
-            folder,
-            name,
-            total,
-            options,
-            ctx: engine.gpu(),
-            common: engine.common(),
-            written: 0,
-            manifest,
-        })
+        Ok(Self { folder, name, total, options, engine, written: 0, manifest })
     }
 
     /// `pixels` (interleaved RGB u16 in `color`'s space) finished: a linear
@@ -107,14 +94,9 @@ impl<'a> SequenceWriter<'a> {
         color: &StackColor,
     ) -> Result<Frame<'p>> {
         let pixels = match color {
-            StackColor::Linear { render_params, .. } => Cow::Owned(render_linear(
-                self.ctx,
-                self.common,
-                &pixels,
-                width,
-                height,
-                render_params,
-            )?),
+            StackColor::Linear { render_params, .. } => {
+                Cow::Owned(render_linear(self.engine, &pixels, width, height, render_params)?)
+            }
             StackColor::Srgb { .. } => pixels,
         };
         let (pixels, width, height) = resize(pixels, width, height, self.options.long_edge)?;

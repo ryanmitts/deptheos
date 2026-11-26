@@ -1,5 +1,5 @@
-//! The GPU programs around the stackers (upload, warp, DNG render,
-//! contribution tint, u16 pack), compiled once per context and shared.
+//! The GPU programs around the stackers (upload, warp, contribution
+//! tint, u16 pack), compiled once per context and shared.
 //! Each method's kernels, with the modules in `SHARED_SHADER_MODULES`, are
 //! compiled by its first stacker on a context (`GpuContext::programs`).
 
@@ -8,14 +8,12 @@ use std::sync::{Mutex, MutexGuard};
 use deptheos_gpu::GpuContext;
 
 use crate::contribution::ContributionOverlay;
-use crate::dng_render::DngRenderPipeline;
 use crate::pack::U16Packer;
 use crate::upload::ImageUploader;
 use crate::warp::TextureWarper;
 
-/// The sRGB curves (`deptheos::color`), shared with the DNG render.
-pub(crate) const COLOR_MODULE: (&str, &str) =
-    (include_str!("shaders/color.wgsl"), "deptheos::color");
+/// The sRGB curves (`deptheos::color`), shared with the color render.
+pub const COLOR_MODULE: (&str, &str) = (include_str!("shaders/color.wgsl"), "deptheos::color");
 
 /// Shared composable shader modules registered for `#import` resolution.
 /// A module comes after the modules it imports.
@@ -31,7 +29,6 @@ pub(crate) const SHARED_SHADER_MODULES: &[(&str, &str)] = &[
 ];
 
 pub struct CommonPipelines {
-    pub dng_render: DngRenderPipeline,
     pub warper: TextureWarper,
     pub contribution: ContributionOverlay,
     /// `None` where the adapter cannot store Rgba16Unorm.
@@ -44,7 +41,6 @@ pub struct CommonPipelines {
 impl CommonPipelines {
     pub fn new(ctx: &GpuContext) -> Self {
         Self {
-            dng_render: DngRenderPipeline::new(ctx),
             warper: TextureWarper::new(ctx),
             contribution: ContributionOverlay::new(ctx),
             packer: U16Packer::new(ctx).ok(),

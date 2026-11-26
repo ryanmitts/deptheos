@@ -66,10 +66,10 @@ test-batch:
 test-app:
     cargo test -p deptheos_app --lib
 
-# The stackers, image loading and saving, and the DNG render
+# The stackers, image loading and saving, and the color render
 [group('test')]
 test-core:
-    cargo test -p deptheos_core
+    cargo test -p deptheos_core -p deptheos_render
 
 # The native codecs: the DNG SDK and LibRaw
 [group('test')]

@@ -8,10 +8,10 @@
 //! SDK's render of the file itself.
 
 use deptheos_core::dcp::{self, DcpPreference};
-use deptheos_core::dng_render::DngRenderPipeline;
 use deptheos_dng::{DngImage, RenderParams};
 use deptheos_gpu::GpuContext;
 use deptheos_raw::{RawDngColor, RawMetadata, TestMetadata};
+use deptheos_render::dng_render::DngRenderPipeline;
 use image::{DynamicImage, ImageBuffer, Rgb};
 
 use crate::common::download_rgba;
@@ -164,7 +164,7 @@ const CAMERA_STANDARD: f64 = 55.0;
 
 #[test]
 fn gpu_render_matches_sdk_render_of_file() {
-    let path = crate::known::fixture("converter.dng");
+    let path = crate::common::core_fixture("converter.dng");
     let Some(ctx) = GpuContext::new_or_skip() else { return };
 
     // The file's own profile.

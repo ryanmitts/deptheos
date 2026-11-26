@@ -333,14 +333,13 @@ fn draw(engine: &Arc<Engine>, case: &Case, dir: &Path, out: &mut Captures) {
         .collect();
     let input = RectPixels { pixels: &rect_pixels, width: rect.width, height: rect.height };
     let tile = renderer
-        .render(engine.gpu(), engine.common(), input, stack.render_params(), stack.profile())
+        .render(engine.gpu(), engine.color(), input, stack.render_params(), stack.profile())
         .unwrap();
     out.record(&at("paint_rect"), format!("{}x{}", tile.width, tile.height), &tile.pixels);
 
     // Exports, and the color step sequences share.
     if let Some(params) = stack.render_params() {
-        let srgb =
-            render_linear(engine.gpu(), engine.common(), other, size.0, size.1, params).unwrap();
+        let srgb = render_linear(engine, other, size.0, size.1, params).unwrap();
         out.rgb16(&at("render_linear"), size, &srgb);
     }
     for (ext, sixteen) in [("png", true), ("png", false), ("tif", true), ("jpg", false)] {

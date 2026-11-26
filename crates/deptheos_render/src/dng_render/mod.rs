@@ -7,8 +7,8 @@ use deptheos_gpu::GpuContext;
 use deptheos_gpu::gpu_utils::{WORKGROUP_SIZE, create_bind_group, dispatch_compute_with, tex};
 use glam::{Mat3, UVec4, Vec4};
 
-use crate::pack::{QUANTIZE_MODULE, threshold_bind_group};
-use crate::pipelines::COLOR_MODULE;
+use deptheos_core::pack::{QUANTIZE_MODULE, threshold_bind_group};
+use deptheos_core::pipelines::COLOR_MODULE;
 
 pub use deptheos_dng::{HueSatMap, RenderParams};
 
@@ -333,5 +333,15 @@ mod tests {
         assert_eq!(lut_dims(Some(&short)), (0, UVec4::ZERO));
         assert_eq!(lut_dims(Some(&empty_grid)), (0, UVec4::ZERO));
         assert_eq!(lut_dims(None), (0, UVec4::ZERO));
+    }
+
+    /// The shader's `DngColorParams` has the Rust struct's fields.
+    #[test]
+    fn the_uniform_matches_its_wgsl() {
+        deptheos_gpu::wgsl_mirror::assert_mirrors(
+            include_str!("mod.rs"),
+            include_str!("dng_render.wgsl"),
+            &["DngColorParams"],
+        );
     }
 }

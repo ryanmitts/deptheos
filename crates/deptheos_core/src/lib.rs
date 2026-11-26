@@ -12,7 +12,6 @@ pub mod contribution;
 pub mod converter;
 pub mod dcp;
 pub mod depth;
-pub mod dng_render;
 mod error;
 mod focus;
 pub mod io;

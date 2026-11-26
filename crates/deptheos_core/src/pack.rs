@@ -19,7 +19,7 @@ use crate::error::{CoreError, Result};
 use crate::io::quantize_u16;
 
 /// The `deptheos::quantize` shader module, for `create_shader_module_composed`.
-pub(crate) const QUANTIZE_MODULE: (&str, &str) =
+pub const QUANTIZE_MODULE: (&str, &str) =
     (include_str!("shaders/quantize.wgsl"), "deptheos::quantize");
 
 /// Entry k is the smallest f32 that [`quantize_u16`] maps to k or above,
@@ -46,10 +46,7 @@ pub(crate) fn u16_thresholds() -> &'static [f32] {
 }
 
 /// Bind group 1 of a shader that imports `deptheos::quantize`, built once.
-pub(crate) fn threshold_bind_group(
-    ctx: &GpuContext,
-    pipeline: &wgpu::ComputePipeline,
-) -> wgpu::BindGroup {
+pub fn threshold_bind_group(ctx: &GpuContext, pipeline: &wgpu::ComputePipeline) -> wgpu::BindGroup {
     let buffer = ctx.create_buffer_with_data(
         "u16_thresholds",
         bytemuck::cast_slice(u16_thresholds()),

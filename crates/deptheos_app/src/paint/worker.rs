@@ -1359,7 +1359,7 @@ impl Worker {
     fn render_tiles(&mut self, tiles: &[[u32; 2]]) {
         let Some(active) = self.mode.active_mut() else { return };
         let Some(canvas) = self.docs.get(&active.key).and_then(|d| d.canvas()) else { return };
-        match active.display.render_tiles(self.engine.gpu(), self.engine.common(), canvas, tiles) {
+        match active.display.render_tiles(self.engine.gpu(), self.engine.color(), canvas, tiles) {
             Ok(patches) if !patches.is_empty() => {
                 (self.output)(Output::Patches { key: active.key.clone(), patches })
             }
@@ -1383,7 +1383,7 @@ impl Worker {
             && let Some(doc) = self.docs.get(&active.key)
             && let Some(canvas) = doc.canvas()
         {
-            match active.display.update(self.engine.gpu(), self.engine.common(), canvas, &dirty) {
+            match active.display.update(self.engine.gpu(), self.engine.color(), canvas, &dirty) {
                 Ok(patches) => (self.output)(Output::Patches { key: active.key.clone(), patches }),
                 Err(e) => {
                     (self.output)(Output::Failed(failed(self.engine.words(), Lead::Shown, &e)))

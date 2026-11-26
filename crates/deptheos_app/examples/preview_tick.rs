@@ -12,9 +12,9 @@ use std::path::PathBuf;
 use std::time::Instant;
 
 use deptheos_app::engine::present::present_texture;
-use deptheos_core::dng_render::{DngRenderPipeline, PreparedRender};
 use deptheos_gpu::GpuContext;
 use deptheos_gpu::gpu_utils::download_texture_rows;
+use deptheos_render::dng_render::{DngRenderPipeline, PreparedRender};
 use image::imageops::FilterType;
 
 /// The full-size picture: 45 MP.

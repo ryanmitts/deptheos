@@ -129,6 +129,6 @@ impl Engine {
         let pixels = download_rgb(self.gpu(), &warped, rect)?;
         drop(warped);
         let tags = crate::library::export_tags::aligned_frame_metadata(stack, index);
-        stack.save_tagged(self.gpu(), self.common(), &pixels, path, save, &tags)
+        stack.save_tagged(self, &pixels, path, save, &tags)
     }
 }

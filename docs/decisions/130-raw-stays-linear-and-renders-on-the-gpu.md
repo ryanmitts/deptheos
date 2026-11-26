@@ -23,8 +23,8 @@ A linear result still has to be shown and exported as JPEG, PNG or TIFF. That go
 ### The color render runs on the GPU; its parameters come from the SDK
 
 - `deptheos_compute_render_params` (`crates/deptheos_dng/native/dng_metadata.cpp`) rebuilds a negative from the frame's metadata and lets the DNG SDK compute the camera-to-ProPhoto matrix (white balance included), `HueSatMap`, `LookTable`, exposure offset and a 257-point tone curve. Profile selection and dual-illuminant interpolation stay Adobe's code.
-- `crates/deptheos_core/src/dng_render/dng_render.wgsl` applies those steps in the SDK renderer's order. `PreparedRender` caches the GPU buffers for a parameter set, and `render_into` renders any sub-rectangle (a live brush stroke) identically to that rectangle of a full-frame render.
-- Parity with the SDK's CPU renderer is held at more than 60 dB PSNR (65.9–78.6 dB on the test DNGs and profiles) by `crates/deptheos_core/tests/integration/dng_render.rs` and `dcp.rs`.
+- `crates/deptheos_render/src/dng_render/dng_render.wgsl` applies those steps in the SDK renderer's order. `PreparedRender` caches the GPU buffers for a parameter set, and `render_into` renders any sub-rectangle (a live brush stroke) identically to that rectangle of a full-frame render.
+- Parity with the SDK's CPU renderer is held at more than 60 dB PSNR (65.9–78.6 dB on the test DNGs and profiles) by `crates/deptheos_render/tests/integration/dng_render.rs` and `dcp.rs`.
 - The SDK's CPU renderer serves only as the tests' reference (`deptheos_dng::sdk_render_file_srgb`), the end-to-end checker's render of a linear DNG, frame or export, from its own negative (`open_raw` in `crates/deptheos_e2e/src/read.rs`; camera RAW and mosaic DNGs it decodes as the app does), and the last-resort thumbnail of a DNG that has no embedded preview and that LibRaw cannot read (`sdk_render`, `crates/deptheos_app/src/frames/source_thumbnail.rs`).
 
 ## Alternatives considered
@@ -55,7 +55,7 @@ The viewer (through the DNG pipeline) and the exported file then showed differen
 ## Code
 
 - `crates/deptheos_core/src/io/load.rs`, `crates/deptheos_core/src/pyramid/pyramid.wgsl`.
-- `crates/deptheos_core/src/dng_render/mod.rs`, `crates/deptheos_core/src/dng_render/dng_render.wgsl`.
+- `crates/deptheos_render/src/dng_render/mod.rs`, `crates/deptheos_render/src/dng_render/dng_render.wgsl`.
 - `crates/deptheos_dng/native/dng_metadata.cpp`, `crates/deptheos_dng/native/dng_c_api.cpp`.
 - `crates/deptheos_app/src/runs/session.rs`, `crates/deptheos_app/src/library/render_file.rs`.
-- `crates/deptheos_core/tests/integration/dng_render.rs`, `dcp.rs`.
+- `crates/deptheos_render/tests/integration/dng_render.rs`, `dcp.rs`.

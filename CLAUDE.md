@@ -13,7 +13,10 @@ The crates:
 
 - `deptheos_gpu`: the one wgpu device, `GpuContext`, headless (ADR-100).
 - `deptheos_core`: the three stackers, their GPU pipelines, image loading
-  and saving (`io`) and the DNG color render (`dng_render`, ADR-130).
+  and saving (`io`).
+- `deptheos_render`: the color render, from stored pixels to the colors
+  shown and exported (`dng_render`, ADR-130), kept out of the stackers'
+  reach.
 - `deptheos_aligner`: alignment on the CPU, ECC and grid search, behind
   `Aligner` (ADR-112).
 - `deptheos_dng`: the Adobe DNG SDK, to read, render and write DNG.

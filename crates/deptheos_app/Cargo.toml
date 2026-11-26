@@ -12,6 +12,7 @@ publish = false
 [dependencies]
 deptheos_gpu = { workspace = true }
 deptheos_core = { workspace = true }
+deptheos_render = { workspace = true }
 deptheos_aligner = { workspace = true }
 deptheos_raw = { workspace = true }
 deptheos_dng = { workspace = true }

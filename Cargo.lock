@@ -1707,6 +1707,7 @@ dependencies = [
  "deptheos_dng",
  "deptheos_gpu",
  "deptheos_raw",
+ "deptheos_render",
  "dirs 6.0.0",
  "fast_image_resize",
  "fluent",
@@ -1891,6 +1892,21 @@ dependencies = [
  "cc",
  "native_build",
  "thiserror 2.0.21",
+]
+
+[[package]]
+name = "deptheos_render"
+version = "0.2.1"
+dependencies = [
+ "bytemuck",
+ "deptheos_core",
+ "deptheos_dng",
+ "deptheos_gpu",
+ "deptheos_raw",
+ "encase",
+ "glam 0.29.3",
+ "image",
+ "wgpu",
 ]
 
 [[package]]

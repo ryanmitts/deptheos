@@ -15,6 +15,7 @@ use deptheos_core::{
 };
 use deptheos_gpu::GpuContext;
 use deptheos_gpu::profile::cpu_scope;
+use deptheos_render::dng_render::DngRenderPipeline;
 use image::math::Rect;
 
 use crate::frames::names::file_label;
@@ -177,7 +178,6 @@ pub struct SessionOutput {
 /// cropped result on the GPU until then.
 pub struct LinearDisplay {
     ctx: Arc<GpuContext>,
-    common: Arc<CommonPipelines>,
     cropped: wgpu::Texture,
     params: deptheos_dng::RenderParams,
 }
@@ -186,9 +186,9 @@ impl LinearDisplay {
     /// The cropped result rendered to sRGB through the reference's color
     /// science: Rgba16Unorm where the adapter stores it
     /// (`GpuContext::source_format`), else Rgba32Float.
-    pub fn render(self) -> wgpu::Texture {
+    pub fn render(self, color: &DngRenderPipeline) -> wgpu::Texture {
         let _t = cpu_scope("complete: display render");
-        self.common.dng_render.render(&self.ctx, &self.cropped, &self.params)
+        color.render(&self.ctx, &self.cropped, &self.params)
     }
 }
 
@@ -1018,12 +1018,8 @@ impl StackingSession {
         let (color, display) = match finish {
             Finish::Linear { metadata, cropped } => {
                 let render_params = render_params_or_identity(&metadata);
-                let display = LinearDisplay {
-                    ctx: self.ctx.clone(),
-                    common: self.common.clone(),
-                    cropped,
-                    params: render_params.clone(),
-                };
+                let display =
+                    LinearDisplay { ctx: self.ctx.clone(), cropped, params: render_params.clone() };
                 (StackColor::Linear { metadata, render_params }, Some(display))
             }
             Finish::Srgb { profile } => {

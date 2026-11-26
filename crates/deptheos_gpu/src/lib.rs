@@ -8,6 +8,7 @@ mod context;
 mod error;
 pub mod gpu_utils;
 pub mod profile;
+pub mod wgsl_mirror;
 
 pub use context::{
     DeviceChoice, DeviceInfo, DeviceKind, FormatSupport, GpuContext, MemoryBudget, MemoryPool,

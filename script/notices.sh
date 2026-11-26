@@ -8,7 +8,7 @@
 #
 # Part 1 (the C and C++ libraries) is assembled from the license files in
 # native/vendor/ and licenses/ (which also holds the licenses of the projects
-# our own code is derived from: focus-stack and OpenCV). Part 2 (the Rust crates) comes from
+# our own code is derived from: focus-stack, OpenCV, lightcraft and craft-libs). Part 2 (the Rust crates) comes from
 # cargo-about (`cargo install cargo-about --locked --features cli`), configured
 # by licenses/about.toml. Rerun after adding a crate or updating a vendored
 # library; a crate under a license not yet accepted in about.toml fails here.
@@ -167,6 +167,19 @@ EOF
     "(modules/video/test/test_ecc.cpp), https://github.com/opencv/opencv." \
     "Each file is used under the license in its header, below."
   cat licenses/opencv-LICENSE.txt
+
+  heading "lightcraft" \
+    "Deptheos's adjustment sliders take their ranges, operators and fitted" \
+    "constants from lightcraft, https://github.com/storytold/lightcraft," \
+    "used under the MIT license (it is MIT or Apache-2.0)."
+  cat licenses/lightcraft-LICENSE-MIT.txt
+
+  heading "craft-libs" \
+    "Deptheos's adjustment sliders take operators and constants from" \
+    "craft-libs, https://github.com/storytold/craft-libs, at the revision" \
+    "lightcraft pins (b2d2a1e948c43d95aa769d4f0a06fe6b869edc39), used under" \
+    "the MIT license (it is MIT or Apache-2.0)."
+  cat licenses/craft-libs-LICENSE-MIT.txt
 
   rule
   cat <<'EOF'

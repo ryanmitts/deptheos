@@ -23,6 +23,7 @@ A stack's stored pixels become colors on screen, in compares, Retouch, exports, 
 ### The resolve step
 
 - **`deptheos_render::resolve`** takes the stack's color (linear render parameters, or a standard stack's profile), the adjustments and the output space. It returns a `Draw`: the GPU's `Constants`, or the stored values to convert on the CPU. It is pure and needs no GPU, so table tests cover it.
+- **Each slider's law is here** (ADR-137): the adjustments become the numbers the shaders take, so the shaders hold no slider math.
 - **Equal constants draw equal pictures.** Paint's rectangles reuse a `PreparedRender` by comparing `Constants`.
 
 ### Adjusted standard stacks draw on the GPU

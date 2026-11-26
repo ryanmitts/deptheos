@@ -1,12 +1,13 @@
 //! The resolve step: a stack's color, its adjustments and an output space
 //! in, how the draw goes out. Pure, with no GPU, so a table test reads it
-//! as the behavior.
+//! as the behavior. Each slider's law is here: what its value does to the
+//! numbers the shaders take.
 
-use deptheos_adjust::Adjustments;
+use deptheos_adjust::{Adjustments, slider};
 use deptheos_core::io::IccProfile;
 use deptheos_dng::RenderParams;
 
-use crate::dng_render::Constants;
+use crate::dng_render::{Constants, Exposure, Stages};
 
 /// Where a draw's colors go. The screen is sRGB, or a standard stack's
 /// own profile while Color Management is off.
@@ -71,13 +72,55 @@ pub fn resolve<'a>(
 /// redraw command take for a standard stack before any slider is set.
 pub fn resolve_adjusted(
     color: Color<'_>,
-    _adjustments: &Adjustments,
+    adjustments: &Adjustments,
     output: OutputSpace,
 ) -> Box<Constants> {
+    let exposure = slider::EXPOSURE.clamp(adjustments.exposure);
     Box::new(match color {
-        Color::Linear(params) => Constants::linear(params),
-        Color::Standard(profile) => Constants::standard(profile, output),
+        Color::Linear(params) => {
+            let stages = Stages { exposure: linear_exposure(exposure, params.baseline_exposure) };
+            Constants::linear(params, &stages)
+        }
+        Color::Standard(profile) => {
+            let stages = Stages { exposure: standard_exposure(exposure) };
+            Constants::standard(profile, output, &stages)
+        }
     })
+}
+
+/// Stops below white where the shoulder starts once exposure has raised
+/// the picture far past white; it fades in from a clamp at white as the
+/// raise grows ([`knee`]).
+pub const SHOULDER_STOPS: f64 = 1.0;
+
+/// The shoulder's knee when exposure raises the picture `raised` stops
+/// past what was white: 1 (a clamp) at none, approaching
+/// [`SHOULDER_STOPS`] below white as it grows.
+fn knee(raised: f64) -> f64 {
+    let raised = raised.max(0.0);
+    (-SHOULDER_STOPS * (1.0 - (-raised).exp2())).exp2()
+}
+
+/// Exposure on a linear stack: `stops` on top of its `baseline`. The law
+/// is on the total: the SDK's ramp and darkening curve take as much of it
+/// as they can, never less than the baseline's own darkening, and a linear
+/// gain takes the rest, so a positive slider renders as the SDK's exposure
+/// does and a negative one darkens white as well. The shoulder takes only
+/// what is raised past the baseline's own white.
+fn linear_exposure(stops: f64, baseline: f64) -> Option<Exposure> {
+    if stops == 0.0 {
+        return None;
+    }
+    let total = baseline + stops;
+    let ramp = total.max(baseline.min(0.0));
+    let raised = ramp.max(0.0) - baseline.max(0.0);
+    Some(Exposure { ramp, gain: (total - ramp).exp2(), knee: knee(raised) })
+}
+
+/// Exposure on a standard stack: a linear gain of `stops`, its shoulder
+/// taking what passes white.
+fn standard_exposure(stops: f64) -> Option<Exposure> {
+    (stops != 0.0).then(|| Exposure { ramp: 0.0, gain: stops.exp2(), knee: knee(stops) })
 }
 
 #[cfg(test)]
@@ -112,7 +155,7 @@ mod tests {
         let srgb = OutputSpace::Srgb;
         assert_eq!(
             resolve(Color::Linear(&params), None, srgb),
-            Draw::Rendered(Box::new(Constants::linear(&params)))
+            Draw::Rendered(Box::new(Constants::linear(&params, &Stages::default())))
         );
         assert_ne!(
             resolve(Color::Linear(&params), None, srgb),
@@ -123,6 +166,36 @@ mod tests {
             resolve(Color::Standard(Some(&profile)), None, own),
             Draw::Stored { profile: Some(&profile), output: own }
         );
+    }
+
+    /// Exposure takes the total: the SDK's ramp and darkening curve as far
+    /// as they go, a gain for the rest, the shoulder for what is raised
+    /// past white.
+    #[test]
+    fn exposure_is_a_law_on_the_total() {
+        let e = |stops, baseline| linear_exposure(stops, baseline).unwrap();
+        let close = |a: f64, b: f64| (a - b).abs() < 1e-12;
+        assert_eq!(linear_exposure(0.0, 0.35), None);
+        // Raised: the SDK's own exposure at the total, whatever its sign.
+        for (stops, baseline) in [(1.0, 0.35), (0.3, -0.5), (1.0, -0.5)] {
+            let got = e(stops, baseline);
+            assert!(close(got.ramp, baseline + stops) && close(got.gain, 1.0), "{got:?}");
+        }
+        assert!(e(1.0, -0.5).knee < 1.0 && close(e(0.3, -0.5).knee, 1.0));
+        // Lowered: the ramp unclipped down to a total of 0, then a gain;
+        // a negative baseline keeps its own darkening.
+        let lowered = e(-0.35, 0.35);
+        assert!(close(lowered.ramp, 0.0) && close(lowered.gain, 1.0) && close(lowered.knee, 1.0));
+        let darker = e(-1.0, 0.35);
+        assert!(close(darker.ramp, 0.0) && close(darker.gain, (-0.65f64).exp2()));
+        let negative = e(-1.0, -0.5);
+        assert!(close(negative.ramp, -0.5) && close(negative.gain, 0.5));
+        // The shoulder fades in from a clamp and never passes its reach.
+        assert!(close(knee(0.0), 1.0) && knee(0.01) < 1.0 && knee(0.01) > 0.99);
+        assert!(knee(40.0) > (-SHOULDER_STOPS).exp2() - 1e-9);
+        assert_eq!(standard_exposure(0.0), None);
+        assert!(close(standard_exposure(-1.0).unwrap().gain, 0.5));
+        assert!(close(standard_exposure(-1.0).unwrap().knee, 1.0));
     }
 
     /// The adjusted path draws a matrix-and-curves standard stack on the

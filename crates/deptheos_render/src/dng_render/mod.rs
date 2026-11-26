@@ -12,11 +12,13 @@ use deptheos_core::pipelines::COLOR_MODULE;
 
 pub use deptheos_dng::{HueSatMap, RenderParams};
 pub use draw::{NeighborStage, Region, Source, TILE};
+pub(crate) use stages::{Exposure, Stages};
 pub use standard::Linearizer;
 
 mod draw;
 #[cfg(test)]
 mod reference;
+mod stages;
 mod standard;
 
 mod place {
@@ -52,6 +54,7 @@ mod params {
         pub(super) flags: UVec4,
         pub(super) hsm_dims: UVec4,
         pub(super) lt_dims: UVec4,
+        pub(super) exposure_gain_knee: Vec4,
     }
 }
 
@@ -73,8 +76,14 @@ struct Shader {
 
 impl Shader {
     fn new(ctx: &GpuContext, source: &str, entry: &str) -> Self {
-        let module =
-            ctx.create_shader_module_composed(source, entry, &[QUANTIZE_MODULE, COLOR_MODULE]);
+        let constants = stages::constants_module();
+        let modules = [
+            QUANTIZE_MODULE,
+            COLOR_MODULE,
+            (constants.as_str(), stages::CONSTANTS_MODULE),
+            (include_str!("adjust.wgsl"), "deptheos::adjust"),
+        ];
+        let module = ctx.create_shader_module_composed(source, entry, &modules);
         let pipeline =
             deptheos_gpu::gpu_utils::create_compute_pipeline(&ctx.device, &module, entry);
         let thresholds =
@@ -143,27 +152,48 @@ enum Kind {
 }
 
 impl Constants {
-    /// A linear stack's constants from its render parameters.
-    pub(crate) fn linear(rp: &RenderParams) -> Self {
+    /// A linear stack's constants from its render parameters, through
+    /// `stages` (none: the SDK's render exactly).
+    pub(crate) fn linear(rp: &RenderParams, stages: &Stages) -> Self {
         let lut = |map: Option<&HueSatMap>| match map {
             Some(map) if lut_is_complete(map) => map.data.clone(),
             _ => Vec::new(),
         };
+        // The ramp and the darkening curve take the exposure the stage
+        // leaves them, else the baseline.
+        let ramp = stages.exposure.map_or(rp.baseline_exposure, |e| e.ramp);
+        let mut uniform = pack_params(rp, ramp);
+        if let Some(exposure) = stages.exposure {
+            uniform.flags.z = 1;
+            uniform.exposure_gain_knee = exposure.gain_knee();
+        }
         Self(Kind::Linear {
-            uniform: pack_params(rp),
-            tone: precompose_tone_curve(&rp.tone_curve, exposure_tone(rp), TONE_CURVE_SAMPLES),
+            uniform,
+            tone: precompose_tone_curve(&rp.tone_curve, exposure_tone(ramp), TONE_CURVE_SAMPLES),
             hsm: lut(rp.hue_sat_map.as_ref()),
             look: lut(rp.look_table.as_ref()),
         })
     }
 
     /// A standard stack's constants: stored values in `profile` (`None`:
-    /// sRGB) drawn into `output`.
+    /// sRGB) drawn into `output` through `stages`.
     pub(crate) fn standard(
         profile: Option<&deptheos_core::io::IccProfile>,
         output: crate::OutputSpace,
+        stages: &Stages,
     ) -> Self {
-        Self(Kind::Standard(standard::StandardConstants::new(profile, output)))
+        Self(Kind::Standard(standard::StandardConstants::new(profile, output, stages)))
+    }
+
+    /// These constants with exposure's shoulder a clamp at white, as the
+    /// SDK's ramp clips: for the tests that match the SDK.
+    #[doc(hidden)]
+    pub fn without_shoulder(mut self) -> Self {
+        match &mut self.0 {
+            Kind::Linear { uniform, .. } => uniform.exposure_gain_knee.y = 1.0,
+            Kind::Standard(standard) => standard.uniform.exposure_gain_knee.y = 1.0,
+        }
+        self
     }
 
     /// The space the drawn values are in: sRGB but for a standard stack
@@ -211,8 +241,8 @@ impl PreparedRender {
     }
 }
 
-/// Pack render params into the shader uniform.
-fn pack_params(rp: &RenderParams) -> params::DngColorParams {
+/// Pack render params into the shader uniform, the ramp at `ramp` stops.
+fn pack_params(rp: &RenderParams, ramp: f64) -> params::DngColorParams {
     // Stage3 black level, normalized; the shader subtracts then rescales.
     let s3bl = (rp.black_level / 65535.0) as f32;
     let range_scale = if s3bl < 1.0 { 1.0 / (1.0 - s3bl) } else { 1.0 };
@@ -232,7 +262,7 @@ fn pack_params(rp: &RenderParams) -> params::DngColorParams {
     };
 
     // Exposure ramp constants (the DNG SDK's dng_render defaults).
-    let exposure = rp.baseline_exposure as f32;
+    let exposure = ramp as f32;
     let white = 1.0 / 2f32.powf(exposure.max(0.0));
     let shadows = 5.0f32;
     let black = (shadows * rp.shadow_scale as f32 * 0.001).min(0.99 * white);
@@ -260,6 +290,7 @@ fn pack_params(rp: &RenderParams) -> params::DngColorParams {
         flags: UVec4::new(hsm_flag, lt_flag, 0, 0),
         hsm_dims,
         lt_dims,
+        exposure_gain_knee: Vec4::new(1.0, 1.0, 0.0, 0.0),
     }
 }
 
@@ -300,10 +331,10 @@ fn prophoto_to_srgb() -> Mat3 {
     srgb_to_xyz.inverse() * prophoto_to_xyz
 }
 
-/// The exposure-tone pre-curve, applied only for negative baseline
-/// exposures (the SDK's `dng_function_exposure_tone`).
-fn exposure_tone(rp: &RenderParams) -> Vec4 {
-    let exposure = rp.baseline_exposure as f32;
+/// The exposure-tone pre-curve, applied only for a negative exposure of
+/// `stops` (the SDK's `dng_function_exposure_tone`).
+fn exposure_tone(stops: f64) -> Vec4 {
+    let exposure = stops as f32;
     if exposure < 0.0 {
         let slope = 2f32.powf(exposure);
         let a = (16.0 / 9.0) * (1.0 - slope);

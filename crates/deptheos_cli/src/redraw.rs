@@ -9,7 +9,8 @@ use clap::{Args, ValueEnum};
 use deptheos_app::library::export::ExportFormat;
 use deptheos_app::library::render_folder::RenderFolder;
 use deptheos_app::reframe::{Flip, Rect, Reframe, Size, Turn};
-use deptheos_app::{Adjustments, Engine, Look, OutputSpace, Words};
+use deptheos_app::slider::{self, SliderSpec};
+use deptheos_app::{Adjustments, Engine, Look, OutputSpace, ProcessVersion, Words};
 
 use crate::args::{Checks, SaveArgs};
 use crate::error::{Refusal, Result};
@@ -43,6 +44,16 @@ pub(crate) struct RedrawArgs {
     /// Mirror the picture
     #[arg(long, value_enum, help_heading = "Reframe")]
     flip: Option<FlipArg>,
+
+    /// Exposure, in stops, -5 to 5
+    #[arg(long, value_name = "STOPS", allow_hyphen_values = true,
+          value_parser = |s: &str| parse_slider(s, &slider::EXPOSURE), help_heading = "Adjust")]
+    exposure: Option<f64>,
+
+    /// The process version the adjustments are read in [default: the
+    /// latest]
+    #[arg(long, value_name = "N", value_parser = parse_process, help_heading = "Adjust")]
+    process: Option<ProcessVersion>,
 
     #[command(flatten)]
     save: SaveArgs,
@@ -85,7 +96,30 @@ fn parse_rect(s: &str) -> std::result::Result<Rect, String> {
     }
 }
 
+/// A slider's value, within its range.
+fn parse_slider(s: &str, spec: &SliderSpec) -> std::result::Result<f64, String> {
+    match s.trim().parse::<f64>() {
+        Ok(v) if v.is_finite() && (spec.min..=spec.max).contains(&v) => Ok(v),
+        _ => Err(format!("expected a number from {} to {}", spec.min, spec.max)),
+    }
+}
+
+/// A process version this build knows.
+fn parse_process(s: &str) -> std::result::Result<ProcessVersion, String> {
+    let latest = ProcessVersion::LATEST.number();
+    let known = s.trim().parse().ok().and_then(ProcessVersion::known);
+    known.ok_or_else(|| format!("this build knows processes 1 to {latest}"))
+}
+
 impl RedrawArgs {
+    /// The adjustments the flags give, the rest neutral.
+    fn adjustments(&self) -> Adjustments {
+        let neutral = Adjustments::NEUTRAL;
+        let adjustments =
+            Adjustments { exposure: self.exposure.unwrap_or(neutral.exposure), ..neutral };
+        adjustments.in_process(self.process.unwrap_or(ProcessVersion::LATEST))
+    }
+
     /// The reframe the flags give.
     fn reframe(&self) -> Reframe {
         let turn = match self.turn {
@@ -105,6 +139,9 @@ impl RedrawArgs {
 
     pub(crate) fn check(&self, c: &mut Checks) {
         self.save.check(ExportFormat::of(&self.output).as_slice(), c);
+        if self.process.is_some() && self.adjustments().is_neutral() {
+            c.refuse("--process needs an adjustment to read");
+        }
     }
 }
 
@@ -130,7 +167,7 @@ pub(crate) fn run(args: RedrawArgs, words: &Words) -> Result<()> {
     if let Err(outside) = reframe.window(picture) {
         return Err(Refusal::CropOutside(outside).into());
     }
-    let adjustments = Adjustments::NEUTRAL;
+    let adjustments = args.adjustments();
     let look = Look::redrawn(&folder.stack, &adjustments, reframe, output);
     let drawn = std::time::Instant::now();
     Engine::save_pixels(&engine, look, folder.pixels(), &args.output, args.save.options())?;
@@ -214,5 +251,29 @@ mod tests {
             assert!(reframe(&["--reframe", bad]).is_err(), "{bad}");
         }
         assert!(reframe(&["--turn", "45"]).is_err());
+    }
+
+    #[test]
+    fn the_flags_make_the_adjustments() {
+        use clap::Parser;
+        let parsed = |flags: &[&str]| {
+            let line = [&["deptheos", "redraw", "r", "-o", "a.tif"], flags].concat();
+            match crate::args::Cli::try_parse_from(line).map(|cli| cli.command) {
+                Ok(crate::args::Command::Redraw(args)) => {
+                    let mut checks = Checks::default();
+                    args.check(&mut checks);
+                    Ok((args.adjustments(), checks.is_empty()))
+                }
+                Ok(_) => panic!("not redraw"),
+                Err(e) => Err(e.kind()),
+            }
+        };
+        assert_eq!(parsed(&[]), Ok((Adjustments::NEUTRAL, true)));
+        let darker = Adjustments { exposure: -1.5, ..Adjustments::NEUTRAL };
+        assert_eq!(parsed(&["--exposure", "-1.5", "--process", "1"]), Ok((darker, true)));
+        assert_eq!(parsed(&["--process", "1"]).map(|(_, passes)| passes), Ok(false));
+        for bad in [&["--exposure", "6"][..], &["--exposure", "nan"], &["--process", "0"]] {
+            assert!(parsed(bad).is_err(), "{bad:?}");
+        }
     }
 }

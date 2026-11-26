@@ -32,25 +32,39 @@ impl ProcessVersion {
 }
 
 /// One render's adjustments. Every slider at its default is neutral, which
-/// draws the stored picture exactly as it draws with no adjustments.
+/// draws the stored picture exactly as it draws with no adjustments. A
+/// value that isn't a finite number reads as its slider's default.
 #[derive(Clone, Debug, PartialEq)]
 pub struct Adjustments {
-    process: ProcessVersion,
+    /// What the values mean.
+    pub process: ProcessVersion,
+    /// Stops ([`slider::EXPOSURE`]).
+    pub exposure: f64,
 }
 
 impl Adjustments {
     /// Every slider at its default, in the latest process.
-    pub const NEUTRAL: Self = Self { process: ProcessVersion::LATEST };
+    pub const NEUTRAL: Self = Self { process: ProcessVersion::LATEST, exposure: 0.0 };
 
     pub fn process(&self) -> ProcessVersion {
         self.process
     }
 
+    /// These values read in `process`.
+    pub fn in_process(self, process: ProcessVersion) -> Self {
+        Self { process, ..self }
+    }
+
     /// Whether every slider is at its default.
     pub fn is_neutral(&self) -> bool {
-        let Self { process: _ } = self;
-        true
+        let Self { process: _, exposure } = self;
+        at_default(&slider::EXPOSURE, *exposure)
     }
+}
+
+/// Whether `v` reads as `spec`'s default.
+fn at_default(spec: &slider::SliderSpec, v: f64) -> bool {
+    spec.clamp(v) == spec.default
 }
 
 impl Default for Adjustments {
@@ -67,6 +81,14 @@ mod tests {
     fn neutral_is_the_latest_process() {
         assert_eq!(Adjustments::NEUTRAL.process(), ProcessVersion::LATEST);
         assert!(Adjustments::default().is_neutral());
+    }
+
+    #[test]
+    fn a_slider_off_its_default_is_not_neutral() {
+        let exposure = |exposure| Adjustments { exposure, ..Adjustments::NEUTRAL };
+        assert!(!exposure(0.01).is_neutral());
+        assert!(exposure(f64::NAN).is_neutral());
+        assert_eq!(exposure(1.0).in_process(ProcessVersion::V1).exposure, 1.0);
     }
 
     #[test]

@@ -2,6 +2,8 @@
 // order: normalize -> white clip -> camera->ProPhoto (+clamp; white balance
 // is inside this matrix) -> HueSatMap -> exposure ramp -> LookTable ->
 // hue-preserving tone curve -> ProPhoto->sRGB (+clamp) -> sRGB transfer.
+// The adjustment stages fit between them (adjust.wgsl): exposure's gain and
+// shoulder take the ramp's clamp at white.
 //
 // Not implemented: RGBTables, ProfileGainTableMap and overrange (HDR)
 // profiles; no installed Adobe camera profile carries the first two.
@@ -16,6 +18,7 @@
 
 #import deptheos::quantize::quantize_rgb_u16
 #import deptheos::color::{linear_to_srgb_channel, srgb_to_linear_channel}
+#import deptheos::adjust
 
 @group(0) @binding(0) var in_tex: texture_2d<f32>;
 #ifdef SOURCE_RGBA16UNORM
@@ -52,18 +55,25 @@ struct DngColorParams {
     pro_to_srgb_c2: vec4f,
     // Max-normalized camera white (clip ceiling).
     camera_white: vec4f,
-    // x = HueSatMap present, y = LookTable present.
+    // x = HueSatMap present, y = LookTable present, z = the exposure stage
+    // in place of the ramp's clamp.
     flags: vec4u,
     // Hue, sat and val divisions; w = 1 for an sRGB-encoded table.
     hsm_dims: vec4u,
     lt_dims: vec4u,
+    // Exposure's gain and the shoulder's knee (adjust.wgsl).
+    exposure_gain_knee: vec4f,
 }
 
+// Clamped at white unless the exposure stage takes what passes it.
 fn exposure_ramp(x: f32, black: f32, slope: f32, radius: f32, q_scale: f32) -> f32 {
     if (x <= black - radius) {
         return 0.0;
     }
     if (x >= black + radius) {
+        if (params.flags.z != 0u) {
+            return max((x - black) * slope, 0.0);
+        }
         return clamp((x - black) * slope, 0.0, 1.0);
     }
     let y = x - (black - radius);
@@ -267,11 +277,15 @@ fn hue_sat_map(prophoto: vec3f) -> vec3f {
 
 fn exposure(prophoto: vec3f) -> vec3f {
     let e = params.exposure;
-    return vec3f(
+    let ramped = vec3f(
         exposure_ramp(prophoto.r, e.x, e.y, e.z, e.w),
         exposure_ramp(prophoto.g, e.x, e.y, e.z, e.w),
         exposure_ramp(prophoto.b, e.x, e.y, e.z, e.w),
     );
+    if (params.flags.z != 0u) {
+        return adjust::exposure(ramped, params.exposure_gain_knee);
+    }
+    return ramped;
 }
 
 // The LookTable comes before the tone curve, per the DNG spec.

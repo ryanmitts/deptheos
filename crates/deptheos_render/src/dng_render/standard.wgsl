@@ -1,6 +1,7 @@
 // A standard stack's draw: stored values decoded through the profile's
 // curves (a table of every 16-bit code, channel by channel), to linear
-// ProPhoto, then to the output space's linear RGB and encoded: through
+// ProPhoto, through the adjustment stages, then to the output space's
+// linear RGB and encoded: through
 // sRGB's curve, or back through the profile's own curves to the nearest
 // code. An input linearized on the CPU (a table-based profile) is
 // already linear ProPhoto.
@@ -9,6 +10,8 @@
 
 #import deptheos::quantize::quantize_rgb_u16
 #import deptheos::color::linear_to_srgb_channel
+#import deptheos::render_constants::CODES
+#import deptheos::adjust
 
 @group(0) @binding(0) var in_tex: texture_2d<f32>;
 #ifdef SOURCE_RGBA16UNORM
@@ -30,16 +33,16 @@ struct StandardParams {
     from_prophoto_c1: vec4f,
     from_prophoto_c2: vec4f,
     // x = 1 when the input is already linear; y = 1 to encode through the
-    // profile's curves, 0 through sRGB's.
+    // profile's curves, 0 through sRGB's; z = 1 for the exposure stage.
     flags: vec4u,
+    // Exposure's gain and the shoulder's knee (adjust.wgsl).
+    exposure_gain_knee: vec4f,
 }
 
 struct Placement {
     origins: vec4u,
     size: vec4u,
 }
-
-const CODES: u32 = 65536u;
 
 fn decoded(v: vec3f) -> vec3f {
     if (params.flags.x != 0u) {
@@ -93,7 +96,11 @@ fn standard_render(@builtin(global_invocation_id) gid: vec3u) {
         return;
     }
     let stored = textureLoad(in_tex, vec2i(gid.xy + place.origins.xy), 0).rgb;
-    let out = from_prophoto(to_prophoto(decoded(stored)));
+    var prophoto = to_prophoto(decoded(stored));
+    if (params.flags.z != 0u) {
+        prophoto = adjust::exposure(prophoto, params.exposure_gain_knee);
+    }
+    let out = from_prophoto(prophoto);
     let at = vec2i(gid.xy + place.origins.zw);
     if (params.flags.y != 0u) {
         let codes = vec3f(encode_code(0u, out.r), encode_code(1u, out.g), encode_code(2u, out.b));

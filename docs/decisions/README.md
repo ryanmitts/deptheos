@@ -50,6 +50,7 @@ of a record, cites only records in this folder.
 - [134](134-native-libraries-and-the-license.md) The native libraries are vendored and built by our build scripts; GPL-3.0 with permissions for Adobe's SDKs and app stores
 - [135](135-every-draw-takes-a-look.md) Every draw of a stack takes a look (the stack, its adjustments, an output space), resolved once and drawn by one render function
 - [136](136-the-reframe-is-a-window-of-stored-pixels.md) The reframe is a window of stored pixels, flipped and turned, applied last; the adjustment sliders' numbers
+- [137](137-the-adjustment-stages.md) The adjustment stages: one order on both kinds of stack, each slider's law in the resolve step
 
 ## The model, the workflow and saved data
 

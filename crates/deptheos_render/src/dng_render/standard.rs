@@ -11,6 +11,7 @@ use deptheos_gpu::GpuContext;
 use glam::{UVec4, Vec4};
 use moxcms::{ColorProfile, Matrix3d, ToneReprCurve};
 
+use super::Stages;
 use crate::OutputSpace;
 
 /// Codes a 16-bit channel holds, each with its entry in the decode table.
@@ -31,6 +32,7 @@ pub(super) mod params {
         pub(crate) from_prophoto_c1: Vec4,
         pub(crate) from_prophoto_c2: Vec4,
         pub(crate) flags: UVec4,
+        pub(crate) exposure_gain_knee: Vec4,
     }
 }
 
@@ -47,9 +49,9 @@ pub(crate) struct StandardConstants {
 
 impl StandardConstants {
     /// Stored values in `profile` (`None`, or one moxcms can't read: sRGB)
-    /// drawn into `output`. A table-based profile draws in sRGB: its own
-    /// space has no curves to encode back through.
-    pub(crate) fn new(profile: Option<&IccProfile>, output: OutputSpace) -> Self {
+    /// drawn into `output` through `stages`. A table-based profile draws in
+    /// sRGB: its own space has no curves to encode back through.
+    pub(crate) fn new(profile: Option<&IccProfile>, output: OutputSpace, stages: &Stages) -> Self {
         let prophoto = ColorProfile::new_pro_photo_rgb();
         let srgb = ColorProfile::new_srgb();
         let parsed = profile.and_then(|p| Some((p, ColorProfile::new_from_slice(p.bytes()).ok()?)));
@@ -86,7 +88,15 @@ impl StandardConstants {
             from_prophoto_c0: f0,
             from_prophoto_c1: f1,
             from_prophoto_c2: f2,
-            flags: UVec4::new(u32::from(decode.is_empty()), u32::from(own_curves), 0, 0),
+            flags: UVec4::new(
+                u32::from(decode.is_empty()),
+                u32::from(own_curves),
+                u32::from(stages.exposure.is_some()),
+                0,
+            ),
+            exposure_gain_knee: stages
+                .exposure
+                .map_or(Vec4::new(1.0, 1.0, 0.0, 0.0), |exposure| exposure.gain_knee()),
         };
         let linearizer = match input {
             Input::Linearized(linearizer) => Some(linearizer),

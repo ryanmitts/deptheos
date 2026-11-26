@@ -109,6 +109,10 @@ name = "capture_check"
 required-features = ["examples"]
 
 [[example]]
+name = "tuning_renders"
+required-features = ["examples"]
+
+[[example]]
 name = "dab_bench"
 required-features = ["examples"]
 

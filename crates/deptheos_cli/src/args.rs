@@ -767,6 +767,11 @@ impl Checks {
         self.0.push(why.into());
     }
 
+    #[cfg(test)]
+    pub(crate) fn is_empty(&self) -> bool {
+        self.0.is_empty()
+    }
+
     /// Exits with a usage error (status 2, as clap does) showing the usage
     /// of the subcommand at `path`, if anything was refused.
     fn exit_on_refusal(self, path: &[&str]) {

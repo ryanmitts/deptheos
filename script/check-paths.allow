@@ -12,3 +12,4 @@ write/write_ph.cpp
 # lightcraft's files, credited where Deptheos takes from them
 crates/develop/src/controls.rs
 crates/ui-egui/src/panels/edit/sliders.rs
+crates/develop/src/tone.rs

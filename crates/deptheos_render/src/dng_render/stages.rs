@@ -13,6 +13,8 @@ use super::standard;
 /// exactly as the SDK renders it.
 #[derive(Clone, Copy, Debug, Default, PartialEq)]
 pub(crate) struct Stages {
+    /// A standard stack's white balance, in linear ProPhoto.
+    pub(crate) white_balance: Option<crate::white::Mat3>,
     pub(crate) exposure: Option<Exposure>,
 }
 

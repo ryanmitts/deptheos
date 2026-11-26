@@ -3,7 +3,7 @@
 //! as the behavior. Each slider's law is here: what its value does to the
 //! numbers the shaders take.
 
-use deptheos_adjust::{Adjustments, slider};
+use deptheos_adjust::{Adjustments, WhiteBalance, slider};
 use deptheos_core::io::IccProfile;
 use deptheos_dng::RenderParams;
 
@@ -78,14 +78,28 @@ pub fn resolve_adjusted(
     let exposure = slider::EXPOSURE.clamp(adjustments.exposure);
     Box::new(match color {
         Color::Linear(params) => {
-            let stages = Stages { exposure: linear_exposure(exposure, params.baseline_exposure) };
+            // A camera RAW stack's white is in `params` (the SDK's white point).
+            let exposure = linear_exposure(exposure, params.baseline_exposure);
+            let stages = Stages { white_balance: None, exposure };
             Constants::linear(params, &stages)
         }
         Color::Standard(profile) => {
-            let stages = Stages { exposure: standard_exposure(exposure) };
+            let white_balance = relative_white_balance(adjustments.white_balance);
+            let stages = Stages { white_balance, exposure: standard_exposure(exposure) };
             Constants::standard(profile, output, &stages)
         }
     })
+}
+
+/// A standard stack's white balance on the relative scale: one Bradford
+/// adaptation in linear ProPhoto, white's largest channel kept at 1
+/// (`crate::white`). As shot, or kelvins, which are a camera RAW stack's,
+/// adapt nothing.
+fn relative_white_balance(white_balance: WhiteBalance) -> Option<crate::white::Mat3> {
+    let WhiteBalance::Relative { temperature, tint } = white_balance else { return None };
+    let temperature = slider::TEMPERATURE_RELATIVE.clamp(temperature);
+    let tint = slider::TINT_RELATIVE.clamp(tint);
+    (temperature != 0.0 || tint != 0.0).then(|| crate::white::relative_matrix(temperature, tint))
 }
 
 /// Stops below white where the shoulder starts once exposure has raised

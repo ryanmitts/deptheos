@@ -71,6 +71,14 @@ impl StandardConstants {
             }
             Input::Linearized(_) => (Matrix3d::IDENTITY, Vec::new(), None),
         };
+        // White balance follows with no clamp between, so it joins the matrix.
+        let to_prophoto = match stages.white_balance {
+            Some(balance) => {
+                let m = crate::white::mul(&balance, &to_prophoto.v.map(|row| row.map(f64::from)));
+                Matrix3d { v: m.map(|row| row.map(|v| v as _)) }
+            }
+            None => to_prophoto,
+        };
         let (output, from_prophoto, own_curves) = match (output, own) {
             (OutputSpace::StackProfile, Some(source)) => {
                 (output, prophoto.transform_matrix(source), true)

@@ -4,6 +4,7 @@
 
 pub mod dng_render;
 mod resolve;
+mod white;
 
 pub use deptheos_adjust::{Adjustments, ProcessVersion, Reframe, WhiteBalance};
 pub use deptheos_adjust::{reframe, slider, temperature};

@@ -13,3 +13,5 @@ write/write_ph.cpp
 crates/develop/src/controls.rs
 crates/ui-egui/src/panels/edit/sliders.rs
 crates/develop/src/tone.rs
+crates/color-transform/src/cct.rs
+crates/cms/src/math.rs

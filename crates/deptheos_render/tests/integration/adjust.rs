@@ -5,7 +5,7 @@ use deptheos_adjust::slider::{self, SliderSpec};
 use deptheos_dng::RenderParams;
 use deptheos_gpu::GpuContext;
 use deptheos_render::dng_render::{Constants, DngRenderPipeline};
-use deptheos_render::{Adjustments, Color, OutputSpace, resolve_adjusted};
+use deptheos_render::{Adjustments, Color, OutputSpace, WhiteBalance, resolve_adjusted};
 use image::{DynamicImage, ImageBuffer, Rgb};
 
 use crate::common::{download_rgba, upload};
@@ -77,12 +77,25 @@ fn set(spec: &SliderSpec, v: f64) -> Adjustments {
     let neutral = Adjustments::NEUTRAL;
     match spec {
         s if s == &slider::EXPOSURE => Adjustments { exposure: v, ..neutral },
+        s if s == &slider::TEMPERATURE_RELATIVE => {
+            let white_balance = WhiteBalance::Relative { temperature: v, tint: 0.0 };
+            Adjustments { white_balance, ..neutral }
+        }
+        s if s == &slider::TINT_RELATIVE => {
+            let white_balance = WhiteBalance::Relative { temperature: 0.0, tint: v };
+            Adjustments { white_balance, ..neutral }
+        }
         _ => unreachable!("{spec:?} has no field"),
     }
 }
 
-/// The sliders this phase draws.
-const SLIDERS: [(&str, SliderSpec); 1] = [("exposure", slider::EXPOSURE)];
+/// The sliders the resolve step draws, and whether a linear stack takes
+/// them there: its white balance is the SDK's, in its params.
+const SLIDERS: [(&str, SliderSpec, bool); 3] = [
+    ("exposure", slider::EXPOSURE, true),
+    ("temperature", slider::TEMPERATURE_RELATIVE, false),
+    ("tint", slider::TINT_RELATIVE, false),
+];
 
 /// How far the first step from neutral may move a picture against the
 /// step after it, which shows where the change is smooth: a slider whose
@@ -98,7 +111,7 @@ fn each_sliders_first_step_from_neutral_is_small() {
             draw(&ctx, &resolve_adjusted(color, adjustments, OutputSpace::Srgb), &pixels)
         };
         let neutral = at(&Adjustments::NEUTRAL);
-        for (name, spec) in SLIDERS {
+        for (name, spec, _) in SLIDERS.into_iter().filter(|s| kind == "standard" || s.2) {
             for step in [spec.step, -spec.step] {
                 let first = at(&set(&spec, spec.default + step));
                 let second = at(&set(&spec, spec.default + 2.0 * step));
@@ -125,6 +138,32 @@ fn exposure_brightens_up_and_darkens_down() {
         let (darker, neutral, brighter) = (at(-1.0), at(0.0), at(1.0));
         assert!(darker < neutral && neutral < brighter, "{kind}: {darker} {neutral} {brighter}");
     }
+}
+
+/// A standard stack's white balance: warmer and cooler, magenta and green,
+/// on the gray ramp, and white never past 1.
+#[test]
+fn white_balance_warms_and_tints_a_standard_stack() {
+    let Some(ctx) = GpuContext::new_or_skip() else { return };
+    let pixels = gradient();
+    let gray_mean = |temperature, tint| {
+        let white_balance = WhiteBalance::Relative { temperature, tint };
+        let adjustments = Adjustments { white_balance, ..Adjustments::NEUTRAL };
+        let constants = resolve_adjusted(Color::Standard(None), &adjustments, OutputSpace::Srgb);
+        let gray = &draw(&ctx, &constants, &pixels)[..WIDTH as usize * 4];
+        let channel = |c: usize| {
+            gray.as_chunks::<4>().0.iter().map(|p| f64::from(p[c])).sum::<f64>() / f64::from(WIDTH)
+        };
+        [channel(0), channel(1), channel(2)]
+    };
+    let [r, _, b] = gray_mean(50.0, 0.0);
+    assert!(r > b, "warmer: {r} {b}");
+    let [r, _, b] = gray_mean(-50.0, 0.0);
+    assert!(r < b, "cooler: {r} {b}");
+    let [r, g, b] = gray_mean(0.0, 50.0);
+    assert!(g < r && g < b, "magenta: {r} {g} {b}");
+    let [r, g, b] = gray_mean(0.0, -50.0);
+    assert!(g > r && g > b, "green: {r} {g} {b}");
 }
 
 /// Raised exposure keeps the highlights apart on the way into white: a

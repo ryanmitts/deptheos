@@ -241,6 +241,9 @@ pub(crate) fn run(args: RedrawArgs, words: &Words) -> Result<()> {
         true => WhiteScale::Kelvin(folder.stack.as_shot()),
         false => WhiteScale::Relative,
     };
+    if let WhiteScale::Kelvin(Some(shot)) = scale {
+        progress!("as shot: {:.0} K, tint {:+.0}", shot.kelvin, shot.tint);
+    }
     let adjustments = args.adjustments(scale)?;
     let look = Look::redrawn(&folder.stack, &adjustments, reframe, output);
     let drawn = std::time::Instant::now();

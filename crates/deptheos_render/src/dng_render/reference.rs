@@ -188,7 +188,11 @@ mod tests {
         let neutral = Adjustments::NEUTRAL;
         let exposure = [-2.0, -0.5, 0.01, 1.0, 3.0]
             .map(|exposure| Adjustments { exposure, ..neutral.clone() });
-        std::iter::once(neutral).chain(exposure).collect()
+        let white = [(60.0, 0.0), (-80.0, 30.0), (0.0, -100.0)].map(|(temperature, tint)| {
+            let white_balance = deptheos_adjust::WhiteBalance::Relative { temperature, tint };
+            Adjustments { white_balance, exposure: 0.5, ..neutral.clone() }
+        });
+        std::iter::once(neutral).chain(exposure).chain(white).collect()
     }
 
     /// The largest gap between the shader's output and `reference`'s, in

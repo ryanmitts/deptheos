@@ -45,10 +45,27 @@ pub enum GpuError {
     #[error("buffer mapping: {0}")]
     BufferMappingFailed(String),
 
+    /// A wait for the GPU ran past [`crate::WAIT_LIMIT`]: the GPU hung, or
+    /// far more was queued than one wait should cover.
+    #[error("the GPU didn't finish within {0:?}")]
+    TimedOut(std::time::Duration),
+
+    /// A readback handed over `arrived` of its `rows` rows.
+    #[error("a readback got {arrived} of {rows} rows")]
+    ShortReadback { arrived: u32, rows: u32 },
+
     /// An operation this crate does not support for the arguments given:
     /// a caller's bug.
     #[error("unsupported GPU operation: {0}")]
     Unsupported(String),
+}
+
+/// A failed wait for the GPU as an error.
+pub(crate) fn poll_error(e: wgpu::PollError) -> GpuError {
+    match e {
+        wgpu::PollError::Timeout => GpuError::TimedOut(crate::WAIT_LIMIT),
+        e => GpuError::Internal(format!("waiting for the GPU: {e}")),
+    }
 }
 
 /// Which device limit a frame is over.

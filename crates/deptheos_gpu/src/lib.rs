@@ -15,3 +15,7 @@ pub use context::{
     StagedFrames, clear_thread_faults,
 };
 pub use error::{FrameLimit, GpuError, Result};
+
+/// The longest any wait for the GPU blocks, a readback's included, before
+/// it fails with [`GpuError::TimedOut`]. No one submission comes near it.
+pub const WAIT_LIMIT: std::time::Duration = std::time::Duration::from_secs(120);

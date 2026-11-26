@@ -286,9 +286,10 @@ impl GpuContext {
     }
 
     fn wait(&self, submission_index: Option<wgpu::SubmissionIndex>) -> Result<()> {
-        let waited = self.device.poll(wgpu::PollType::Wait { submission_index, timeout: None });
+        let timeout = Some(crate::WAIT_LIMIT);
+        let waited = self.device.poll(wgpu::PollType::Wait { submission_index, timeout });
         self.check_lost()?;
-        waited.map(drop).map_err(|e| GpuError::Internal(format!("waiting for the GPU: {e}")))
+        waited.map(drop).map_err(crate::error::poll_error)
     }
 
     pub fn create_texture(

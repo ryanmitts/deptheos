@@ -169,13 +169,21 @@ fn map_read_blocking(
         let _ = sender.send(result);
     });
 
-    device
-        .poll(wgpu::PollType::Wait { submission_index, timeout: None })
-        .map_err(|e| GpuError::DeviceLost(e.to_string()))?;
+    let timeout = Some(crate::WAIT_LIMIT);
+    device.poll(wgpu::PollType::Wait { submission_index, timeout }).map_err(|e| match e {
+        wgpu::PollError::Timeout => GpuError::TimedOut(crate::WAIT_LIMIT),
+        e => GpuError::DeviceLost(e.to_string()),
+    })?;
 
+    use std::sync::mpsc::RecvTimeoutError;
     receiver
-        .recv()
-        .map_err(|_| GpuError::BufferMappingFailed("map callback was dropped".into()))?
+        .recv_timeout(crate::WAIT_LIMIT)
+        .map_err(|e| match e {
+            RecvTimeoutError::Timeout => GpuError::TimedOut(crate::WAIT_LIMIT),
+            RecvTimeoutError::Disconnected => {
+                GpuError::BufferMappingFailed("map callback was dropped".into())
+            }
+        })?
         .map_err(|e| GpuError::BufferMappingFailed(format!("{e:?}")))
 }
 
@@ -283,6 +291,7 @@ pub fn download_texture_rows(
     };
 
     let mut next = Some(copy(0));
+    let mut arrived = 0;
     for (i, &(top, count)) in bands.iter().enumerate() {
         let sub = next.take();
         // The next band copies while this one is read.
@@ -296,9 +305,18 @@ pub fn download_texture_rows(
         ctx.check()?;
         mapped?;
         let view = slice.get_mapped_range();
+        let whole = view.len() / padded_row_bytes as usize;
+        if whole != count as usize {
+            let arrived = arrived + whole as u32;
+            return Err(GpuError::ShortReadback { arrived, rows: height });
+        }
         rows(top, &view, padded_row_bytes as usize, row_bytes as usize);
+        arrived += count;
         drop(view);
         staging[i % 2].unmap();
+    }
+    if arrived != height {
+        return Err(GpuError::ShortReadback { arrived, rows: height });
     }
     Ok(())
 }

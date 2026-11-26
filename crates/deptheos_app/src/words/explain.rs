@@ -844,7 +844,10 @@ fn said_gpu(error: &GpuError, w: &Words) -> Said {
                 Platform::Ios | Platform::CommandLine => start_again(w),
             },
         ),
-        GpuError::DeviceLost(_) => user(say!(w, "gpu-lost"), start_again(w)),
+        // A wait that timed out is a GPU that stopped responding.
+        GpuError::DeviceLost(_) | GpuError::TimedOut(_) => {
+            user(say!(w, "gpu-lost"), start_again(w))
+        }
         GpuError::OutOfMemory => user(say!(w, "gpu-memory"), say!(w, "close-or-smaller")),
         GpuError::LowMemory { .. } => {
             user(say!(w, "gpu-low-memory"), say!(w, "gpu-too-large-advice"))
@@ -877,9 +880,10 @@ fn said_gpu(error: &GpuError, w: &Words) -> Said {
             };
             user(reason, advice)
         }
-        GpuError::Internal(_) | GpuError::BufferMappingFailed(_) | GpuError::Unsupported(_) => {
-            Said::Fault
-        }
+        GpuError::Internal(_)
+        | GpuError::BufferMappingFailed(_)
+        | GpuError::ShortReadback { .. }
+        | GpuError::Unsupported(_) => Said::Fault,
     }
 }
 
@@ -1123,6 +1127,7 @@ mod tests {
             ),
             ("gpu none", gpu(GpuError::NoAdapter)),
             ("gpu lost", gpu(GpuError::DeviceLost("hung".into()))),
+            ("gpu timed out", gpu(GpuError::TimedOut(deptheos_gpu::WAIT_LIMIT))),
             ("gpu memory", gpu(GpuError::OutOfMemory)),
             ("gpu low memory", gpu(GpuError::LowMemory { left: 200_000_000 })),
             (

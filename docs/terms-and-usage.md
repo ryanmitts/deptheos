@@ -26,6 +26,7 @@ This covers every string a person can read in the desktop app, the iPhone and iP
 | working version | The frames and settings being edited; the Frames list and the inspector (iOS: Frames and Stack Settings) always hold it, and the next Stack uses it | current setup, workspace, draft | No command, tile or mode is named after it: Stack stacks it, Revert to #n replaces it, and showing a render leaves it as it is (ADR-142). Label: "Working version" (the Library's box about a stack's kept one; in Render Info, "Working version: …" under a row it differs in). |
 | batch | Many stacks made in one run with one method | queue, job list | "Batch" as the feature name. |
 | Starred / star | A render marked to keep | favorite, keeper, flagged | Commands "Star Render", "Unstar Render". In a render's title the ★ goes right after its number (see #n). |
+| adjustments | A render's look: its adjustment sliders and its Crop, set in Adjust and drawn over the result, never written into it | edits, develop settings, look (on screen), preset | They belong to a render, never to the working version, so Edited keeps its meaning. A new render takes its base render's. Commands "Copy Adjustments" and "Paste Adjustments"; Paste leaves the Crop. |
 
 ### Screens and panels
 
@@ -48,6 +49,7 @@ This covers every string a person can read in the desktop app, the iPhone and iP
 | Export sheet | Where an export's format, name and folder are set | Export dialog, Export window | |
 | Batch dialog | Where a batch is set up (desktop) | Batch window | iOS: "the Batch sheet", title "New Batch". |
 | paint mode | The state in which a render is retouched | retouch mode, edit mode | Lowercase. Title bar: "Retouching #4". |
+| Adjust | The mode in which a render's adjustments are set; it opens on a saved render, and not while retouching | Edit, Develop, Edit mode | "Adjust" for the command, "adjust" for the act. Not "edit": Edited is the working version's. |
 | GPU | What stacking runs on | graphics card, video card, adapter, device (in the apps) | The website may say "graphics card" where it first explains it. |
 
 ### Methods and their settings
@@ -64,6 +66,8 @@ This covers every string a person can read in the desktop app, the iPhone and iP
 | Blend Range | Depth's slider for how much neighboring frames mix | blend, snapping | Depth's one setting under Advanced. Ends "One frame per spot" / "Mixed, softer". |
 | Reset to Defaults | Put the method's sliders, Advanced's too, back to the app's defaults | Revert (for that), Restore Defaults | Desktop button under the sliders; double-clicking a slider's name resets that one ("Double-click to reset to 8"). iOS: "Reset Settings". Never a render's values: that is Revert. |
 | Denoise | Wavelet's slider | noise, consistency | Ends "All detail" / "Less noise". |
+| adjustment sliders | Adjust's sliders: Exposure, Temperature, Tint, Contrast, Highlights, Shadows, Whites, Blacks, Clarity, Texture, Vibrance, Saturation, Vignette and Sharpening | sliders (alone, for these), controls, settings | "the sliders" alone means the method's. Names keep their capitals, as a method slider's do. Temperature reads in kelvins for RAW stacks and from -100 to 100 for others. |
+| Crop | Adjust's tool that cuts the result to a rectangle, with quarter-turns and flips | Trim, Reframe (on screen), crop (for the switch above) | Stacking's crop is always written whole, "Crop to the area every frame covers", so "Crop" alone is Adjust's. Code and records call it the reframe. |
 | depth map | The map of which frame each spot came from; Depth Map in the view bar (iOS: in the view menu), View ▸ Show Depth Map, or M | sharpness map | Lowercase in prose, "Depth Map" as the view name. |
 
 ### Alignment
@@ -73,7 +77,7 @@ This covers every string a person can read in the desktop app, the iPhone and iP
 | align / line up | Bring each frame into place | register, warp, match | "line up" in plain sentences, "align" in labels and progress ("Aligning 12 of 46"). |
 | aligner | ECC or Grid search | alignment method, grid aligner | Prose: "the ECC aligner", "Grid search". |
 | ECC (affine) / Grid search (similarity) | The two aligners' labels | Chained ECC, coarse-to-fine, grid, grid alignment | The bracketed words stay only in the picker. Compact summaries say "ECC" or "Grid search". |
-| Crop to the area every frame covers | The crop switch | Crop to Aligned Area, Crop to the aligned area, valid area | Summary word: "uncropped". |
+| Crop to the area every frame covers | The crop switch | Crop to Aligned Area, Crop to the aligned area, valid area | Summary word: "uncropped". Not Adjust's Crop. |
 
 ### Files, formats and color
 

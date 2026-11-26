@@ -5,7 +5,7 @@
 //! adjustments, so a draw with none says so.
 
 use deptheos_core::io;
-use deptheos_render::{Adjustments, Color, Draw, OutputSpace, resolve};
+use deptheos_render::{Adjustments, Color, Draw, OutputSpace, Reframe, resolve};
 
 use crate::engine::present::display_space;
 use crate::runs::session::{CompletedStack, StackColor};
@@ -14,6 +14,8 @@ use crate::runs::session::{CompletedStack, StackColor};
 pub struct Look<'a> {
     stack: &'a CompletedStack,
     adjusted: Adjusted<'a>,
+    /// The window drawn, applied last; none but the redraw command's yet.
+    reframe: Reframe,
     target: Target,
 }
 
@@ -41,13 +43,18 @@ enum Target {
 impl<'a> Look<'a> {
     /// The render on screen, under `adjustments`.
     pub fn shown(stack: &'a CompletedStack, adjustments: &'a Adjustments) -> Self {
-        Self { stack, adjusted: Adjusted::Set(adjustments), target: Target::Display }
+        Self {
+            stack,
+            adjusted: Adjusted::Set(adjustments),
+            reframe: Reframe::NONE,
+            target: Target::Display,
+        }
     }
 
     /// The stored picture on screen, with no adjustments: source frames,
     /// the depth map and Retouch.
     pub fn stored(stack: &'a CompletedStack) -> Self {
-        Self { stack, adjusted: Adjusted::Stored, target: Target::Display }
+        Self { stack, adjusted: Adjusted::Stored, reframe: Reframe::NONE, target: Target::Display }
     }
 
     /// The render exported, under `adjustments` (`None`: the stored
@@ -59,18 +66,24 @@ impl<'a> Look<'a> {
             StackColor::Srgb { .. } => OutputSpace::StackProfile,
         };
         let adjusted = adjustments.map_or(Adjusted::Stored, Adjusted::Set);
-        Self { stack, adjusted, target: Target::File(output) }
+        Self { stack, adjusted, reframe: Reframe::NONE, target: Target::File(output) }
     }
 
-    /// The render exported under `adjustments` into `output`, always
-    /// through the adjusted path: the redraw command's, which shows that
-    /// path before any slider is set.
+    /// The render exported under `adjustments` and `reframe` into
+    /// `output`, always through the adjusted path: the redraw command's,
+    /// which shows that path before any slider is set.
     pub fn redrawn(
         stack: &'a CompletedStack,
         adjustments: &'a Adjustments,
+        reframe: Reframe,
         output: OutputSpace,
     ) -> Self {
-        Self { stack, adjusted: Adjusted::Redrawn(adjustments), target: Target::File(output) }
+        let (adjusted, target) = (Adjusted::Redrawn(adjustments), Target::File(output));
+        Self { stack, adjusted, reframe, target }
+    }
+
+    pub fn reframe(&self) -> Reframe {
+        self.reframe
     }
 
     pub fn stack(&self) -> &'a CompletedStack {

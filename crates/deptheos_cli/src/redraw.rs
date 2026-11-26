@@ -8,6 +8,7 @@ use std::path::{Path, PathBuf};
 use clap::{Args, ValueEnum};
 use deptheos_app::library::export::ExportFormat;
 use deptheos_app::library::render_folder::RenderFolder;
+use deptheos_app::reframe::{Flip, Rect, Reframe, Size, Turn};
 use deptheos_app::{Adjustments, Engine, Look, OutputSpace, Words};
 
 use crate::args::{Checks, SaveArgs};
@@ -30,6 +31,19 @@ pub(crate) struct RedrawArgs {
     #[arg(long, value_enum, help_heading = "Output")]
     space: Option<Space>,
 
+    /// Keep this rectangle of the stored picture, in its pixels: left, top,
+    /// width, height. Adjust's Crop, not stacking's --no-crop
+    #[arg(long, value_name = "X,Y,W,H", value_parser = parse_rect, help_heading = "Reframe")]
+    reframe: Option<Rect>,
+
+    /// Turn the picture clockwise, by degrees, after any flip
+    #[arg(long, value_enum, help_heading = "Reframe")]
+    turn: Option<TurnArg>,
+
+    /// Mirror the picture
+    #[arg(long, value_enum, help_heading = "Reframe")]
+    flip: Option<FlipArg>,
+
     #[command(flatten)]
     save: SaveArgs,
 }
@@ -43,7 +57,52 @@ pub(crate) enum Space {
     Own,
 }
 
+#[derive(Clone, Copy, Debug, PartialEq, Eq, ValueEnum)]
+pub(crate) enum TurnArg {
+    #[value(name = "90")]
+    Quarter,
+    #[value(name = "180")]
+    Half,
+    #[value(name = "270")]
+    ThreeQuarters,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq, ValueEnum)]
+pub(crate) enum FlipArg {
+    /// Left to right
+    Horizontal,
+    /// Top to bottom
+    Vertical,
+}
+
+/// `X,Y,W,H` in pixels, the width and height above zero.
+fn parse_rect(s: &str) -> std::result::Result<Rect, String> {
+    let parts: Vec<&str> = s.split(',').map(str::trim).collect();
+    let numbers: Option<Vec<u32>> = parts.iter().map(|p| p.parse().ok()).collect();
+    match numbers.as_deref() {
+        Some(&[x, y, width, height]) if width > 0 && height > 0 => Ok(Rect { x, y, width, height }),
+        _ => Err("expected four whole numbers, left,top,width,height, the last two above 0".into()),
+    }
+}
+
 impl RedrawArgs {
+    /// The reframe the flags give.
+    fn reframe(&self) -> Reframe {
+        let turn = match self.turn {
+            None => Turn::None,
+            Some(TurnArg::Quarter) => Turn::Quarter,
+            Some(TurnArg::Half) => Turn::Half,
+            Some(TurnArg::ThreeQuarters) => Turn::ThreeQuarters,
+        };
+        // Top to bottom is left to right and a half turn.
+        let (flip, turn) = match self.flip {
+            None => (Flip::None, turn),
+            Some(FlipArg::Horizontal) => (Flip::Horizontal, turn),
+            Some(FlipArg::Vertical) => (Flip::Horizontal, Turn::Half.then(turn)),
+        };
+        Reframe { crop: self.reframe, flip, turn }
+    }
+
     pub(crate) fn check(&self, c: &mut Checks) {
         self.save.check(ExportFormat::of(&self.output).as_slice(), c);
     }
@@ -66,8 +125,13 @@ pub(crate) fn run(args: RedrawArgs, words: &Words) -> Result<()> {
         (Some(Space::Srgb), _) | (None, true) => OutputSpace::Srgb,
         (Some(Space::Own), _) | (None, false) => OutputSpace::StackProfile,
     };
+    let reframe = args.reframe();
+    let picture = Size { width: folder.stack.width, height: folder.stack.height };
+    if let Err(outside) = reframe.window(picture) {
+        return Err(Refusal::CropOutside(outside).into());
+    }
     let adjustments = Adjustments::NEUTRAL;
-    let look = Look::redrawn(&folder.stack, &adjustments, output);
+    let look = Look::redrawn(&folder.stack, &adjustments, reframe, output);
     let drawn = std::time::Instant::now();
     Engine::save_pixels(&engine, look, folder.pixels(), &args.output, args.save.options())?;
     progress!("drew and wrote it ({})", secs(drawn.elapsed()));
@@ -125,5 +189,30 @@ mod tests {
         assert!(refused(&dir.path().join("a.dng")).contains("use .tif, .png or .jpg"));
         assert!(refused(&dir.path().join("none/a.png")).contains("doesn't exist"));
         assert!(refused(&render.join("a.jpg")).contains("inside the render"));
+    }
+
+    #[test]
+    fn the_flags_make_one_reframe() {
+        use clap::Parser;
+        let reframe = |flags: &[&str]| {
+            let line = [&["deptheos", "redraw", "r", "-o", "a.tif"], flags].concat();
+            match crate::args::Cli::try_parse_from(line).map(|cli| cli.command) {
+                Ok(crate::args::Command::Redraw(args)) => Ok(args.reframe()),
+                Ok(_) => panic!("not redraw"),
+                Err(e) => Err(e.kind()),
+            }
+        };
+        assert_eq!(reframe(&[]), Ok(Reframe::NONE));
+        let crop = Rect { x: 10, y: 20, width: 300, height: 200 };
+        assert_eq!(
+            reframe(&["--reframe", "10,20,300,200", "--turn", "90"]),
+            Ok(Reframe { crop: Some(crop), flip: Flip::None, turn: Turn::Quarter })
+        );
+        let vertical = Reframe { crop: None, flip: Flip::Horizontal, turn: Turn::ThreeQuarters };
+        assert_eq!(reframe(&["--flip", "vertical", "--turn", "90"]), Ok(vertical));
+        for bad in ["1,2,3", "1,2,0,4", "a,b,c,d", "-1,0,4,4"] {
+            assert!(reframe(&["--reframe", bad]).is_err(), "{bad}");
+        }
+        assert!(reframe(&["--turn", "45"]).is_err());
     }
 }

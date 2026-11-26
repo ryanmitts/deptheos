@@ -1,7 +1,14 @@
-//! A render's adjustments as plain data: what each slider is set to and the
-//! process version that says what those values mean. No GPU and no other
-//! Deptheos crate; the color render (`deptheos_render`) turns a value into
-//! the shader's constants.
+//! A render's adjustments as plain data: what each slider is set to, the
+//! process version that says what those values mean, each slider's numbers
+//! ([`slider`]), the relative temperature scale ([`temperature`]) and the
+//! reframe ([`reframe`]). No GPU and no other Deptheos crate; the color
+//! render (`deptheos_render`) turns a value into the shader's constants.
+
+pub mod reframe;
+pub mod slider;
+pub mod temperature;
+
+pub use reframe::{Flip, Reframe, Turn};
 
 /// What a set of adjustment values means. A saved value names its version;
 /// version 1 never changes once it ships, and a change of look is a new

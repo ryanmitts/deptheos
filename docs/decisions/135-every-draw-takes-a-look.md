@@ -6,37 +6,38 @@ Accepted.
 
 ## Context
 
-A stack's stored pixels become colors in many places: the result on screen, compares, Retouch, exports, aligned frames, sequences, and the profile an export carries. Each picked its own route: a linear stack through the GPU color render (ADR-130), a standard one through a CPU conversion, an export passing its values through. Adjustments on stacked results have to apply the same way at every site, or the screen and the export disagree. And a slider that reads neighbors must draw a region as it draws the whole picture, or rectangles and tiles show seams.
+A stack's stored pixels become colors on screen, in compares, Retouch, exports, aligned frames and sequences, and pick the profile an export carries. Each site picked its own route: a linear stack through the GPU color render (ADR-130), a standard one through a CPU conversion, an export passing its values through. Adjustments on stacked results have to apply the same way at every site, or the screen and the export disagree. And a slider that reads neighbors must draw a region as it draws the whole picture, or rectangles and tiles show seams.
 
 ## Decision
 
 ### One value says how to draw
 
-- **A `Look` is the stack, its adjustments and an output space** (`crates/deptheos_app/src/engine/look.rs`). Every function that turns stored pixels into color takes one, so a site that has not been routed does not build. There are three ways to make one:
+- **A `Look` is the stack, its adjustments and an output space** (`crates/deptheos_app/src/engine/look.rs`). Every function that turns stored pixels into color takes one, so a site that has not been routed does not build. It also carries a reframe, applied last (ADR-136). There are four ways to make one:
   - `shown`: the render on screen, under adjustments, in the display's space.
   - `stored`: the stored picture on screen, with no adjustments. Source frames, the depth map and Retouch use it.
   - `exported`: the render in a file. A linear stack exports in sRGB, a standard one in its own profile. Aligned frames export with no adjustments.
+  - `redrawn`: the render in a file through the adjusted path even when neutral, with a reframe: the redraw command's (ADR-103).
 - **`Adjustments` lives in `deptheos_adjust`**, a crate with no Deptheos dependency, and carries its process version. A neutral value draws exactly as none: the tests check this bit for bit at every site.
 - **`OutputSpace` is Srgb or StackProfile.** The screen is sRGB while Color Management is on, else the stack's own profile, which the look resolves as it draws. StackProfile passes an unadjusted standard stack's values through, and the export carries the profile (`Look::icc`).
 
 ### The resolve step
 
 - **`deptheos_render::resolve`** takes the stack's color (linear render parameters, or a standard stack's profile), the adjustments and the output space. It returns a `Draw`: the GPU's `Constants`, or the stored values to convert on the CPU. It is pure and needs no GPU, so table tests cover it.
-- **Equal constants draw equal pictures.** `Constants` is compared to reuse a `PreparedRender` (paint's rectangles), not the render parameters it came from.
+- **Equal constants draw equal pictures.** Paint's rectangles reuse a `PreparedRender` by comparing `Constants`.
 
 ### Adjusted standard stacks draw on the GPU
 
-- **The stored 16-bit values upload as they are** and the shader undoes the profile's curves from a table of every code (`standard.wgsl`). That is exact, where a 16-bit float texture would lose highlight precision and a 32-bit one doubles the memory. The pixels go to linear ProPhoto, then to the output space, encoded through sRGB's curve or back through the profile's own to the nearest code.
+- **The stored 16-bit values upload as they are** and the shader undoes the profile's curves from a table of every code (`standard.wgsl`): exact, where a 16-bit float texture loses highlight precision and a 32-bit one doubles the memory. The pixels go to linear ProPhoto, then to the output space, encoded through sRGB's curve or back through the profile's own to the nearest code.
 - **A table-based profile is linearized by moxcms on the CPU** into a float texture, and draws in sRGB, since its space has no curves to encode back through.
-- **Unadjusted, nothing changes.** With neutral values the adjusted path lands within a few codes of the CPU display (`tests/integration/standard.rs`), and an f64 reference of the stage checks the shader.
+- **Unadjusted, nothing changes.** Neutral, the adjusted path lands within a few codes of the CPU display (`tests/integration/standard.rs`); an f64 reference checks the shader.
 
 ### The color render is its own crate
 
-- **`deptheos_render` holds the color render, the resolve step and the render function**, out of the stackers' reach. `deptheos_core` does not depend on it, so a stacker cannot draw in a look.
+- **`deptheos_render` holds the color render, the resolve step and the render function.** `deptheos_core` does not depend on it, so a stacker cannot depend on how a picture is shown.
 
 ### One render function
 
-- **`DngRenderPipeline::draw` takes a `Source` and a `Region`** (`crates/deptheos_render/src/dng_render/draw.rs`). The source is a whole texture, or a part of the frame such as paint's rectangle. The region is in frame pixels. The function draws in tiles of 2048 pixels, one dispatch and one submit each, so no single GPU command runs long on a large picture.
+- **`DngRenderPipeline::draw` takes a `Source` and a `Region`** (`crates/deptheos_render/src/dng_render/draw.rs`). The source is a whole texture or a part of the frame, such as paint's rectangle; the region is in frame pixels. It draws in tiles of 2048 pixels, a dispatch and a submit each, so no GPU command runs long.
 - **`draw_with` adds a stage that reads neighbors.** The per-pixel pass draws the region grown by the stage's margin, kept within what the source covers. The stage then writes the region, reading a whole-frame input at frame coordinates. A 3×3 median test stage proves that a region drawn this way equals that region of the whole picture, bit for bit, across tile edges.
 - **The shader's stages are functions**, run as one fused pass with f32 values between them.
 
@@ -61,21 +62,17 @@ In a file, in an `exported` look:
 - the frames of grow and turntable sequences (the sequence writer's `finish`)
 - the ICC profile an export carries (`StackTags::read`, `aligned_frame_metadata`)
 
-A file's own preview (`Engine::load_preview`) is not a stack and has no look. It resolves its own color with no adjustments, in the display's space.
+A file's own preview (`Engine::load_preview`) is not a stack and has no look; it resolves its color with no adjustments, in the display's space.
 
 ## Alternatives considered
 
 ### An adjustments argument beside today's parameters
 
-Each site would work out the output space and profile again, and a site that forgot the argument would still build.
+Each site would work out the output space again, and one that forgot the argument would still build.
 
 ### Slider math at each site
 
 Every front end's path would carry it, and its tests would drive the GPU. A pure resolve step is tested with tables.
-
-### Leave the color render in `deptheos_core`
-
-Nothing would keep a stacker from depending on how a picture is shown.
 
 ### Draw the whole picture as one dispatch
 

@@ -5,5 +5,6 @@
 pub mod dng_render;
 mod resolve;
 
-pub use deptheos_adjust::{Adjustments, ProcessVersion};
+pub use deptheos_adjust::{Adjustments, ProcessVersion, Reframe};
+pub use deptheos_adjust::{reframe, slider, temperature};
 pub use resolve::{Color, Draw, OutputSpace, resolve, resolve_adjusted};

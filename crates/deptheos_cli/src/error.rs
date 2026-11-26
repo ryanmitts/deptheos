@@ -64,6 +64,8 @@ pub(crate) enum Refusal {
     NotARender(PathBuf),
     /// `redraw`'s output is inside the render's folder, in the Library.
     OutputInRender { output: PathBuf, render: PathBuf },
+    /// `redraw`'s `--reframe` reaches outside the stored picture.
+    CropOutside(deptheos_app::reframe::OutsidePicture),
 }
 
 impl fmt::Display for Refusal {
@@ -115,6 +117,14 @@ impl fmt::Display for Refusal {
                 p(output),
                 p(render)
             ),
+            Self::CropOutside(outside) => {
+                let (c, p) = (outside.crop, outside.picture);
+                write!(
+                    f,
+                    "--reframe {},{},{},{} reaches outside the render, which is {} × {}",
+                    c.x, c.y, c.width, c.height, p.width, p.height
+                )
+            }
             Self::OutputInFrames { output, input } if output == input => write!(
                 f,
                 "--output {} is a folder of the frames, where the stacks would be taken for \
@@ -268,6 +278,12 @@ mod tests {
             Refusal::OutputExists { path: "o/1.tif".into(), more: 3 },
             Refusal::EveryStackFailed,
             Refusal::TempFolderLocked { folder: "t".into(), why: "busy".into() },
+            Refusal::NotARender("r".into()),
+            Refusal::OutputInRender { output: "r/a.tif".into(), render: "r".into() },
+            Refusal::CropOutside(deptheos_app::reframe::OutsidePicture {
+                crop: deptheos_app::reframe::Rect { x: 0, y: 0, width: 9, height: 9 },
+                picture: deptheos_app::reframe::Size { width: 8, height: 8 },
+            }),
         ];
         for refusal in all {
             let line = refusal.to_string();

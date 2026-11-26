@@ -412,6 +412,9 @@ pub(crate) fn export(
                 capture_time: &crate::library::export_tags::capture_time_iso(tags),
                 fields: &crate::library::export_tags::dng_fields(tags),
             };
+            if !look.reframe().is_none() {
+                return Err(Error::InvalidState("a DNG keeps the whole picture".into()));
+            }
             // Written to a temporary moved into place, as every save.
             return io::write_replacing(path, |tmp| {
                 Ok(metadata.write_tagged(tmp, pixels, width, height, 3, &dng_tags)?)
@@ -423,7 +426,16 @@ pub(crate) fn export(
         StackColor::Srgb { sixteen_bit, .. } => *sixteen_bit && allow_sixteen,
     };
     let drawn = export_pixels(engine, look, pixels, (width, height))?;
-    io::save_rgb16(path, &drawn, width, height, sixteen, encoding, tags)?;
+    let reframe = look.reframe();
+    if reframe.is_none() {
+        io::save_rgb16(path, &drawn, width, height, sixteen, encoding, tags)?;
+    } else {
+        let picture = deptheos_render::reframe::Size { width, height };
+        let (framed, size) = reframe.apply(&drawn, picture, 3).map_err(|e| {
+            Error::InvalidState(format!("{:?} is outside the {width} × {height} picture", e.crop))
+        })?;
+        io::save_rgb16(path, &framed, size.width, size.height, sixteen, encoding, tags)?;
+    }
     Ok(())
 }
 

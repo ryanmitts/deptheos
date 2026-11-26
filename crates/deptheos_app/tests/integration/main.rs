@@ -4,5 +4,6 @@
 mod formats;
 mod history;
 mod paint;
+mod reframe;
 mod sequence;
 mod session;

@@ -1,0 +1,60 @@
+{
+  "schema": 1,
+  "created_unix_ms": 1795675968187,
+  "frames": [
+    {
+      "root": "01a216a0d2a375fa8320c4a2c2e8c0be",
+      "path": "a.png",
+      "size": 5,
+      "fingerprint": "fe0e0a059c009416"
+    },
+    {
+      "root": "01a216a0d2a375fa8320c4a2c2e8c0be",
+      "path": "b.png",
+      "size": 5,
+      "fingerprint": "da53aed56d24f058"
+    }
+  ],
+  "included": [
+    true,
+    true
+  ],
+  "stack": "01a216a0d29876a58264154ee7e21cc6",
+  "number": 1,
+  "stacker": {
+    "algorithm": "pyramid",
+    "smoothness": 4.0
+  },
+  "options": {
+    "align": true,
+    "align_mode": "ecc",
+    "crop": true,
+    "reverse_check": true,
+    "raw_backend": "libraw",
+    "grid": {
+      "horizontal_pct": 5.0,
+      "vertical_pct": 5.0,
+      "rotation_deg": 1.0,
+      "magnification_pct": 3.0,
+      "apply_brightness": false
+    },
+    "camera_profile": "adobe_standard",
+    "order": "name"
+  },
+  "alignment": [
+    null,
+    null
+  ],
+  "crop": null,
+  "reversed": false,
+  "result": {
+    "width": 200,
+    "height": 150
+  },
+  "color": {
+    "kind": "srgb",
+    "sixteen_bit": true,
+    "profile": false
+  },
+  "frame_map": false
+}

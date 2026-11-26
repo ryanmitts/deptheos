@@ -1,0 +1,15 @@
+{
+  "schema": 1,
+  "deleted_unix_ms": 1795675968123,
+  "stack": "01a216a0d1f571f385e234125002aea5",
+  "name": "Bees",
+  "whole": false,
+  "renders": [
+    {
+      "id": "01a216a0d25c7685b70239f50b12e776",
+      "number": 3
+    }
+  ],
+  "failures": [],
+  "size": 6718
+}

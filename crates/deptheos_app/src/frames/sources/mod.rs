@@ -48,9 +48,9 @@ pub const PREVIOUS_SOURCES_FILE: &str = "sources.previous.json";
 /// The Library's format version; an older build refuses a newer Library
 /// whole (`fsutil.rs`'s module doc).
 ///
-/// - 1: 0.2.0's.
-/// - 2: Recently Deleted, `Deleted/` (ADR-140). A 1 is moved to 2 on
-///   open, changing only this number.
+/// - 1: builds before 0.2.0 (the `library-0.2.0` fixture).
+/// - 2: Recently Deleted, `Deleted/` (ADR-140); 0.2.0 on. A 1 is moved to
+///   2 on open, changing only this number.
 pub(crate) const SOURCES_SCHEMA: u32 = 2;
 
 /// `sources.json`'s `written_by` for this build.

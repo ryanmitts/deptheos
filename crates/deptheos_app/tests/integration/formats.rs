@@ -12,7 +12,7 @@ use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
 use deptheos_app::frames::list::List;
-use deptheos_app::library::history::{Batch, BatchLabel, History, StackId};
+use deptheos_app::library::history::{Batch, BatchLabel, History, StackId, Took};
 use deptheos_app::library::stacks::Settings;
 use deptheos_app::library::stacks::Working;
 use deptheos_app::paint::store;
@@ -207,7 +207,7 @@ fn write_fixtures() {
 }
 
 /// The version of the app whose Library `library-<version>` is.
-const LIBRARY_VERSION: &str = "0.2.0";
+const LIBRARY_VERSION: &str = "0.2.1";
 
 /// Write `fixtures/library-<version>`, a whole Library, unless it exists.
 /// Run once per release:
@@ -234,6 +234,11 @@ fn write_library_fixture() {
     };
     history.save_render(&bees, &pyramid, &thumb, &bee, None).unwrap();
     history.rename_stack(&bee, Some("Bees")).unwrap();
+    // A third Bees render, in Recently Deleted.
+    let third = history.save_render(&bees, &render_stack(library), &thumb, &bee, None).unwrap();
+    let closed = history.close_paint(std::slice::from_ref(&third.id));
+    let deletion = history.delete_renders(std::slice::from_ref(&third.id), closed).unwrap();
+    assert_eq!(deletion.0.len(), 1);
     // A failed stack of the batch.
     let settings = Settings { config: depth(), options: options() };
     history
@@ -307,7 +312,8 @@ fn check_library_fixture(dir: &Path) {
     let stacks = history.stacks().unwrap();
     let bees = &stacks[&first.stack];
     assert_eq!(bees.name.as_deref(), Some("Bees"));
-    assert_eq!(bees.last_number, 2);
+    let deleted = history.deleted().unwrap();
+    assert_eq!(bees.last_number, 2 + deleted.len() as u32, "deleted renders keep their numbers");
     let failures = history.failures().unwrap();
     assert_eq!(failures.len(), 1);
     assert_eq!(failures[0].error, "alignment failed");
@@ -345,11 +351,50 @@ fn walk(dir: &Path, each: &mut dyn FnMut(&Path)) {
     }
 }
 
-/// Every later 0.x build opens a 0.2.0 Library whole, setting nothing aside.
+/// Every later 0.x build opens a Library of format 1 whole, setting nothing
+/// aside.
 #[test]
 fn a_library_made_by_0_2_0_opens() {
-    let dir = fixture(&format!("library-{LIBRARY_VERSION}"));
+    let dir = fixture("library-0.2.0");
     check_library_fixture(dir.path());
+}
+
+/// Every later 0.x build opens a 0.2.1 Library whole, its render in
+/// Recently Deleted listed and restored.
+#[test]
+fn a_library_made_by_0_2_1_opens_and_restores_its_deleted_render() {
+    let dir = fixture("library-0.2.1");
+    assert_eq!(schema(&dir.path().join("sources.json")), 2);
+    deleted_now(dir.path());
+    check_library_fixture(dir.path());
+    let history = History::open(dir.path()).unwrap();
+    let bees = history.list().unwrap()[0].stack.clone();
+    let deleted = history.deleted().unwrap();
+    assert_eq!(deleted.len(), 1);
+    let item = &deleted[0];
+    assert_eq!(item.stack, bees);
+    assert_eq!(item.name.as_deref(), Some("Bees"));
+    assert_eq!(item.took, Took::Renders { numbers: vec![3], failed: 0 });
+    history.deleted_thumbnail(&item.id).expect("its thumbnail loads");
+    history.restore(std::slice::from_ref(&item.id)).unwrap();
+    assert!(history.deleted().unwrap().is_empty());
+    let renders = history.list().unwrap();
+    let back = renders.iter().find(|r| r.id == item.renders[0]).expect("restored");
+    assert_eq!((&back.stack, back.number), (&bees, 3));
+    history.load_render(&back.id).expect("its pixels load");
+}
+
+/// Date `library`'s Recently Deleted records now: an open removes one
+/// `KEPT_DAYS` days after its `deleted_unix_ms`.
+fn deleted_now(library: &Path) {
+    let now = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap();
+    for record in std::fs::read_dir(library.join("Deleted")).unwrap() {
+        let file = record.unwrap().path().join("deleted.json");
+        let mut json: serde_json::Value =
+            serde_json::from_slice(&std::fs::read(&file).unwrap()).unwrap();
+        json["deleted_unix_ms"] = (now.as_millis() as u64).into();
+        std::fs::write(&file, serde_json::to_vec_pretty(&json).unwrap()).unwrap();
+    }
 }
 
 /// A render of the paint fixture's size, of `frames`.
@@ -653,12 +698,12 @@ fn tree(dir: &Path) -> Vec<(PathBuf, Vec<u8>)> {
 /// Opening a Library records this version in `sources.json` for older builds.
 #[test]
 fn an_open_says_which_version_last_used_the_library() {
-    let dir = fixture(&format!("library-{LIBRARY_VERSION}"));
+    let dir = fixture("library-0.2.0");
     let sources = dir.path().join("sources.json");
     let read = |p: &Path| -> serde_json::Value {
         serde_json::from_slice(&std::fs::read(p).unwrap()).unwrap()
     };
-    assert!(read(&sources).get("written_by").is_none(), "0.2.0 wrote none");
+    assert!(read(&sources).get("written_by").is_none(), "written before 0.2.0, with none");
     drop(History::open(dir.path()).unwrap());
     assert_eq!(read(&sources)["written_by"], env!("CARGO_PKG_VERSION"));
     assert_eq!(read(&sources)["schema"], 2, "moved to the format of Recently Deleted");

@@ -1,0 +1,76 @@
+{
+  "schema": 1,
+  "created_unix_ms": 1795675968030,
+  "name": "Bee",
+  "frames": [
+    {
+      "root": "01a216a0d20570e6bc0bf728d73286a8",
+      "path": "a.png",
+      "size": 5,
+      "fingerprint": "fe0e0a059c009416"
+    },
+    {
+      "root": "01a216a0d20570e6bc0bf728d73286a8",
+      "path": "b.png",
+      "size": 5,
+      "fingerprint": "da53aed56d24f058"
+    },
+    {
+      "root": "01a216a0d20570e6bc0bf728d73286a8",
+      "path": "c.png",
+      "size": 5,
+      "fingerprint": "1a06f07d378bdd29"
+    }
+  ],
+  "included": [
+    true,
+    false,
+    true
+  ],
+  "batch": {
+    "id": "01a216a0d1f571f385e234131ec694aa",
+    "split": "auto_sort",
+    "skipped": 0
+  },
+  "stack": "01a216a0d1f571f385e234125002aea5",
+  "number": 1,
+  "picked": true,
+  "stacker": {
+    "algorithm": "depth",
+    "radius": 12.0,
+    "smoothing": 2.5,
+    "blend_range": 7.5
+  },
+  "options": {
+    "align": true,
+    "align_mode": "grid",
+    "crop": false,
+    "reverse_check": true,
+    "raw_backend": "adobe_dng",
+    "grid": {
+      "horizontal_pct": 5.0,
+      "vertical_pct": 5.0,
+      "rotation_deg": 1.0,
+      "magnification_pct": 3.0,
+      "apply_brightness": false
+    },
+    "camera_profile": "camera_standard",
+    "order": "name"
+  },
+  "alignment": [
+    null,
+    null
+  ],
+  "crop": null,
+  "reversed": true,
+  "result": {
+    "width": 37,
+    "height": 23
+  },
+  "color": {
+    "kind": "srgb",
+    "sixteen_bit": true,
+    "profile": false
+  },
+  "frame_map": true
+}

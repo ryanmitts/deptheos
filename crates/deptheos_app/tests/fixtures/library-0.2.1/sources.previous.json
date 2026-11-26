@@ -1,0 +1,20 @@
+{
+  "schema": 2,
+  "written_by": "0.2.1",
+  "roots": {
+    "01a216a0d20570e6bc0bf728d73286a8": {
+      "place": {
+        "at": "anchored",
+        "anchor": "library",
+        "path": "Photos/Bee"
+      }
+    },
+    "01a216a0d2a375fa8320c4a2c2e8c0be": {
+      "place": {
+        "at": "anchored",
+        "anchor": "library",
+        "path": "Photos/Ant"
+      }
+    }
+  }
+}

@@ -15,3 +15,5 @@ crates/ui-egui/src/panels/edit/sliders.rs
 crates/develop/src/tone.rs
 crates/color-transform/src/cct.rs
 crates/cms/src/math.rs
+crates/develop/src/light_v3.rs
+crates/develop/src/light_v3_params.rs

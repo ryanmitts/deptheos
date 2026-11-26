@@ -17,7 +17,8 @@ Every adjusted draw runs, in linear ProPhoto between the input and the output sp
 1. The stored pixels to linear ProPhoto. RAW: the profile's black level, white clip and camera matrix at the chosen white, clamped to [0, 1], then its hue-saturation map. Standard: the profile's curves undone, then its matrix, then white balance, which joins the matrix since no clamp comes between.
 2. Exposure: for RAW the SDK's ramp, then a linear gain, then the shoulder; for a standard stack the gain and the shoulder.
 3. RAW only: the profile's look table and tone curve.
-4. The output space, clamped per channel, and its encoding.
+4. Contrast, Whites and Blacks, one curve on linear ProPhoto.
+5. The output space, clamped per channel, and its encoding.
 
 The stages are functions in `crates/deptheos_render/src/dng_render/adjust.wgsl`, imported by both shaders, each behind a flag in its kind's uniform. With every flag off a draw is the unadjusted one: a neutral look takes the unadjusted path (ADR-135) and draws bit for bit as before.
 
@@ -33,6 +34,8 @@ The stages are functions in `crates/deptheos_render/src/dng_render/adjust.wgsl`,
 - **Exposure is a law on the total**, the slider's stops plus a RAW stack's baseline. The SDK's ramp and its darkening curve take the total as far as they can, never less than the baseline's own darkening; a linear gain takes the rest. So a raised exposure renders as the SDK's exposure does, at any baseline, and a lowered one darkens white too, which the SDK's negative exposure does not. A standard stack has no baseline: its exposure is the gain.
 - **A camera RAW stack's white balance is the DNG SDK's white point.** Its temperature and tint are the SDK's (`dng_temperature`), starting at the render's as-shot values (`CompletedStack::as_shot`). `Look` (`crates/deptheos_app/src/engine/look.rs`) asks the SDK for the color science at that white (`DngImage::render_params_at`, about 0.6 ms) before the resolve step, which stays pure; the shaders change nothing for it. Within the matrices' range it renders as the SDK does at that white, and a DNG export writes it as the file's as-shot white, its pixels untouched.
 - **A standard stack's white balance is relative**, since its scene's white is unknown: the scale's 0 is 6500 K, each step 0.8 mired (`deptheos_adjust::temperature`), and its tint is lightcraft's, positive toward magenta. One Bradford adaptation in linear ProPhoto takes the white the sliders name to the 6500 K reference, scaled so white's largest channel stays 1: white takes a tint but never clips to one. Where a white's cone response is not above 0 it adapts nothing. The locus, tint and checked adaptation are lightcraft's as they stand (MIT OR Apache-2.0: craft-libs `crates/color-transform/src/cct.rs`, `crates/cms/src/math.rs`), in `crates/deptheos_render/src/white.rs`.
+- **Contrast, Whites and Blacks are one curve**, lightcraft's operators as they stand (MIT OR Apache-2.0; `crates/deptheos_render/src/curve.rs`). A tone map on luminance in a gamma-2.2 domain, identity at neutral, scales the pixel by its ratio and pulls it toward its luminance as far as a channel passes white (craft-libs `crates/develop/src/tone.rs`). A standard stack takes all three there. A camera RAW stack takes Whites there, after its profile's tone curve, then Contrast and Blacks as lightcraft's fitted operators on sRGB-encoded ProPhoto, Contrast per channel and Blacks mixed with luminance (craft-libs `crates/develop/src/light_v3.rs`, constants from `light_v3_params.rs` in `curve_fits.rs`). The tables are made in the resolve step and bound to the shaders as one buffer; `curve.wgsl` reads them.
+- **The tone map's shoulder into white is as wide as Whites lifts white**, up to lightcraft's (0.95 to 1.05). lightcraft's own pulls white to 0.988 at any edit of the curve, which would make the first step of Contrast or Blacks from neutral jump; sized to the lift, Contrast and Blacks keep white at 1 and a small lift gets a small shoulder.
 - **The shoulder** is lightcraft's roll-off into white in stops (MIT OR Apache-2.0: craft-libs `crates/develop/src/tone.rs`, `rolloff_past`), joined at slope 1 at its knee. The knee fades in from a clamp at white as exposure raises the picture past what was white, toward `SHOULDER_STOPS` below white.
 
 ### The shaders' constants come from Rust
@@ -42,9 +45,10 @@ The constants the shaders share with Rust (`standard.rs`'s `CODES` among them) a
 ### The checks
 
 - **The f64 reference** follows both shaders, a linear stack's for profiles without HSV tables, and the shaders stay within 1 code (sRGB) and 2 codes (a linear stack) of it under every slider value tested.
+- **A dark gradient under Blacks**, raised and lowered, climbs with no flat run and no jump (`a_dark_gradient_under_blacks_shows_no_banding`): the operators' tables are over sRGB-encoded values, fine in the shadows. **Whites draws alike on both kinds** for the same linear values (`whites_draws_alike_on_both_kinds`); the kinds' Contrast and Blacks differ by design.
 - **A first step from neutral** moves a picture by at most twice what the next step does, on a gradient with values past white (`tests/integration/adjust.rs`): a stage that clipped or unclipped a range of values at its first step would jump.
 - **The DNG SDK's own render** at a white and a raised exposure, with the shoulder off, is matched above 60 dB, with no sample more than 1% off (`a_white_and_a_raised_exposure_render_like_the_sdk`), on synthetic color science and a real file's.
-- **Each slider's direction** is a test: exposure raised brightens, lowered darkens; a higher kelvin is warmer and a positive tint more magenta (`a_render_at_a_white_moves_as_the_sdk_says`), on the relative scale too (`white_balance_warms_and_tints_a_standard_stack`).
+- **Each slider's direction** is a test: exposure raised brightens, lowered darkens; Contrast darkens shadows and lightens highlights, Whites and Blacks move their tones each way (`contrast_whites_and_blacks_move_their_tones`); a higher kelvin is warmer and a positive tint more magenta (`a_render_at_a_white_moves_as_the_sdk_says`), on the relative scale too (`white_balance_warms_and_tints_a_standard_stack`).
 
 ## Alternatives considered
 
@@ -67,7 +71,7 @@ Two copies of a number drift. The module written from Rust is the only copy the 
 
 ## Code
 
-- `crates/deptheos_render/src/resolve.rs`, `crates/deptheos_render/src/white.rs`, `crates/deptheos_render/src/dng_render/stages.rs`, `crates/deptheos_render/src/dng_render/adjust.wgsl`, `crates/deptheos_render/src/dng_render/dng_render.wgsl`, `crates/deptheos_render/src/dng_render/standard.wgsl`.
+- `crates/deptheos_render/src/resolve.rs`, `crates/deptheos_render/src/white.rs`, `crates/deptheos_render/src/curve.rs`, `crates/deptheos_render/src/curve_fits.rs`, `crates/deptheos_render/src/dng_render/curve.wgsl`, `crates/deptheos_render/src/dng_render/stages.rs`, `crates/deptheos_render/src/dng_render/adjust.wgsl`, `crates/deptheos_render/src/dng_render/dng_render.wgsl`, `crates/deptheos_render/src/dng_render/standard.wgsl`.
 - `crates/deptheos_render/src/dng_render/reference.rs`, `crates/deptheos_render/tests/integration/adjust.rs`.
 - `crates/deptheos_adjust/src/lib.rs`, `crates/deptheos_app/src/engine/look.rs`, `crates/deptheos_cli/src/redraw.rs`.
 - `crates/deptheos_dng/src/lib.rs`: `render_params_at`, `Temperature`, `render_linear_to_srgb_at`, `DngTags::white`.

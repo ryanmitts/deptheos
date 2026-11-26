@@ -33,6 +33,7 @@ pub(super) mod params {
         pub(crate) from_prophoto_c2: Vec4,
         pub(crate) flags: UVec4,
         pub(crate) exposure_gain_knee: Vec4,
+        pub(crate) curve_weights: Vec4,
     }
 }
 
@@ -43,6 +44,8 @@ pub(crate) struct StandardConstants {
     /// blue's; empty when the input is linearized.
     pub(crate) decode: Vec<f32>,
     pub(crate) linearizer: Option<Linearizer>,
+    /// Contrast, Whites and Blacks.
+    pub(crate) curve: Option<crate::curve::Curve>,
     /// The space the drawn values are in.
     pub(crate) output: OutputSpace,
 }
@@ -79,6 +82,7 @@ impl StandardConstants {
             }
             None => to_prophoto,
         };
+        let (_, curve_stages, curve_weights) = super::stages::pack_curve(stages.curve.as_ref());
         let (output, from_prophoto, own_curves) = match (output, own) {
             (OutputSpace::StackProfile, Some(source)) => {
                 (output, prophoto.transform_matrix(source), true)
@@ -100,17 +104,18 @@ impl StandardConstants {
                 u32::from(decode.is_empty()),
                 u32::from(own_curves),
                 u32::from(stages.exposure.is_some()),
-                0,
+                curve_stages,
             ),
             exposure_gain_knee: stages
                 .exposure
                 .map_or(Vec4::new(1.0, 1.0, 0.0, 0.0), |exposure| exposure.gain_knee()),
+            curve_weights,
         };
         let linearizer = match input {
             Input::Linearized(linearizer) => Some(linearizer),
             Input::Curves(_) => None,
         };
-        Self { uniform, decode, linearizer, output }
+        Self { uniform, decode, linearizer, output, curve: stages.curve.clone() }
     }
 }
 

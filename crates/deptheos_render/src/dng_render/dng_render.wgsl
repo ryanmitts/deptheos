@@ -19,6 +19,7 @@
 #import deptheos::quantize::quantize_rgb_u16
 #import deptheos::color::{linear_to_srgb_channel, srgb_to_linear_channel}
 #import deptheos::adjust
+#import deptheos::render_constants::{TONE_N, OP_N, GREY, TONE_MIN_EV, TONE_MAX_EV, PRO_Y}
 
 @group(0) @binding(0) var in_tex: texture_2d<f32>;
 #ifdef SOURCE_RGBA16UNORM
@@ -56,13 +57,15 @@ struct DngColorParams {
     // Max-normalized camera white (clip ceiling).
     camera_white: vec4f,
     // x = HueSatMap present, y = LookTable present, z = the exposure stage
-    // in place of the ramp's clamp.
+    // in place of the ramp's clamp, w = the curve's stages (curve.wgsl).
     flags: vec4u,
     // Hue, sat and val divisions; w = 1 for an sRGB-encoded table.
     hsm_dims: vec4u,
     lt_dims: vec4u,
     // Exposure's gain and the shoulder's knee (adjust.wgsl).
     exposure_gain_knee: vec4f,
+    // The curve's operators' weights (curve.wgsl).
+    curve_weights: vec4f,
 }
 
 // Clamped at white unless the exposure stage takes what passes it.
@@ -326,6 +329,9 @@ fn dng_render(@builtin(global_invocation_id) gid: vec3u) {
     prophoto = exposure(prophoto);
     prophoto = look_table(prophoto);
     prophoto = hue_preserving_tone_curve(prophoto);
+    if (params.flags.w != 0u) {
+        prophoto = curve(prophoto, params.flags.w, params.curve_weights);
+    }
     let srgb = encode_srgb(prophoto_to_srgb(prophoto));
 
     let at = vec2i(gid.xy + place.origins.zw);

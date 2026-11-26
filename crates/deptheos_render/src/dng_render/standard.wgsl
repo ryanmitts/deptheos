@@ -10,7 +10,7 @@
 
 #import deptheos::quantize::quantize_rgb_u16
 #import deptheos::color::linear_to_srgb_channel
-#import deptheos::render_constants::CODES
+#import deptheos::render_constants::{CODES, TONE_N, OP_N, GREY, TONE_MIN_EV, TONE_MAX_EV, PRO_Y}
 #import deptheos::adjust
 
 @group(0) @binding(0) var in_tex: texture_2d<f32>;
@@ -33,10 +33,13 @@ struct StandardParams {
     from_prophoto_c1: vec4f,
     from_prophoto_c2: vec4f,
     // x = 1 when the input is already linear; y = 1 to encode through the
-    // profile's curves, 0 through sRGB's; z = 1 for the exposure stage.
+    // profile's curves, 0 through sRGB's; z = 1 for the exposure stage;
+    // w the curve's stages (curve.wgsl).
     flags: vec4u,
     // Exposure's gain and the shoulder's knee (adjust.wgsl).
     exposure_gain_knee: vec4f,
+    // The curve's operators' weights (curve.wgsl).
+    curve_weights: vec4f,
 }
 
 struct Placement {
@@ -99,6 +102,9 @@ fn standard_render(@builtin(global_invocation_id) gid: vec3u) {
     var prophoto = to_prophoto(decoded(stored));
     if (params.flags.z != 0u) {
         prophoto = adjust::exposure(prophoto, params.exposure_gain_knee);
+    }
+    if (params.flags.w != 0u) {
+        prophoto = curve(prophoto, params.flags.w, params.curve_weights);
     }
     let out = from_prophoto(prophoto);
     let at = vec2i(gid.xy + place.origins.zw);

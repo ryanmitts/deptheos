@@ -64,6 +64,21 @@ pub(crate) struct RedrawArgs {
           help_heading = "Adjust")]
     tint: Option<f64>,
 
+    /// Contrast, -100 to 100
+    #[arg(long, value_name = "N", allow_hyphen_values = true,
+          value_parser = |s: &str| parse_slider(s, &slider::CONTRAST), help_heading = "Adjust")]
+    contrast: Option<f64>,
+
+    /// Whites, -100 to 100
+    #[arg(long, value_name = "N", allow_hyphen_values = true,
+          value_parser = |s: &str| parse_slider(s, &slider::WHITES), help_heading = "Adjust")]
+    whites: Option<f64>,
+
+    /// Blacks, -100 to 100
+    #[arg(long, value_name = "N", allow_hyphen_values = true,
+          value_parser = |s: &str| parse_slider(s, &slider::BLACKS), help_heading = "Adjust")]
+    blacks: Option<f64>,
+
     /// The process version the adjustments are read in [default: the
     /// latest]
     #[arg(long, value_name = "N", value_parser = parse_process, help_heading = "Adjust")]
@@ -148,6 +163,9 @@ impl RedrawArgs {
         let adjustments = Adjustments {
             exposure: self.exposure.unwrap_or(neutral.exposure),
             white_balance: self.white_balance(scale)?,
+            contrast: self.contrast.unwrap_or(neutral.contrast),
+            whites: self.whites.unwrap_or(neutral.whites),
+            blacks: self.blacks.unwrap_or(neutral.blacks),
             ..neutral
         };
         Ok(adjustments.in_process(self.process.unwrap_or(ProcessVersion::LATEST)))
@@ -187,7 +205,13 @@ impl RedrawArgs {
 
     /// Whether a slider's flag is given off its default.
     fn sets_a_slider(&self) -> bool {
-        self.exposure.is_some_and(|e| e != 0.0) || self.temperature.is_some() || self.tint.is_some()
+        let off = |v: Option<f64>| v.is_some_and(|v| v != 0.0);
+        off(self.exposure)
+            || off(self.contrast)
+            || off(self.whites)
+            || off(self.blacks)
+            || self.temperature.is_some()
+            || self.tint.is_some()
     }
 
     /// The reframe the flags give.
@@ -348,8 +372,18 @@ mod tests {
         assert_eq!(parsed(&[]), Ok((Adjustments::NEUTRAL, true)));
         let darker = Adjustments { exposure: -1.5, ..Adjustments::NEUTRAL };
         assert_eq!(parsed(&["--exposure", "-1.5", "--process", "1"]), Ok((darker, true)));
+        let curve =
+            Adjustments { contrast: 20.0, whites: -5.0, blacks: 10.0, ..Adjustments::NEUTRAL };
+        let flags = ["--contrast", "20", "--whites", "-5", "--blacks", "10"];
+        assert_eq!(parsed(&flags), Ok((curve, true)));
         assert_eq!(parsed(&["--process", "1"]).map(|(_, passes)| passes), Ok(false));
-        for bad in [&["--exposure", "6"][..], &["--exposure", "nan"], &["--process", "0"]] {
+        let bad: [&[&str]; 4] = [
+            &["--exposure", "6"],
+            &["--exposure", "nan"],
+            &["--process", "0"],
+            &["--blacks", "101"],
+        ];
+        for bad in bad {
             assert!(parsed(bad).is_err(), "{bad:?}");
         }
     }

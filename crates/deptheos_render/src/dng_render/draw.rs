@@ -193,7 +193,7 @@ impl DngRenderPipeline {
             };
             let placement = ctx.create_uniform_buffer(&placement, "dng_render_place");
             let (shader, entries): (_, Vec<wgpu::BindingResource>) = match &prepared.0 {
-                Prepared::Linear { params, tone, hsm, look } => (
+                Prepared::Linear { params, tone, hsm, look, curve } => (
                     &self.linear,
                     vec![
                         tex(&in_view),                 // in_tex
@@ -203,9 +203,10 @@ impl DngRenderPipeline {
                         hsm.as_entire_binding(),       // hsm_lut
                         look.as_entire_binding(),      // look_lut
                         placement.as_entire_binding(), // place
+                        curve.as_entire_binding(),     // curve_luts
                     ],
                 ),
-                Prepared::Standard { params, decode } => (
+                Prepared::Standard { params, decode, curve } => (
                     &self.standard,
                     vec![
                         tex(&in_view),                 // in_tex
@@ -213,6 +214,7 @@ impl DngRenderPipeline {
                         params.as_entire_binding(),    // params
                         decode.as_entire_binding(),    // decode
                         placement.as_entire_binding(), // place
+                        curve.as_entire_binding(),     // curve_luts
                     ],
                 ),
             };

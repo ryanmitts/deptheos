@@ -41,6 +41,10 @@ pub struct Adjustments {
     /// Stops ([`slider::EXPOSURE`]).
     pub exposure: f64,
     pub white_balance: WhiteBalance,
+    /// [`slider::CONTRAST`], [`slider::WHITES`], [`slider::BLACKS`].
+    pub contrast: f64,
+    pub whites: f64,
+    pub blacks: f64,
 }
 
 /// What a render's white is set to. A camera RAW stack takes kelvins,
@@ -83,6 +87,9 @@ impl Adjustments {
         process: ProcessVersion::LATEST,
         exposure: 0.0,
         white_balance: WhiteBalance::AsShot,
+        contrast: 0.0,
+        whites: 0.0,
+        blacks: 0.0,
     };
 
     pub fn process(&self) -> ProcessVersion {
@@ -96,8 +103,12 @@ impl Adjustments {
 
     /// Whether every slider is at its default.
     pub fn is_neutral(&self) -> bool {
-        let Self { process: _, exposure, white_balance } = self;
-        at_default(&slider::EXPOSURE, *exposure) && white_balance.is_as_shot()
+        let Self { process: _, exposure, white_balance, contrast, whites, blacks } = self;
+        at_default(&slider::EXPOSURE, *exposure)
+            && white_balance.is_as_shot()
+            && at_default(&slider::CONTRAST, *contrast)
+            && at_default(&slider::WHITES, *whites)
+            && at_default(&slider::BLACKS, *blacks)
     }
 }
 

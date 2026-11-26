@@ -8,6 +8,7 @@ use glam::Vec4;
 
 use super::params::DngColorParams;
 use super::standard::{CODES, StandardConstants};
+use crate::curve::Curve;
 
 /// `columns` (a WGSL `mat3x3f`'s) times `v`.
 fn times(columns: [Vec4; 3], v: [f64; 3]) -> [f64; 3] {
@@ -24,6 +25,9 @@ pub(super) fn standard(constants: &StandardConstants, stored: [u16; 3]) -> [f64;
     let mut prophoto = times(to, linear);
     if u.flags.z != 0 {
         prophoto = exposure(prophoto, u.exposure_gain_knee);
+    }
+    if let Some(curve) = &constants.curve {
+        prophoto = curve.apply(prophoto);
     }
     let out = times(from, prophoto).map(|v| v.clamp(0.0, 1.0));
     if u.flags.y != 0 {
@@ -43,7 +47,12 @@ pub(super) fn standard(constants: &StandardConstants, stored: [u16; 3]) -> [f64;
 
 /// One camera pixel (unorm) of a linear stack with no HSV tables through
 /// its uniform and composed tone curve, as sRGB unorm values.
-pub(super) fn linear(u: &DngColorParams, tone: &[f32], camera: [f64; 3]) -> [f64; 3] {
+pub(super) fn linear(
+    u: &DngColorParams,
+    tone: &[f32],
+    curve: Option<&Curve>,
+    camera: [f64; 3],
+) -> [f64; 3] {
     assert_eq!(u.flags.x + u.flags.y, 0, "the reference has no HSV tables");
     let black = f64::from(u.range_inv.w);
     let normalized: [f64; 3] = std::array::from_fn(|c| {
@@ -67,7 +76,10 @@ pub(super) fn linear(u: &DngColorParams, tone: &[f32], camera: [f64; 3]) -> [f64
     if adjusted {
         prophoto = exposure(prophoto, u.exposure_gain_knee);
     }
-    let toned = hue_preserving(prophoto, |v| tone_sample(tone, v));
+    let mut toned = hue_preserving(prophoto, |v| tone_sample(tone, v));
+    if let Some(curve) = curve {
+        toned = curve.apply(toned);
+    }
     let pro_to_srgb = [u.pro_to_srgb_c0, u.pro_to_srgb_c1, u.pro_to_srgb_c2];
     times(pro_to_srgb, toned).map(|v| srgb_encode(v.clamp(0.0, 1.0)))
 }
@@ -181,6 +193,15 @@ mod tests {
     const OWN_BOUND: f64 = 16.0;
     /// A linear stack's: the tone curve's lerp in f32.
     const LINEAR_BOUND: f64 = 2.0;
+    /// With Whites raised: where a channel passes white by a hair, the
+    /// pull toward luminance divides by that hair, and moves the codes
+    /// the stages before it rounded by up to 8 times as many.
+    const WHITES_BOUND: f64 = 16.0;
+
+    /// `bound` for `adjustments`, wider where Whites lifts past white.
+    fn bound(bound: f64, adjustments: &Adjustments) -> f64 {
+        if adjustments.whites > 0.0 { bound.max(WHITES_BOUND) } else { bound }
+    }
 
     /// The adjustments each test draws: neutral, then each slider's
     /// values across its range.
@@ -192,7 +213,14 @@ mod tests {
             let white_balance = deptheos_adjust::WhiteBalance::Relative { temperature, tint };
             Adjustments { white_balance, exposure: 0.5, ..neutral.clone() }
         });
-        std::iter::once(neutral).chain(exposure).chain(white).collect()
+        let curve = [(60.0, 0.0, 0.0), (0.0, 70.0, 0.0), (0.0, 0.0, -60.0), (-50.0, -40.0, 50.0)]
+            .map(|(contrast, whites, blacks)| Adjustments {
+                contrast,
+                whites,
+                blacks,
+                ..neutral.clone()
+            });
+        std::iter::once(neutral).chain(exposure).chain(white).chain(curve).collect()
     }
 
     /// The largest gap between the shader's output and `reference`'s, in
@@ -232,7 +260,7 @@ mod tests {
                     let worst = worst(&pixels, &gpu, |stored| super::standard(standard, stored));
                     let name = icc.as_ref().and_then(IccProfile::name);
                     assert!(
-                        worst <= bound,
+                        worst <= self::bound(bound, &adjustments),
                         "{name:?} into {output:?} under {adjustments:?}: {worst:.2} codes off"
                     );
                 }
@@ -267,13 +295,16 @@ mod tests {
             for adjustments in adjustments() {
                 let color = Color::Linear(&params);
                 let constants = resolve_adjusted(color, &adjustments, OutputSpace::Srgb);
-                let Kind::Linear { uniform, tone, .. } = &constants.0 else { unreachable!() };
+                let Kind::Linear { uniform, tone, curve, .. } = &constants.0 else {
+                    unreachable!()
+                };
                 let gpu = drawn(&ctx, &constants, &pixels);
                 let worst = worst(&pixels, &gpu, |stored| {
-                    super::linear(uniform, tone, stored.map(|v| f64::from(v) / 65535.0))
+                    let camera = stored.map(|v| f64::from(v) / 65535.0);
+                    super::linear(uniform, tone, curve.as_ref(), camera)
                 });
                 assert!(
-                    worst <= LINEAR_BOUND,
+                    worst <= bound(LINEAR_BOUND, &adjustments),
                     "baseline {baseline} under {adjustments:?}: {worst:.2} codes off"
                 );
             }

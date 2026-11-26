@@ -7,6 +7,7 @@ use deptheos_adjust::{Adjustments, WhiteBalance, slider};
 use deptheos_core::io::IccProfile;
 use deptheos_dng::RenderParams;
 
+use crate::curve::Curve;
 use crate::dng_render::{Constants, Exposure, Stages};
 
 /// Where a draw's colors go. The screen is sRGB, or a standard stack's
@@ -76,16 +77,21 @@ pub fn resolve_adjusted(
     output: OutputSpace,
 ) -> Box<Constants> {
     let exposure = slider::EXPOSURE.clamp(adjustments.exposure);
+    let contrast = slider::CONTRAST.clamp(adjustments.contrast);
+    let whites = slider::WHITES.clamp(adjustments.whites);
+    let blacks = slider::BLACKS.clamp(adjustments.blacks);
     Box::new(match color {
         Color::Linear(params) => {
             // A camera RAW stack's white is in `params` (the SDK's white point).
             let exposure = linear_exposure(exposure, params.baseline_exposure);
-            let stages = Stages { white_balance: None, exposure };
+            let curve = Curve::raw(contrast, whites, blacks);
+            let stages = Stages { white_balance: None, exposure, curve };
             Constants::linear(params, &stages)
         }
         Color::Standard(profile) => {
             let white_balance = relative_white_balance(adjustments.white_balance);
-            let stages = Stages { white_balance, exposure: standard_exposure(exposure) };
+            let curve = Curve::standard(contrast, whites, blacks);
+            let stages = Stages { white_balance, exposure: standard_exposure(exposure), curve };
             Constants::standard(profile, output, &stages)
         }
     })

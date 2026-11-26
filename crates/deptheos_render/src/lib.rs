@@ -2,6 +2,8 @@
 //! shown and exported. A crate of its own so the stackers can't reach it
 //! (`deptheos_core` doesn't depend on it).
 
+mod curve;
+mod curve_fits;
 pub mod dng_render;
 mod resolve;
 mod white;

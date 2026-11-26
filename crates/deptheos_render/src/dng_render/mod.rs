@@ -55,6 +55,7 @@ mod params {
         pub(super) hsm_dims: UVec4,
         pub(super) lt_dims: UVec4,
         pub(super) exposure_gain_knee: Vec4,
+        pub(super) curve_weights: Vec4,
     }
 }
 
@@ -75,7 +76,14 @@ struct Shader {
 }
 
 impl Shader {
-    fn new(ctx: &GpuContext, source: &str, entry: &str) -> Self {
+    /// `source` with the curve stage appended, its tables at binding
+    /// `curve_binding`.
+    fn new(ctx: &GpuContext, source: &str, entry: &str, curve_binding: u32) -> Self {
+        let source = format!(
+            "{source}\n@group(0) @binding({curve_binding}) var<storage, read> curve_luts: array<f32>;\n{}",
+            include_str!("curve.wgsl")
+        );
+        let source = source.as_str();
         let constants = stages::constants_module();
         let modules = [
             QUANTIZE_MODULE,
@@ -95,8 +103,8 @@ impl Shader {
 impl DngRenderPipeline {
     pub fn new(ctx: &GpuContext) -> Self {
         Self {
-            linear: Shader::new(ctx, include_str!("dng_render.wgsl"), "dng_render"),
-            standard: Shader::new(ctx, include_str!("standard.wgsl"), "standard_render"),
+            linear: Shader::new(ctx, include_str!("dng_render.wgsl"), "dng_render", 7),
+            standard: Shader::new(ctx, include_str!("standard.wgsl"), "standard_render", 5),
         }
     }
 
@@ -147,6 +155,8 @@ enum Kind {
         /// Empty when the profile has none (or an incomplete one).
         hsm: Vec<f32>,
         look: Vec<f32>,
+        /// Contrast, Whites and Blacks.
+        curve: Option<crate::curve::Curve>,
     },
     Standard(standard::StandardConstants),
 }
@@ -167,7 +177,11 @@ impl Constants {
             uniform.flags.z = 1;
             uniform.exposure_gain_knee = exposure.gain_knee();
         }
+        let (_, curve_stages, curve_weights) = stages::pack_curve(stages.curve.as_ref());
+        uniform.flags.w = curve_stages;
+        uniform.curve_weights = curve_weights;
         Self(Kind::Linear {
+            curve: stages.curve.clone(),
             uniform,
             tone: precompose_tone_curve(&rp.tone_curve, exposure_tone(ramp), TONE_CURVE_SAMPLES),
             hsm: lut(rp.hue_sat_map.as_ref()),
@@ -220,22 +234,38 @@ impl Constants {
 pub struct PreparedRender(Prepared);
 
 enum Prepared {
-    Linear { params: wgpu::Buffer, tone: wgpu::Buffer, hsm: wgpu::Buffer, look: wgpu::Buffer },
-    Standard { params: wgpu::Buffer, decode: wgpu::Buffer },
+    Linear {
+        params: wgpu::Buffer,
+        tone: wgpu::Buffer,
+        hsm: wgpu::Buffer,
+        look: wgpu::Buffer,
+        curve: wgpu::Buffer,
+    },
+    Standard {
+        params: wgpu::Buffer,
+        decode: wgpu::Buffer,
+        curve: wgpu::Buffer,
+    },
 }
 
 impl PreparedRender {
     pub fn new(ctx: &GpuContext, constants: &Constants) -> Self {
         Self(match &constants.0 {
-            Kind::Linear { uniform, tone, hsm, look } => Prepared::Linear {
+            Kind::Linear { uniform, tone, hsm, look, curve } => Prepared::Linear {
                 params: ctx.create_uniform_buffer(uniform, "dng_color_params"),
                 tone: storage_buffer(ctx, tone, "dng_tone_curve"),
                 hsm: lut_buffer(ctx, hsm, "dng_hsm"),
                 look: lut_buffer(ctx, look, "dng_look"),
+                curve: lut_buffer(ctx, &stages::pack_curve(curve.as_ref()).0, "dng_curve"),
             },
             Kind::Standard(standard) => Prepared::Standard {
                 params: ctx.create_uniform_buffer(&standard.uniform, "standard_params"),
                 decode: lut_buffer(ctx, &standard.decode, "standard_decode"),
+                curve: lut_buffer(
+                    ctx,
+                    &stages::pack_curve(standard.curve.as_ref()).0,
+                    "standard_curve",
+                ),
             },
         })
     }
@@ -291,6 +321,7 @@ fn pack_params(rp: &RenderParams, ramp: f64) -> params::DngColorParams {
         hsm_dims,
         lt_dims,
         exposure_gain_knee: Vec4::new(1.0, 1.0, 0.0, 0.0),
+        curve_weights: Vec4::ZERO,
     }
 }
 

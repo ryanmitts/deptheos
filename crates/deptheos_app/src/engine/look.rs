@@ -13,9 +13,20 @@ use crate::runs::session::{CompletedStack, StackColor};
 #[derive(Clone, Copy)]
 pub struct Look<'a> {
     stack: &'a CompletedStack,
-    /// `None`: the stored picture.
-    adjustments: Option<&'a Adjustments>,
+    adjusted: Adjusted<'a>,
     target: Target,
+}
+
+/// What a look does to the stored picture.
+#[derive(Clone, Copy, Debug)]
+enum Adjusted<'a> {
+    /// Nothing: the stored picture.
+    Stored,
+    /// These adjustments; neutral ones draw as the stored picture does.
+    Set(&'a Adjustments),
+    /// These adjustments through the adjusted path even when neutral, on
+    /// the GPU: the redraw command's.
+    Redrawn(&'a Adjustments),
 }
 
 /// Where a look's colors go.
@@ -30,13 +41,13 @@ enum Target {
 impl<'a> Look<'a> {
     /// The render on screen, under `adjustments`.
     pub fn shown(stack: &'a CompletedStack, adjustments: &'a Adjustments) -> Self {
-        Self { stack, adjustments: Some(adjustments), target: Target::Display }
+        Self { stack, adjusted: Adjusted::Set(adjustments), target: Target::Display }
     }
 
     /// The stored picture on screen, with no adjustments: source frames,
     /// the depth map and Retouch.
     pub fn stored(stack: &'a CompletedStack) -> Self {
-        Self { stack, adjustments: None, target: Target::Display }
+        Self { stack, adjusted: Adjusted::Stored, target: Target::Display }
     }
 
     /// The render exported, under `adjustments` (`None`: the stored
@@ -47,7 +58,19 @@ impl<'a> Look<'a> {
             StackColor::Linear { .. } => OutputSpace::Srgb,
             StackColor::Srgb { .. } => OutputSpace::StackProfile,
         };
-        Self { stack, adjustments, target: Target::File(output) }
+        let adjusted = adjustments.map_or(Adjusted::Stored, Adjusted::Set);
+        Self { stack, adjusted, target: Target::File(output) }
+    }
+
+    /// The render exported under `adjustments` into `output`, always
+    /// through the adjusted path: the redraw command's, which shows that
+    /// path before any slider is set.
+    pub fn redrawn(
+        stack: &'a CompletedStack,
+        adjustments: &'a Adjustments,
+        output: OutputSpace,
+    ) -> Self {
+        Self { stack, adjusted: Adjusted::Redrawn(adjustments), target: Target::File(output) }
     }
 
     pub fn stack(&self) -> &'a CompletedStack {
@@ -64,15 +87,14 @@ impl<'a> Look<'a> {
 
     /// How this look draws the stack's pixels.
     pub(crate) fn resolve(&self) -> Draw<'a> {
-        resolve(self.color(), self.adjustments, self.output())
-    }
-
-    /// [`Self::resolve`] through the adjusted path even with no
-    /// adjustments or neutral ones: always on the GPU.
-    pub fn resolve_adjusted(&self) -> Box<deptheos_render::dng_render::Constants> {
-        let neutral = Adjustments::NEUTRAL;
-        let adjustments = self.adjustments.unwrap_or(&neutral);
-        deptheos_render::resolve_adjusted(self.color(), adjustments, self.output())
+        let (color, output) = (self.color(), self.output());
+        match self.adjusted {
+            Adjusted::Stored => resolve(color, None, output),
+            Adjusted::Set(adjustments) => resolve(color, Some(adjustments), output),
+            Adjusted::Redrawn(adjustments) => {
+                Draw::Rendered(deptheos_render::resolve_adjusted(color, adjustments, output))
+            }
+        }
     }
 
     fn color(&self) -> Color<'a> {

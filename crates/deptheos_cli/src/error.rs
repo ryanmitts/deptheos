@@ -60,6 +60,10 @@ pub(crate) enum Refusal {
     EveryStackFailed,
     /// The turntable's temporary folder couldn't be locked.
     TempFolderLocked { folder: PathBuf, why: String },
+    /// `redraw` was given a folder with no render.json.
+    NotARender(PathBuf),
+    /// `redraw`'s output is inside the render's folder, in the Library.
+    OutputInRender { output: PathBuf, render: PathBuf },
 }
 
 impl fmt::Display for Refusal {
@@ -102,6 +106,15 @@ impl fmt::Display for Refusal {
             Self::TooFewFrames(1) => write!(f, "1 frame given; a stack needs at least 2"),
             Self::TooFewFrames(n) => write!(f, "{n} frames given; a stack needs at least 2"),
             Self::NoFolderHasFrames => write!(f, "no folder has frames to stack"),
+            Self::NotARender(dir) => {
+                write!(f, "{} isn't a render: give a folder of the Library's Renders", p(dir))
+            }
+            Self::OutputInRender { output, render } => write!(
+                f,
+                "{} is inside the render {}, which is the Library's; write it elsewhere",
+                p(output),
+                p(render)
+            ),
             Self::OutputInFrames { output, input } if output == input => write!(
                 f,
                 "--output {} is a folder of the frames, where the stacks would be taken for \

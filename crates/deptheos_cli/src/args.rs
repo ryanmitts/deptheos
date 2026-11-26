@@ -175,6 +175,17 @@ Examples:
     /// editor imports as one clip, with a manifest.json.
     #[command(subcommand)]
     Sequence(sequence::SequenceCommand),
+
+    /// Draw a saved render again, with its retouching, for tuning by eye
+    ///
+    /// Reads one render's folder in the Library and writes it through the
+    /// path adjustments take, as the app would show it adjusted. It reads
+    /// only that folder, so it runs while the app is open.
+    #[command(after_help = "\
+Examples:
+  deptheos redraw ~/Library/Application\\ Support/Deptheos/Renders/<id> -o bee.tif
+  deptheos redraw ~/Library/Application\\ Support/Deptheos/Renders/<id> -o bee.png --space srgb")]
+    Redraw(crate::redraw::RedrawArgs),
 }
 
 // --- Value types, each mapping onto the engine's.
@@ -747,6 +758,7 @@ fn subcommand_path(cli: &Cli) -> Vec<&'static str> {
         Command::Align(_) => vec!["align"],
         Command::Bench(_) => vec!["bench"],
         Command::Sequence(s) => vec!["sequence", s.name()],
+        Command::Redraw(_) => vec!["redraw"],
     }
 }
 
@@ -800,6 +812,7 @@ impl Cli {
             Command::Align(args) => args.check(&mut c),
             Command::Bench(args) => args.check(&mut c),
             Command::Sequence(command) => command.check(&mut c),
+            Command::Redraw(args) => args.check(&mut c),
         }
         c
     }

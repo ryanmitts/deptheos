@@ -16,6 +16,7 @@ mod error;
 mod interrupt;
 mod outputs;
 mod prepare;
+mod redraw;
 mod sequence;
 mod stacking;
 mod ui;
@@ -114,6 +115,10 @@ fn run(command: Command, words: &Words) -> Result<Ended> {
         }
         Command::Bench(args) => return bench::run(args, words).map(|()| Ended::Clean),
         Command::Sequence(command) => sequence::run(command, words)?,
+        Command::Redraw(args) => {
+            redraw::run(args, words)?;
+            Ended::Clean
+        }
     };
     progress!("total {}", secs(total.elapsed()));
     Ok(ended)

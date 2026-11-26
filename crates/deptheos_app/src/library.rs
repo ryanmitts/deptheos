@@ -16,6 +16,7 @@ pub(crate) mod export_tags;
 pub mod history;
 pub(crate) mod ids;
 pub(crate) mod render_file;
+pub mod render_folder;
 pub mod stacks;
 pub mod thumbnails;
 

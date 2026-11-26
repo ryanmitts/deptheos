@@ -77,6 +77,14 @@ pub(crate) fn engine(decode: &DecodeArgs, words: &Words) -> Result<Arc<Engine>> 
     Ok(engine)
 }
 
+/// The engine with no decoding preferences, for a command that reads no
+/// frames.
+pub(crate) fn plain_engine(words: &Words) -> Result<Arc<Engine>> {
+    let engine = Engine::new(words.clone())?;
+    *ENGINE.lock().unwrap_or_else(PoisonError::into_inner) = Some(engine.clone());
+    Ok(engine)
+}
+
 /// Called before exit, however the command ended: deletes the converted
 /// frames and leaves the GPU device for the OS ([`Engine::keep_until_exit`]).
 pub(crate) fn keep_engine_until_exit() {

@@ -460,15 +460,23 @@ fn render_pixels(
     constants: &Constants,
 ) -> Result<Vec<u16>> {
     let ctx = engine.gpu();
-    let linear = {
-        // A one-off: its frame-sized staging buffer is not kept.
-        let mut uploader = engine.common().uploader();
-        let linear =
-            crate::engine::preview::upload_rgb16_texture(ctx, &mut uploader, pixels, width, height);
-        uploader.release_resources();
-        linear?
+    let input = match constants.linearizer() {
+        Some(linearizer) => linearizer.upload(ctx, pixels, width, height),
+        None => {
+            // A one-off: its frame-sized staging buffer is not kept.
+            let mut uploader = engine.common().uploader();
+            let input = crate::engine::preview::upload_rgb16_texture(
+                ctx,
+                &mut uploader,
+                pixels,
+                width,
+                height,
+            );
+            uploader.release_resources();
+            input?
+        }
     };
-    let rendered = engine.color().render(ctx, &linear, constants);
+    let rendered = engine.color().render(ctx, &input, constants);
     download_rgb(ctx, &rendered, Rect { x: 0, y: 0, width, height })
 }
 

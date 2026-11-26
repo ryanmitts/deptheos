@@ -1911,6 +1911,8 @@ dependencies = [
  "encase",
  "glam 0.29.3",
  "image",
+ "moxcms",
+ "tracing",
  "wgpu",
 ]
 

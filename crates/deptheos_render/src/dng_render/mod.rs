@@ -1,7 +1,8 @@
-//! GPU DNG color rendering: linear camera RGB → sRGB with the source's own
-//! color science, matching the DNG SDK's CPU renderer to 60 dB PSNR, 55 dB
-//! with a camera-matching profile's sRGB-encoded look table
-//! (`tests/integration/dng_render.rs`; ADR-130).
+//! GPU color rendering. A linear stack: camera RGB → sRGB with the
+//! source's own color science, matching the DNG SDK's CPU renderer to 60
+//! dB PSNR, 55 dB with a camera-matching profile's sRGB-encoded look table
+//! (`tests/integration/dng_render.rs`; ADR-130). An adjusted standard
+//! stack: its stored values through its profile (`standard.rs`; ADR-135).
 
 use deptheos_gpu::GpuContext;
 use glam::{Mat3, UVec4, Vec4};
@@ -11,8 +12,12 @@ use deptheos_core::pipelines::COLOR_MODULE;
 
 pub use deptheos_dng::{HueSatMap, RenderParams};
 pub use draw::{NeighborStage, Region, Source, TILE};
+pub use standard::Linearizer;
 
 mod draw;
+#[cfg(test)]
+mod reference;
+mod standard;
 
 mod place {
     #![allow(dead_code)] // encase derive emits layout-check fns flagged as unused
@@ -55,28 +60,41 @@ mod params {
 const TONE_CURVE_SAMPLES: usize = 4097;
 
 pub struct DngRenderPipeline {
+    linear: Shader,
+    standard: Shader,
+}
+
+/// One kind's compiled shader.
+struct Shader {
     pipeline: wgpu::ComputePipeline,
     /// Only the quantizing (16-bit) variant reads the threshold table.
     thresholds: Option<wgpu::BindGroup>,
 }
 
-impl DngRenderPipeline {
-    pub fn new(ctx: &GpuContext) -> Self {
-        let module = ctx.create_shader_module_composed(
-            include_str!("dng_render.wgsl"),
-            "dng_render",
-            &[QUANTIZE_MODULE, COLOR_MODULE],
-        );
+impl Shader {
+    fn new(ctx: &GpuContext, source: &str, entry: &str) -> Self {
+        let module =
+            ctx.create_shader_module_composed(source, entry, &[QUANTIZE_MODULE, COLOR_MODULE]);
         let pipeline =
-            deptheos_gpu::gpu_utils::create_compute_pipeline(&ctx.device, &module, "dng_render");
+            deptheos_gpu::gpu_utils::create_compute_pipeline(&ctx.device, &module, entry);
         let thresholds =
             ctx.format_support.rgba16unorm_storage.then(|| threshold_bind_group(ctx, &pipeline));
         Self { pipeline, thresholds }
     }
+}
 
-    /// Render a whole linear camera-RGB texture to a new sRGB-encoded one
-    /// in `ctx.source_format()`; as Rgba16Unorm it holds exactly the codes
-    /// `io::quantize_u16` would give the float render.
+impl DngRenderPipeline {
+    pub fn new(ctx: &GpuContext) -> Self {
+        Self {
+            linear: Shader::new(ctx, include_str!("dng_render.wgsl"), "dng_render"),
+            standard: Shader::new(ctx, include_str!("standard.wgsl"), "standard_render"),
+        }
+    }
+
+    /// Render a whole texture through `constants` to a new one in
+    /// `ctx.source_format()`; as Rgba16Unorm it holds exactly the codes
+    /// `io::quantize_u16` would give the float render. The input is what
+    /// [`Constants::linearizer`] says.
     pub fn render(
         &self,
         ctx: &GpuContext,
@@ -105,16 +123,23 @@ impl DngRenderPipeline {
     }
 }
 
-/// What the shader is given for one draw, on the CPU: the uniform, the
-/// composed tone curve and the profile's tables. Made by
+/// What the shader is given for one draw, on the CPU. Made by
 /// [`crate::resolve`]; equal values draw equal pictures.
 #[derive(Clone, Debug, PartialEq)]
-pub struct Constants {
-    uniform: params::DngColorParams,
-    tone: Vec<f32>,
-    /// Empty when the profile has none (or an incomplete one).
-    hsm: Vec<f32>,
-    look: Vec<f32>,
+pub struct Constants(Kind);
+
+#[derive(Clone, Debug, PartialEq)]
+enum Kind {
+    /// A linear stack: the uniform, the composed tone curve and the
+    /// profile's tables.
+    Linear {
+        uniform: params::DngColorParams,
+        tone: Vec<f32>,
+        /// Empty when the profile has none (or an incomplete one).
+        hsm: Vec<f32>,
+        look: Vec<f32>,
+    },
+    Standard(standard::StandardConstants),
 }
 
 impl Constants {
@@ -124,32 +149,65 @@ impl Constants {
             Some(map) if lut_is_complete(map) => map.data.clone(),
             _ => Vec::new(),
         };
-        Self {
+        Self(Kind::Linear {
             uniform: pack_params(rp),
             tone: precompose_tone_curve(&rp.tone_curve, exposure_tone(rp), TONE_CURVE_SAMPLES),
             hsm: lut(rp.hue_sat_map.as_ref()),
             look: lut(rp.look_table.as_ref()),
+        })
+    }
+
+    /// A standard stack's constants: stored values in `profile` (`None`:
+    /// sRGB) drawn into `output`.
+    pub(crate) fn standard(
+        profile: Option<&deptheos_core::io::IccProfile>,
+        output: crate::OutputSpace,
+    ) -> Self {
+        Self(Kind::Standard(standard::StandardConstants::new(profile, output)))
+    }
+
+    /// The space the drawn values are in: sRGB but for a standard stack
+    /// drawn in its own profile.
+    pub fn output(&self) -> crate::OutputSpace {
+        match &self.0 {
+            Kind::Linear { .. } => crate::OutputSpace::Srgb,
+            Kind::Standard(standard) => standard.output,
+        }
+    }
+
+    /// How the stored pixels go to the GPU for this draw: as they are
+    /// (`None`), or linearized on the CPU first, uploaded as Rgba32Float.
+    pub fn linearizer(&self) -> Option<&Linearizer> {
+        match &self.0 {
+            Kind::Linear { .. } => None,
+            Kind::Standard(standard) => standard.linearizer.as_ref(),
         }
     }
 }
 
 /// One [`Constants`]' GPU buffers, built once and reused by every render
 /// with those constants.
-pub struct PreparedRender {
-    params: wgpu::Buffer,
-    tone: wgpu::Buffer,
-    hsm: wgpu::Buffer,
-    look: wgpu::Buffer,
+pub struct PreparedRender(Prepared);
+
+enum Prepared {
+    Linear { params: wgpu::Buffer, tone: wgpu::Buffer, hsm: wgpu::Buffer, look: wgpu::Buffer },
+    Standard { params: wgpu::Buffer, decode: wgpu::Buffer },
 }
 
 impl PreparedRender {
     pub fn new(ctx: &GpuContext, constants: &Constants) -> Self {
-        Self {
-            params: ctx.create_uniform_buffer(&constants.uniform, "dng_color_params"),
-            tone: storage_buffer(ctx, &constants.tone, "dng_tone_curve"),
-            hsm: lut_buffer(ctx, &constants.hsm, "dng_hsm"),
-            look: lut_buffer(ctx, &constants.look, "dng_look"),
-        }
+        Self(match &constants.0 {
+            Kind::Linear { uniform, tone, hsm, look } => Prepared::Linear {
+                params: ctx.create_uniform_buffer(uniform, "dng_color_params"),
+                tone: storage_buffer(ctx, tone, "dng_tone_curve"),
+                hsm: lut_buffer(ctx, hsm, "dng_hsm"),
+                look: lut_buffer(ctx, look, "dng_look"),
+            },
+            Kind::Standard(standard) => Prepared::Standard {
+                params: ctx.create_uniform_buffer(&standard.uniform, "standard_params"),
+                decode: lut_buffer(ctx, &standard.decode, "standard_decode"),
+            },
+        })
     }
 }
 
@@ -286,7 +344,7 @@ fn storage_buffer(ctx: &GpuContext, data: &[f32], label: &str) -> wgpu::Buffer {
 }
 
 /// LUT storage buffer; an absent (empty) LUT binds a one-float placeholder
-/// (the shader gates reads on `flags`).
+/// (the shaders gate reads on `flags`).
 fn lut_buffer(ctx: &GpuContext, lut: &[f32], label: &str) -> wgpu::Buffer {
     storage_buffer(ctx, if lut.is_empty() { &[0.0] } else { lut }, label)
 }
@@ -334,6 +392,16 @@ mod tests {
             include_str!("mod.rs"),
             include_str!("dng_render.wgsl"),
             &["DngColorParams", "Placement"],
+        );
+        deptheos_gpu::wgsl_mirror::assert_mirrors(
+            include_str!("standard.rs"),
+            include_str!("standard.wgsl"),
+            &["StandardParams"],
+        );
+        deptheos_gpu::wgsl_mirror::assert_mirrors(
+            include_str!("mod.rs"),
+            include_str!("standard.wgsl"),
+            &["Placement"],
         );
     }
 }

@@ -40,10 +40,12 @@ use crate::runs::stacker::StackerConfig;
 use crate::words::Words;
 use crate::{Converted, DngCache, RawBackend, StackConversions};
 use crate::{Error, RenderUse};
-use deptheos_render::{Adjustments, Color, Draw, OutputSpace, resolve};
+use deptheos_render::dng_render::Constants;
+use deptheos_render::{Adjustments, Color, Draw, resolve};
 use look::Look;
 use present::{
-    PresentedImage, conversion, present_map, present_rgb, present_rgb16, present_texture,
+    PresentedImage, conversion, display_space, present_map, present_rgb, present_rgb16,
+    present_texture,
 };
 
 type Result<T> = std::result::Result<T, Error>;
@@ -238,17 +240,13 @@ impl Engine {
         if !backend.decodes_linear(path) {
             let frame =
                 io::load_frame(path, io::FileCache::Use, backend.camera_raw(), io::Target::Own)?;
-            let color = Color::Standard(frame.profile.as_ref());
-            let Draw::Stored { profile, output } = resolve(color, None, OutputSpace::Display)
-            else {
-                unreachable!("a file shows as stored");
-            };
-            return Ok(present_image(&frame.image, conversion(profile, output).as_ref()));
+            let to_srgb = conversion(frame.profile.as_ref(), display_space());
+            return Ok(present_image(&frame.image, to_srgb.as_ref()));
         }
         let (image, metadata) = preview::decode_linear_with_metadata(path, self.camera_profile())?;
         let params = render_params_or_identity(&metadata);
         let linear = self.upload(&image)?;
-        let draw = resolve(Color::Linear(&params), None, OutputSpace::Display);
+        let draw = resolve(Color::Linear(&params), None, display_space());
         self.show(self.colored(linear, draw))
     }
 
@@ -380,9 +378,10 @@ impl Engine {
                 let to_srgb = conversion(profile, output);
                 Ok(present_rgb16(pixels, stack.width, stack.height, to_srgb.as_ref()))
             }
-            draw @ Draw::Rendered(_) => {
-                let texture = self.upload_rgb16(pixels, stack.width, stack.height)?;
-                self.show(self.colored(texture, draw))
+            Draw::Rendered(constants) => {
+                let texture = self.upload_for(&constants, pixels, stack.width, stack.height)?;
+                let texture = self.color.render(&self.gpu, &texture, &constants);
+                self.show(Colored { texture, to_srgb: None })
             }
         }
     }
@@ -540,8 +539,9 @@ impl Engine {
         let display = match Look::shown(&stack, adjustments).resolve() {
             Draw::Rendered(constants) => {
                 let _t = cpu_scope("present: display render");
-                let linear = self.upload_rgb16(&stack.pixels, stack.width, stack.height)?;
-                Some(self.color.render(&self.gpu, &linear, &constants))
+                let (w, h) = (stack.width, stack.height);
+                let input = self.upload_for(&constants, &stack.pixels, w, h)?;
+                Some(self.color.render(&self.gpu, &input, &constants))
             }
             Draw::Stored { .. } => None,
         };
@@ -662,6 +662,21 @@ impl Engine {
     }
 
     /// Interleaved RGB u16 pixels uploaded, through the same uploader.
+    /// Stored `pixels` uploaded as `constants` draw them: as they are, or
+    /// linearized on the CPU first.
+    pub(crate) fn upload_for(
+        &self,
+        constants: &Constants,
+        pixels: &[u16],
+        width: u32,
+        height: u32,
+    ) -> Result<wgpu::Texture> {
+        match constants.linearizer() {
+            Some(linearizer) => Ok(linearizer.upload(&self.gpu, pixels, width, height)),
+            None => self.upload_rgb16(pixels, width, height),
+        }
+    }
+
     fn upload_rgb16(&self, pixels: &[u16], width: u32, height: u32) -> Result<wgpu::Texture> {
         Ok(preview::upload_rgb16_texture(
             &self.gpu,

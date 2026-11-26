@@ -6,4 +6,4 @@ pub mod dng_render;
 mod resolve;
 
 pub use deptheos_adjust::{Adjustments, ProcessVersion};
-pub use resolve::{Color, Draw, OutputSpace, resolve};
+pub use resolve::{Color, Draw, OutputSpace, resolve, resolve_adjusted};

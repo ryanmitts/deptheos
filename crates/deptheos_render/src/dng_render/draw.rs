@@ -5,7 +5,7 @@
 use deptheos_gpu::GpuContext;
 use deptheos_gpu::gpu_utils::{WORKGROUP_SIZE, create_bind_group, dispatch_compute_with, tex};
 
-use super::{DngRenderPipeline, PreparedRender, place};
+use super::{DngRenderPipeline, Prepared, PreparedRender, place};
 
 /// The side of a tile, in pixels: one dispatch and one submit each, so no
 /// single GPU command runs long on a large picture.
@@ -192,27 +192,38 @@ impl DngRenderPipeline {
                 size: glam::UVec4::new(tile.width, tile.height, 0, 0),
             };
             let placement = ctx.create_uniform_buffer(&placement, "dng_render_place");
-            let group0 = create_bind_group(
-                &ctx.device,
-                &self.pipeline,
-                0,
-                "dng_render",
-                &[
-                    tex(&in_view),                       // in_tex
-                    tex(&out_view),                      // out_tex
-                    prepared.params.as_entire_binding(), // params
-                    prepared.tone.as_entire_binding(),   // tone_curve
-                    prepared.hsm.as_entire_binding(),    // hsm_lut
-                    prepared.look.as_entire_binding(),   // look_lut
-                    placement.as_entire_binding(),       // place
-                ],
-            );
+            let (shader, entries): (_, Vec<wgpu::BindingResource>) = match &prepared.0 {
+                Prepared::Linear { params, tone, hsm, look } => (
+                    &self.linear,
+                    vec![
+                        tex(&in_view),                 // in_tex
+                        tex(&out_view),                // out_tex
+                        params.as_entire_binding(),    // params
+                        tone.as_entire_binding(),      // tone_curve
+                        hsm.as_entire_binding(),       // hsm_lut
+                        look.as_entire_binding(),      // look_lut
+                        placement.as_entire_binding(), // place
+                    ],
+                ),
+                Prepared::Standard { params, decode } => (
+                    &self.standard,
+                    vec![
+                        tex(&in_view),                 // in_tex
+                        tex(&out_view),                // out_tex
+                        params.as_entire_binding(),    // params
+                        decode.as_entire_binding(),    // decode
+                        placement.as_entire_binding(), // place
+                    ],
+                ),
+            };
+            let group0 =
+                create_bind_group(&ctx.device, &shader.pipeline, 0, "dng_render", &entries);
             let groups: Vec<&wgpu::BindGroup> =
-                std::iter::once(&group0).chain(self.thresholds.as_ref()).collect();
+                std::iter::once(&group0).chain(shader.thresholds.as_ref()).collect();
             let mut encoder = ctx.encoder("dng_render");
             dispatch_compute_with(
                 &mut encoder,
-                &self.pipeline,
+                &shader.pipeline,
                 &groups,
                 "dng_render",
                 tile.width,

@@ -449,7 +449,7 @@ fn a_linear_display_renders_on_request() {
     let deptheos_render::Draw::Rendered(constants) = deptheos_render::resolve(
         deptheos_render::Color::Linear(output.stack.render_params().unwrap()),
         None,
-        deptheos_render::OutputSpace::Display,
+        deptheos_render::OutputSpace::Srgb,
     ) else {
         panic!("a linear stack renders on the GPU");
     };

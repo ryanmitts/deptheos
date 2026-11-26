@@ -277,9 +277,17 @@ pub(crate) fn conversion(
     output: OutputSpace,
 ) -> Option<io::ToSrgb> {
     match output {
-        OutputSpace::Display => display_to_srgb(profile),
         OutputSpace::Srgb => profile_to_srgb(profile?),
         OutputSpace::StackProfile => None,
+    }
+}
+
+/// The screen's space: sRGB while Color Management is on, else a standard
+/// image's own, its values shown as they are.
+pub(crate) fn display_space() -> OutputSpace {
+    match color_managed() {
+        true => OutputSpace::Srgb,
+        false => OutputSpace::StackProfile,
     }
 }
 
@@ -1231,9 +1239,8 @@ mod tests {
         let p3 = moxcms::ColorProfile::new_display_p3().encode().unwrap();
         let p3 = io::IccProfile::from_bytes(p3).unwrap();
         let pixel = [202u16, 74, 81].map(|v| v * 257);
-        let shown = |profile| {
-            present_rgb16(&pixel, 1, 1, conversion(profile, OutputSpace::Display).as_ref())
-        };
+        let shown =
+            |profile| present_rgb16(&pixel, 1, 1, conversion(profile, display_space()).as_ref());
         let rgb = |image: PresentedImage| {
             let [b, g, r, _] = image.levels[0].assemble().pixels[..4] else { unreachable!() };
             vec![r, g, b]

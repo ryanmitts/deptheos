@@ -117,7 +117,7 @@ fn main() {
     ];
 
     let pipeline = DngRenderPipeline::new(&ctx);
-    let draw = resolve(Color::Linear(&params), None, OutputSpace::Display);
+    let draw = resolve(Color::Linear(&params), None, OutputSpace::Srgb);
     let Draw::Rendered(constants) = draw else { unreachable!("a RAW renders on the GPU") };
     let prepared = PreparedRender::new(&ctx, &constants);
     println!(

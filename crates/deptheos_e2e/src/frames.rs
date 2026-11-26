@@ -3,7 +3,7 @@
 use std::path::{Path, PathBuf};
 
 use deptheos_app::library::export::ExportFormat;
-use deptheos_dng::RenderParams;
+use deptheos_dng::{RenderParams, WhiteXy};
 use rayon::prelude::*;
 
 use crate::metadata::FrameTags;
@@ -165,6 +165,8 @@ pub struct Frames {
     pub(crate) tags: FrameTags,
     /// Per frame, the color science a RAW or DNG frame renders with.
     pub(crate) colors: Vec<Option<RenderParams>>,
+    /// Per frame, the white a RAW or DNG frame renders at as shot.
+    pub(crate) whites: Vec<Option<WhiteXy>>,
     /// The color space the frames are in, as their files say.
     pub(crate) space: Space,
 }
@@ -178,7 +180,7 @@ impl Frames {
         })?;
         let (w, h) = (first.small.w, first.small.h);
         let (cols, rows) = (w / TILE, h / TILE);
-        type One = (Small, Vec<f32>, Option<RenderParams>);
+        type One = (Small, Vec<f32>, Option<RenderParams>, Option<WhiteXy>);
         let read_one = |path: &PathBuf| -> Result<One, String> {
             let r = read(path, k)?;
             if (r.width, r.height) != (first.width, first.height) {
@@ -186,17 +188,18 @@ impl Frames {
             }
             let energy = sobel(&r.small.gray(), w, h);
             let tiles = tile_means(&energy, w, cols, rows, (0, 0));
-            Ok((r.small, tiles, r.color))
+            Ok((r.small, tiles, r.color, r.white))
         };
         let mut mean = vec![[0f32; 3]; w * h];
         let mut tiles = Vec::with_capacity(set.frames.len());
         let mut colors = Vec::with_capacity(set.frames.len());
+        let mut whites = Vec::with_capacity(set.frames.len());
         // A few at a time: 48 frames of 45 MP don't all fit in memory.
         let at_once = if set.frames.iter().any(|f| is_raw(f)) { 3 } else { 8 };
         for chunk in set.frames.chunks(at_once) {
             let read: Vec<_> = chunk.par_iter().map(read_one).collect();
             for r in read {
-                let (small, t, color) = r?;
+                let (small, t, color, white) = r?;
                 for (m, p) in mean.iter_mut().zip(&small.px) {
                     for c in 0..3 {
                         m[c] += p[c];
@@ -204,6 +207,7 @@ impl Frames {
                 }
                 tiles.push(t);
                 colors.push(color);
+                whites.push(white);
             }
         }
         let n = set.frames.len() as f32;
@@ -220,6 +224,7 @@ impl Frames {
             tiles,
             tags: FrameTags::read(&set.frames),
             colors,
+            whites,
             space: Space::of_frame(&set.frames[0])?,
             cols,
             rows,

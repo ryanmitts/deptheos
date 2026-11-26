@@ -11,6 +11,8 @@ homepage.workspace = true
 publish = false
 
 [dependencies]
+# A case's adjustments and reframe, as the engine takes them.
+deptheos_adjust = { workspace = true }
 # RAW frames and DNG exports, which `image` can't open, read through the
 # engine: decoded by LibRaw or the DNG SDK, rendered to sRGB by the SDK.
 deptheos_core = { workspace = true }
@@ -23,6 +25,9 @@ deptheos_app = { workspace = true }
 deptheos_dng = { workspace = true, features = ["test-support"] }
 image = { workspace = true, features = ["jpeg", "png", "tiff", "rayon"] }
 kamadak-exif = { workspace = true }
+# An export's profile read, and the output spaces' own profiles it is
+# checked against.
+moxcms = { workspace = true }
 rayon = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }

@@ -345,7 +345,7 @@ fn run(args: &[String]) -> Result<Vec<Report>, String> {
                 &set,
                 &frames,
                 file,
-                &Expect { format, bits },
+                &Expect::new(format, bits),
                 reference.as_deref(),
                 bless,
             )])
@@ -433,7 +433,7 @@ fn notes(
                     &set,
                     &frames,
                     &note.file,
-                    &Expect { format: note.format, bits },
+                    &case.expect(note.format, bits),
                     reference.as_deref(),
                     bless,
                 ));

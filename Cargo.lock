@@ -1815,11 +1815,13 @@ dependencies = [
 name = "deptheos_e2e"
 version = "0.2.1"
 dependencies = [
+ "deptheos_adjust",
  "deptheos_app",
  "deptheos_core",
  "deptheos_dng",
  "image",
  "kamadak-exif",
+ "moxcms",
  "png 0.18.1",
  "rayon",
  "serde",

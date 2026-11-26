@@ -22,7 +22,7 @@ use std::time::Duration;
 use deptheos_app::paint::{Dab, SourceKind};
 use deptheos_app::{PyramidConfig, StackerKind, WaveletConfig};
 use deptheos_e2e::cases::{Case, Config, Decoder, Method, Platform};
-use deptheos_e2e::{Expect, Frames, Report, Set, check_paint, check_stack};
+use deptheos_e2e::{Frames, Report, Set, check_paint, check_stack};
 
 use super::*;
 use crate::app::run::LastStack;
@@ -121,6 +121,9 @@ fn run_case(
     case: &Case,
     places: &Places,
 ) -> Vec<Report> {
+    if let Err(e) = case.apps_can_run() {
+        return vec![Report::failed(case.name.clone(), "case", e)];
+    }
     // The frames stacked and those exports are checked against: the same
     // set, or the same frames from another decoder (`check_set`).
     let set = match Set::open_checked(&case.set_dir(config)) {
@@ -242,7 +245,7 @@ fn run_case(
             check,
             &frames,
             &file,
-            &Expect { format: export_kind.format, bits },
+            &case.expect(export_kind.format, bits),
             Some(&reference(export_kind.format, bits)),
             places.bless,
         ));
@@ -263,7 +266,7 @@ fn run_case(
                 check,
                 &frames,
                 &file,
-                &Expect { format: ExportFormat::Tiff, bits },
+                &case.expect(ExportFormat::Tiff, bits),
                 Some(&reference(ExportFormat::Tiff, bits)),
                 places.bless,
             ));

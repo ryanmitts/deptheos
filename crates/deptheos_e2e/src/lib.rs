@@ -2,7 +2,9 @@
 //! bits, the camera's details kept and its location dropped, its frames'
 //! color space and color, and the picture against its signed-off
 //! reference. A retouched export is checked against the plain one and its
-//! source frame.
+//! source frame. A case's adjustments, output space and reframe
+//! (`cases.rs`) change what is expected: the size, where the picture sits
+//! and its colors, a DNG's white and an export's profile.
 //!
 //! The desktop's test (`deptheos_gpui`, `app/tests/e2e.rs`) calls this
 //! directly; iOS's exports are checked by `script/e2e-ios.sh` through
@@ -22,16 +24,20 @@ mod metadata;
 mod paint;
 mod read;
 mod reference;
+mod reframed;
 mod space;
 mod tags;
 #[cfg(test)]
 mod tests;
+mod white;
 
 use std::fmt;
 use std::path::Path;
 
+use deptheos_adjust::{Adjustments, Reframe, WhiteBalance};
 use deptheos_app::library::export::ExportFormat;
 
+use cases::OutputSpace;
 pub use frames::{Frames, MANIFEST, Set};
 use metadata::metadata_checks;
 pub use paint::check_paint;
@@ -39,6 +45,7 @@ pub use read::{Read, Small, read};
 use reference::compare_reference;
 use space::space_check;
 use tags::color_tags;
+use white::white_check;
 
 // ---------------------------------------------------------------------
 // The report
@@ -104,6 +111,24 @@ pub struct Expect {
     /// Its bits a channel, from the case ([`cases::Export::bits`]), not
     /// the app.
     pub bits: u8,
+    /// The case's adjustments; neutral when it sets none.
+    pub adjustments: Adjustments,
+    /// The output space the case chooses; the frames' otherwise.
+    pub space: Option<OutputSpace>,
+    pub reframe: Reframe,
+}
+
+impl Expect {
+    /// An export of an unadjusted, unreframed stack.
+    pub fn new(format: ExportFormat, bits: u8) -> Self {
+        Self {
+            format,
+            bits,
+            adjustments: Adjustments::NEUTRAL,
+            space: None,
+            reframe: Reframe::NONE,
+        }
+    }
 }
 
 /// The least share of a frame's width and height a stack keeps, after the
@@ -132,7 +157,7 @@ pub fn check_stack(
     let mut report = Report::new(format!("{} · {}", set.name, file.display()));
     file_checks(&mut report, file, expect);
     metadata_checks(&mut report, file, frames);
-    space_check(&mut report, file, expect.format, frames);
+    space_check(&mut report, file, expect.format, frames, expect.space);
     let read = match read(file, frames.k) {
         Ok(r) => r,
         Err(e) => {
@@ -142,35 +167,34 @@ pub fn check_stack(
     };
     report.check("opens", true, format!("{} × {}", read.width, read.height));
     if expect.format == ExportFormat::Dng {
-        color_tags(&mut report, read.color.as_ref(), set, frames);
+        let white = expect.adjustments.white_balance;
+        let chosen = if white == WhiteBalance::AsShot { None } else { read.white };
+        color_tags(&mut report, read.color.as_ref(), set, frames, chosen);
+        white_check(&mut report, read.white, white, set, frames);
     }
     report.check(
         "bits",
         read.bits == expect.bits,
         format!("{} per channel, {} asked for", read.bits, expect.bits),
     );
-    let (fw, fh) = (frames.width as f32, frames.height as f32);
-    let (w, h) = (read.width as f32, read.height as f32);
-    report.check(
-        "size",
-        w <= fw && h <= fh && w >= MIN_SIDE * fw && h >= MIN_SIDE * fh,
-        format!(
-            "{:.1}% × {:.1}% of the frames' {} × {} (at least {:.0}% each way)",
-            100.0 * w / fw,
-            100.0 * h / fh,
-            frames.width,
-            frames.height,
-            100.0 * MIN_SIDE
-        ),
-    );
+    let (ok, detail) =
+        reframed::size((frames.width, frames.height), (read.width, read.height), &expect.reframe);
+    report.check("size", ok, detail);
 
-    let at = frames.place(&read.small);
+    // Matched with the frames as the stack holds it: flip and turn undone.
+    let upright = reframed::upright(&read.small, &expect.reframe);
+    let at = frames.place(&upright);
     let at_small = (at.0 / frames.k, at.1 / frames.k);
-    color(&mut report, frames, &read.small, at_small);
+    if expect.adjustments.is_neutral() {
+        color(&mut report, frames, &upright, at_small);
+    } else {
+        let why = "not compared with the frames' mean: the case's adjustments change it";
+        report.check("color", true, why);
+    }
     if let Some(reference) = reference {
         compare_reference(&mut report, &read.small, reference, bless);
     }
-    report.check("placed", true, format!("at ({}, {}) on the frames", at.0, at.1));
+    reframed::placed(&mut report, frames, at, &expect.reframe);
     report
 }
 

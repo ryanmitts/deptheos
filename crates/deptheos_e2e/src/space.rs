@@ -1,4 +1,5 @@
-//! An export's color space against its frames'.
+//! An export's color space against its frames', or the output space a
+//! case chooses.
 
 use std::fmt;
 use std::path::Path;
@@ -6,6 +7,7 @@ use std::path::Path;
 use deptheos_app::library::export::ExportFormat;
 use image::ImageReader;
 
+use crate::cases::OutputSpace;
 use crate::metadata::tags_of;
 use crate::read::is_raw;
 use crate::{Frames, Report};
@@ -84,18 +86,10 @@ pub(crate) enum Space {
 impl Space {
     /// What `path` says; a RAW frame renders to sRGB.
     fn of(path: &Path) -> Result<Space, String> {
-        use image::ImageDecoder as _;
         if is_raw(path) {
             return Ok(Space::Untagged);
         }
-        let failed = |e: &dyn fmt::Display| format!("{}: {e}", path.display());
-        let mut decoder = ImageReader::open(path)
-            .map_err(|e| failed(&e))?
-            .with_guessed_format()
-            .map_err(|e| failed(&e))?
-            .into_decoder()
-            .map_err(|e| failed(&e))?;
-        if let Some(icc) = decoder.icc_profile().map_err(|e| failed(&e))? {
+        if let Some(icc) = icc_of(path)? {
             let primaries = icc_primaries(&icc);
             let name = deptheos_core::io::IccProfile::from_bytes(icc)
                 .and_then(|p| p.name())
@@ -141,6 +135,26 @@ impl fmt::Display for Space {
     }
 }
 
+/// The ICC profile embedded in the JPEG, PNG or TIFF at `path`. A TIFF's
+/// is read by its own decoder: one from `ImageReader::into_decoder` has
+/// had its limits set, after which it reads no profile.
+fn icc_of(path: &Path) -> Result<Option<Vec<u8>>, String> {
+    use image::ImageDecoder as _;
+    let failed = |e: &dyn fmt::Display| format!("{}: {e}", path.display());
+    let reader = ImageReader::open(path)
+        .map_err(|e| failed(&e))?
+        .with_guessed_format()
+        .map_err(|e| failed(&e))?;
+    if reader.format() == Some(image::ImageFormat::Tiff) {
+        let file = std::fs::File::open(path).map_err(|e| failed(&e))?;
+        let mut decoder = image::codecs::tiff::TiffDecoder::new(std::io::BufReader::new(file))
+            .map_err(|e| failed(&e))?;
+        return decoder.icc_profile().map_err(|e| failed(&e));
+    }
+    let mut decoder = reader.into_decoder().map_err(|e| failed(&e))?;
+    decoder.icc_profile().map_err(|e| failed(&e))
+}
+
 /// Whether the PNG at `path` has a chunk of type `kind` before its pixels.
 fn png_has_chunk(path: &Path, kind: &[u8; 4]) -> bool {
     let Ok(bytes) = std::fs::read(path) else { return false };
@@ -162,8 +176,18 @@ fn png_has_chunk(path: &Path, kind: &[u8; 4]) -> bool {
 /// primaries, or for sRGB any way a reader takes it (a profile, PNG's
 /// `sRGB` chunk, or nothing). A DNG's color is checked by
 /// [`color_tags`](crate::tags::color_tags).
-pub(crate) fn space_check(report: &mut Report, file: &Path, format: ExportFormat, frames: &Frames) {
+pub(crate) fn space_check(
+    report: &mut Report,
+    file: &Path,
+    format: ExportFormat,
+    frames: &Frames,
+    chosen: Option<OutputSpace>,
+) {
     if format == ExportFormat::Dng {
+        return;
+    }
+    if let Some(chosen) = chosen {
+        output_space_check(report, file, chosen);
         return;
     }
     let ours = match Space::of(file) {
@@ -183,4 +207,74 @@ pub(crate) fn space_check(report: &mut Report, file: &Path, format: ExportFormat
     };
     let detail = format!("the export says {ours}; the frames {theirs}");
     report.check("profile", ok, if ok { detail } else { format!("{detail}: another space") });
+}
+
+/// How far each of an export's colorants and its white (XYZ, as its
+/// profile holds them) may be from those of moxcms's profile of the space
+/// chosen. A profile stores each in steps of 1/65536 (s15Fixed16), so a
+/// copy of moxcms's own comes within a few steps; 0.001 also allows a
+/// profile rounded otherwise, and is under a tenth of what tells the
+/// nearest two of the four spaces apart (`the_output_spaces_are_told_apart`).
+pub(crate) const COLORANTS: f64 = 1e-3;
+
+/// The space's own profile, which its exports carry; sRGB's carry none.
+pub(crate) fn profile_of(space: OutputSpace) -> Option<moxcms::ColorProfile> {
+    match space {
+        OutputSpace::Srgb => None,
+        OutputSpace::DisplayP3 => Some(moxcms::ColorProfile::new_display_p3()),
+        OutputSpace::AdobeRgb => Some(moxcms::ColorProfile::new_adobe_rgb()),
+        OutputSpace::ProPhoto => Some(moxcms::ColorProfile::new_pro_photo_rgb()),
+    }
+}
+
+/// A profile's red, green and blue colorants and its media white, XYZ;
+/// `None` without a white.
+pub(crate) fn colorants(profile: &moxcms::ColorProfile) -> Option<[[f64; 3]; 4]> {
+    let xyz = |c: moxcms::Xyzd| [c.x, c.y, c.z];
+    let white = profile.media_white_point?;
+    Some([
+        xyz(profile.red_colorant),
+        xyz(profile.green_colorant),
+        xyz(profile.blue_colorant),
+        xyz(white),
+    ])
+}
+
+/// The largest difference between two profiles' colorants and whites.
+pub(crate) fn colorants_off(a: &[[f64; 3]; 4], b: &[[f64; 3]; 4]) -> f64 {
+    a.iter().flatten().zip(b.iter().flatten()).map(|(p, q)| (p - q).abs()).fold(0.0, f64::max)
+}
+
+/// The export's profile has the chosen space's primaries and white; for
+/// sRGB, no profile or one with sRGB's primaries.
+fn output_space_check(report: &mut Report, file: &Path, chosen: OutputSpace) {
+    let name = serde_json::to_value(chosen).ok().and_then(|v| v.as_str().map(String::from));
+    let name = name.unwrap_or_default();
+    let icc = match icc_of(file) {
+        Ok(icc) => icc,
+        Err(e) => {
+            report.check("profile", false, e);
+            return;
+        }
+    };
+    let (ok, detail) = match (profile_of(chosen), icc) {
+        (None, None) => (true, "no profile, read as sRGB".to_string()),
+        (None, Some(icc)) => {
+            let ok = icc_primaries(&icc).is_some_and(|p| same_primaries(&p, &SRGB));
+            (ok, format!("a profile with {} primaries", if ok { "sRGB's" } else { "other" }))
+        }
+        (Some(_), None) => (false, "no profile, which reads as sRGB".to_string()),
+        (Some(wanted), Some(icc)) => match moxcms::ColorProfile::new_from_slice(&icc) {
+            Err(e) => (false, format!("a profile that doesn't parse: {e:?}")),
+            Ok(ours) => match (colorants(&ours), colorants(&wanted)) {
+                (Some(ours), Some(theirs)) => {
+                    let off = colorants_off(&ours, &theirs);
+                    let detail = format!("its colorants and white within {off:.5} of {name}'s");
+                    (off <= COLORANTS, format!("{detail} (at most {COLORANTS})"))
+                }
+                _ => (false, "a profile without a media white".to_string()),
+            },
+        },
+    };
+    report.check("profile", ok, format!("{detail}; {name} chosen"));
 }

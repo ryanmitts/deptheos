@@ -1,6 +1,6 @@
 //! A DNG export's color tags against its frames'.
 
-use deptheos_dng::RenderParams;
+use deptheos_dng::{RenderParams, WhiteXy};
 
 use crate::{Frames, Report, Set};
 
@@ -11,11 +11,14 @@ const TAGS_EXPOSURE: f64 = 0.01;
 
 /// A DNG export's color tags, as the SDK turns them into render
 /// parameters, match one of its frames' (the stack's reference frame).
+/// With a white balance chosen (`chosen`, the export's as-shot white), the
+/// frame's are taken at that white: its neutral and matrices follow it.
 pub(crate) fn color_tags(
     report: &mut Report,
     export: Option<&RenderParams>,
     set: &Set,
     frames: &Frames,
+    chosen: Option<WhiteXy>,
 ) {
     let Some(export) = export else {
         report.check("color tags", false, "the DNG has no color science");
@@ -25,18 +28,46 @@ pub(crate) fn color_tags(
         .colors
         .iter()
         .enumerate()
-        .filter_map(|(i, c)| c.as_ref().map(|c| (i, tag_differences(export, c))))
+        .filter_map(|(i, c)| {
+            let c = match chosen {
+                None => c.clone()?,
+                // The rest first; the white's own parts once it is picked.
+                Some(_) => RenderParams {
+                    camera_white: export.camera_white,
+                    camera_to_prophoto: export.camera_to_prophoto,
+                    ..c.clone()?
+                },
+            };
+            Some((i, tag_differences(export, &c)))
+        })
         .collect();
     let name = |i: usize| {
         set.frames[i].file_name().map(|n| n.to_string_lossy().into_owned()).unwrap_or_default()
     };
-    match compared.iter().min_by_key(|(_, d)| d.len()) {
+    let best = compared.iter().min_by_key(|(_, d)| d.len());
+    let at_white = match (chosen, best) {
+        (Some(white), Some((i, d))) if d.is_empty() => {
+            let at = crate::read::color_source(&set.frames[*i])
+                .and_then(|m| m.render_params_at(Some(white)).map_err(|e| e.to_string()));
+            match at {
+                Ok(frame) => Some((*i, tag_differences(export, &frame))),
+                Err(e) => {
+                    report.check("color tags", false, e);
+                    return;
+                }
+            }
+        }
+        _ => None,
+    };
+    let best = at_white.as_ref().or(best);
+    let at = if chosen.is_some() { " at the white chosen" } else { "" };
+    match best {
         None => report.check("color tags", false, "no RAW or DNG frames to compare with"),
         Some((i, d)) if d.is_empty() => report.check(
             "color tags",
             true,
             format!(
-                "matrices, AsShotNeutral, BaselineExposure {:+.2}, profile tables{} and tone curve as {}'s",
+                "matrices, AsShotNeutral, BaselineExposure {:+.2}, profile tables{} and tone curve as {}'s{at}",
                 export.baseline_exposure,
                 if export.hue_sat_map.is_some() || export.look_table.is_some() {
                     ""

@@ -5,7 +5,11 @@ use std::path::{Path, PathBuf};
 
 use serde::{Deserialize, Serialize};
 
+use deptheos_adjust::reframe::Rect;
+use deptheos_adjust::{Adjustments, Flip, Reframe, Turn, WhiteBalance, slider};
 use deptheos_app::library::export::ExportFormat;
+
+use crate::Expect;
 
 /// The file, as read.
 #[derive(Debug, Deserialize)]
@@ -118,6 +122,148 @@ pub struct Case {
     /// The set the Simulator stacks, when not `set`: its frames shrunk to
     /// what its GPU takes (about 16.7 MP, ADR-110) by script/e2e-sets.sh.
     pub ios_set: Option<String>,
+    /// The sliders set before exporting ([`Adjust`]).
+    pub adjust: Option<Adjust>,
+    /// The output space of a camera RAW stack's rendered exports.
+    pub space: Option<OutputSpace>,
+    /// The crop, flip and turn of the exports ([`CaseReframe`]).
+    pub reframe: Option<CaseReframe>,
+}
+
+/// A case's adjustments, each slider optional (its default otherwise).
+/// The white balance is `kelvin` for a camera RAW stack or `temperature`
+/// (the relative scale) for a standard one, each with its `tint`.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Deserialize, Serialize)]
+#[serde(deny_unknown_fields)]
+pub struct Adjust {
+    pub exposure: Option<f64>,
+    pub kelvin: Option<f64>,
+    pub temperature: Option<f64>,
+    pub tint: Option<f64>,
+    pub contrast: Option<f64>,
+    pub whites: Option<f64>,
+    pub blacks: Option<f64>,
+    pub vibrance: Option<f64>,
+    pub saturation: Option<f64>,
+}
+
+impl Adjust {
+    /// As the engine takes them.
+    pub fn adjustments(&self) -> Adjustments {
+        let n = Adjustments::NEUTRAL;
+        let tint = self.tint.unwrap_or(0.0);
+        let white_balance = match (self.kelvin, self.temperature) {
+            (Some(temperature), _) => WhiteBalance::Kelvin { temperature, tint },
+            (None, Some(temperature)) => WhiteBalance::Relative { temperature, tint },
+            (None, None) => WhiteBalance::AsShot,
+        };
+        Adjustments {
+            exposure: self.exposure.unwrap_or(n.exposure),
+            white_balance,
+            contrast: self.contrast.unwrap_or(n.contrast),
+            whites: self.whites.unwrap_or(n.whites),
+            blacks: self.blacks.unwrap_or(n.blacks),
+            vibrance: self.vibrance.unwrap_or(n.vibrance),
+            saturation: self.saturation.unwrap_or(n.saturation),
+            ..n
+        }
+    }
+
+    fn validate(&self) -> Result<(), String> {
+        let tint = match (self.kelvin, self.temperature) {
+            (Some(_), Some(_)) => {
+                return Err(
+                    "adjust: kelvin (camera RAW) or temperature (standard), not both".into()
+                );
+            }
+            (None, None) if self.tint.is_some() => {
+                return Err("adjust: tint goes with kelvin or temperature".into());
+            }
+            (None, Some(_)) => slider::TINT_RELATIVE,
+            _ => slider::TINT_RAW,
+        };
+        let sliders = [
+            ("exposure", self.exposure, slider::EXPOSURE),
+            ("kelvin", self.kelvin, slider::TEMPERATURE_KELVIN),
+            ("temperature", self.temperature, slider::TEMPERATURE_RELATIVE),
+            ("tint", self.tint, tint),
+            ("contrast", self.contrast, slider::CONTRAST),
+            ("whites", self.whites, slider::WHITES),
+            ("blacks", self.blacks, slider::BLACKS),
+            ("vibrance", self.vibrance, slider::VIBRANCE),
+            ("saturation", self.saturation, slider::SATURATION),
+        ];
+        for (name, value, spec) in sliders {
+            let Some(value) = value else { continue };
+            if !(spec.min..=spec.max).contains(&value) {
+                return Err(format!("adjust: {name} {value} is outside {}–{}", spec.min, spec.max));
+            }
+        }
+        Ok(())
+    }
+}
+
+/// The output space of a camera RAW stack's JPEG, PNG and TIFF exports.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Deserialize, Serialize)]
+pub enum OutputSpace {
+    #[serde(rename = "srgb")]
+    Srgb,
+    #[serde(rename = "display-p3")]
+    DisplayP3,
+    #[serde(rename = "adobe-rgb")]
+    AdobeRgb,
+    #[serde(rename = "prophoto")]
+    ProPhoto,
+}
+
+/// A case's reframe: `crop` as left, top, width and height in the
+/// stack's pixels, then `flip`, then `turn` clockwise in degrees.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Deserialize, Serialize)]
+#[serde(deny_unknown_fields)]
+pub struct CaseReframe {
+    pub crop: Option<[u32; 4]>,
+    pub flip: Option<CaseFlip>,
+    #[serde(default)]
+    pub turn: u32,
+}
+
+/// A mirror: left to right, or top to bottom (that and a half turn).
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Deserialize, Serialize)]
+#[serde(rename_all = "lowercase")]
+pub enum CaseFlip {
+    Horizontal,
+    Vertical,
+}
+
+impl CaseReframe {
+    /// As the engine takes it (ADR-136).
+    pub fn reframe(&self) -> Reframe {
+        let crop = self.crop.map(|[x, y, width, height]| Rect { x, y, width, height });
+        let turn = match self.turn {
+            90 => Turn::Quarter,
+            180 => Turn::Half,
+            270 => Turn::ThreeQuarters,
+            _ => Turn::None,
+        };
+        let (flip, turn) = match self.flip {
+            None => (Flip::None, turn),
+            Some(CaseFlip::Horizontal) => (Flip::Horizontal, turn),
+            Some(CaseFlip::Vertical) => (Flip::Horizontal, Turn::Half.then(turn)),
+        };
+        Reframe { crop, flip, turn }
+    }
+
+    fn validate(&self) -> Result<(), String> {
+        if !matches!(self.turn, 0 | 90 | 180 | 270) {
+            return Err(format!("reframe: turn {}: 0, 90, 180 or 270", self.turn));
+        }
+        if let Some([_, _, width, height]) = self.crop
+            && (width == 0 || height == 0)
+        {
+            return Err("reframe: a crop's width and height are more than 0".into());
+        }
+        Ok(())
+    }
 }
 
 fn default_exports() -> Vec<Export> {
@@ -277,6 +423,7 @@ impl Case {
     /// folder (`setDir`) and that set's readable frames in name order
     /// (`frames`), which the script copies.
     pub fn for_ios(&self, config: &Config) -> Result<String, String> {
+        self.apps_can_run()?;
         let dir = config.sets_dir().join(self.ios_set.as_ref().unwrap_or(&self.set));
         let set = crate::Set::open_checked(&dir)?;
         let mut json: serde_json::Value =
@@ -284,6 +431,38 @@ impl Case {
         json["setDir"] = dir.display().to_string().into();
         json["frames"] = set.frames.iter().map(|f| f.display().to_string()).collect();
         Ok(json.to_string())
+    }
+
+    /// What its export as `format`, `bits` a channel, should be.
+    pub fn expect(&self, format: ExportFormat, bits: u8) -> Expect {
+        Expect {
+            adjustments: self.adjust.map(|a| a.adjustments()).unwrap_or_default(),
+            space: self.space,
+            reframe: self.reframe.map(|r| r.reframe()).unwrap_or_default(),
+            ..Expect::new(format, bits)
+        }
+    }
+
+    /// Refuses a case that sets `adjust`, `space` or `reframe`: the checks
+    /// read them, and neither app's driver applies them.
+    pub fn apps_can_run(&self) -> Result<(), String> {
+        let set: Vec<&str> = [
+            ("adjust", self.adjust.is_some()),
+            ("space", self.space.is_some()),
+            ("reframe", self.reframe.is_some()),
+        ]
+        .into_iter()
+        .filter_map(|(key, set)| set.then_some(key))
+        .collect();
+        let keys = match set.as_slice() {
+            [] => return Ok(()),
+            [one] => one.to_string(),
+            [rest @ .., last] => format!("{} and {last}", rest.join(", ")),
+        };
+        Err(format!(
+            "case {} sets {keys}, which the app can't apply yet; only the checker reads them",
+            self.name
+        ))
     }
 
     fn validate(&self) -> Result<(), String> {
@@ -326,6 +505,28 @@ impl Case {
         }
         if self.decoder.is_some() && self.on.contains(&Platform::Ios) {
             return Err("decoder is the desktop's: give on = [\"desktop\"]".into());
+        }
+        let dng = self.exports.iter().any(|e| e.format == ExportFormat::Dng);
+        if let Some(adjust) = &self.adjust {
+            adjust.validate()?;
+            if adjust.kelvin.is_some() && self.stack_bits != 16 {
+                return Err("adjust: kelvin is a camera RAW stack's, which is 16-bit".into());
+            }
+            if adjust.temperature.is_some() && (dng || self.space.is_some()) {
+                return Err(
+                    "adjust: temperature is a standard stack's; a camera RAW one takes kelvin"
+                        .into(),
+                );
+            }
+        }
+        if self.space.is_some() && self.stack_bits != 16 {
+            return Err("space is a camera RAW stack's, which is 16-bit".into());
+        }
+        if let Some(reframe) = &self.reframe {
+            reframe.validate()?;
+            if dng {
+                return Err("reframe: a DNG keeps the whole picture (ADR-136)".into());
+            }
         }
         Ok(())
     }
@@ -386,6 +587,26 @@ mod tests {
             ("stack_bits = 12", "8 or 16"),
             ("stack_bits = 8\nexports = [\"dng\"]", "linear stack's"),
             ("name = \"b\"", "missing field `stack_bits`"),
+            ("adjust = { exposure = 6.0 }", "exposure 6 is outside -5–5"),
+            ("adjust = { grain = 1 }", "unknown field `grain`"),
+            ("adjust = { kelvin = 1500 }", "kelvin 1500 is outside 2000–50000"),
+            ("adjust = { kelvin = 5000 }", "kelvin is a camera RAW stack's"),
+            ("stack_bits = 16\nadjust = { kelvin = 5000, tint = 151 }", "outside -150–150"),
+            ("adjust = { temperature = 20, tint = 101 }", "tint 101 is outside -100–100"),
+            ("stack_bits = 16\nadjust = { kelvin = 5000, temperature = 1 }", "not both"),
+            ("adjust = { tint = 5 }", "tint goes with kelvin or temperature"),
+            ("adjust = { saturation = -101 }", "saturation -101 is outside"),
+            (
+                "stack_bits = 16\nexports = [\"dng\"]\nadjust = { temperature = 10 }",
+                "a camera RAW one takes kelvin",
+            ),
+            ("space = \"srgb\"", "space is a camera RAW stack's"),
+            ("stack_bits = 16\nspace = \"rec2020\"", "unknown variant"),
+            ("reframe = { turn = 45 }", "turn 45: 0, 90, 180 or 270"),
+            ("reframe = { crop = [0, 0, 0, 10] }", "more than 0"),
+            ("reframe = { crop = [0, 0, 10] }", "invalid length"),
+            ("reframe = { flip = \"diagonal\" }", "unknown variant"),
+            ("stack_bits = 16\nexports = [\"dng\"]\nreframe = { turn = 90 }", "a DNG keeps"),
         ];
         for (line, said) in bad {
             let bits = if line.contains("stack_bits") || line.contains("name") {
@@ -397,6 +618,57 @@ mod tests {
             let text = format!("sets = \"s\"\n[[case]]\n{name}set = \"a\"\n{bits}{line}\n");
             let error = parse(&text).unwrap_err();
             assert!(error.contains(said), "{line}: {error}");
+        }
+    }
+
+    /// A case's adjustments, space and reframe read as the engine takes
+    /// them, and the apps' drivers refuse it.
+    #[test]
+    fn adjustments_space_and_reframe_read_and_are_refused_by_the_apps() {
+        let config = parse(
+            "sets = \"s\"\n[[case]]\nname = \"a\"\nset = \"a\"\nstack_bits = 16\n\
+             adjust = { exposure = 0.5, kelvin = 4300, tint = 12, vibrance = 20 }\n\
+             space = \"display-p3\"\n\
+             reframe = { crop = [10, 20, 300, 200], flip = \"vertical\", turn = 90 }\n\
+             [[case]]\nname = \"b\"\nset = \"b\"\nstack_bits = 8\n\
+             adjust = { temperature = -30 }\n",
+        )
+        .unwrap();
+        let (a, b) = (&config.cases[0], &config.cases[1]);
+        let expect = a.expect(ExportFormat::Jpeg, 8);
+        assert_eq!(expect.space, Some(OutputSpace::DisplayP3));
+        assert_eq!(
+            expect.adjustments,
+            Adjustments {
+                exposure: 0.5,
+                white_balance: WhiteBalance::Kelvin { temperature: 4300.0, tint: 12.0 },
+                vibrance: 20.0,
+                ..Adjustments::NEUTRAL
+            }
+        );
+        // Top to bottom is the mirror and a half turn, then the case's turn.
+        assert_eq!(
+            expect.reframe,
+            Reframe {
+                crop: Some(Rect { x: 10, y: 20, width: 300, height: 200 }),
+                flip: Flip::Horizontal,
+                turn: Turn::ThreeQuarters,
+            }
+        );
+        assert_eq!(
+            b.expect(ExportFormat::Png, 8).adjustments.white_balance,
+            WhiteBalance::Relative { temperature: -30.0, tint: 0.0 }
+        );
+        let refused = a.apps_can_run().unwrap_err();
+        assert!(refused.contains("adjust, space and reframe"), "{refused}");
+        assert!(a.for_ios(&config).unwrap_err().contains("can't apply"));
+        assert!(b.apps_can_run().unwrap_err().contains("sets adjust,"));
+        let back: Case = serde_json::from_str(&a.to_json()).unwrap();
+        assert_eq!((back.adjust, back.space, back.reframe), (a.adjust, a.space, a.reframe));
+        // The repository's cases set none of them.
+        let repository = Config::load(&default_path()).unwrap();
+        for case in &repository.cases {
+            case.apps_can_run().unwrap();
         }
     }
 

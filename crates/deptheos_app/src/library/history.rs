@@ -28,6 +28,8 @@
 //!   color.dng               linear stacks only: the reference frame's color metadata
 //!   profile.icc             a stack of standard images not in sRGB: its frames' ICC profile
 //!   paint.sqlite            the render's paint, when it has any (paint::store)
+//!   adjustments.json        its adjustment sliders and reframe, when set
+//!                           (crate::library::adjustments, ADR-152)
 //!   paint-undo.sqlite       while Retouch has painted it this session: the undo
 //!                           snapshots spilled from RAM
 //! Failed/<id>.json          a batch stack that failed: schema, created_unix_ms, label,
@@ -47,6 +49,7 @@ use std::sync::Arc;
 use std::time::SystemTime;
 
 use deptheos_core::io;
+use deptheos_render::reframe::Size;
 use image::RgbImage;
 use serde::{Deserialize, Serialize};
 
@@ -57,6 +60,7 @@ use crate::fsutil::{
     PARTIAL_SUFFIX, Versioned, edit_versioned, io_error, json_files_by_id, read_versioned,
     remove_if_present, rename, write_json_atomic,
 };
+use crate::library::adjustments::{RenderAdjustments, Unread as AdjustmentsUnread, Writes};
 pub use crate::library::ids::{RenderId, StackId};
 use crate::library::ids::{is_id, new_id};
 use crate::library::render_file::*;
@@ -646,6 +650,26 @@ impl History {
     /// Read-modify-write a render's manifest.
     fn edit_manifest(&self, id: &RenderId, edit: impl FnOnce(&mut RenderFile)) -> Result<()> {
         edit_versioned::<RenderFile>(&self.render_path(id).join(RENDER_FILE), edit)
+    }
+
+    /// A render's adjustments and reframe ([`adjustments`]): neutral with
+    /// no reframe when it has none saved.
+    ///
+    /// [`adjustments`]: crate::library::adjustments
+    pub fn adjustments(
+        &self,
+        render: &Render,
+    ) -> std::result::Result<RenderAdjustments, AdjustmentsUnread> {
+        let picture = Size { width: render.width, height: render.height };
+        crate::library::adjustments::read(&self.render_path(&render.id), picture)
+    }
+
+    /// The writes of a render's adjustments, each [`Write::save`]d on the
+    /// store thread.
+    ///
+    /// [`Write::save`]: crate::library::adjustments::Write::save
+    pub fn adjustment_writes(&self, id: &RenderId) -> Writes {
+        Writes::of(self.render_path(id))
     }
 
     /// A render's thumbnail, sRGB.

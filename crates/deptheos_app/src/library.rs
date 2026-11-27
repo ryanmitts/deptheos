@@ -11,6 +11,7 @@ use chrono::{DateTime, Local, NaiveDate};
 use crate::words::{Words, say};
 use history::{Batch, RenderId, StackId, StackTile, StripEntry, StripRun};
 
+pub mod adjustments;
 pub mod export;
 pub(crate) mod export_tags;
 pub mod history;

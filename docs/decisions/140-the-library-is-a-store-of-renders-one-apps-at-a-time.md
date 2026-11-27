@@ -22,6 +22,7 @@ A delete that removes at once has to ask first, and still can't be undone. A que
   - **`thumb.jpg`**: at most `THUMBNAIL_SIDE` pixels, sRGB, for the Library's tiles.
   - **Color metadata**: a linear stack (of camera RAW or DNG frames decoded linear) keeps a 16×16 `color.dng` carrying the reference frame's DNG metadata (ADR-130); a stack of standard images not in sRGB keeps `profile.icc` (ADR-132).
   - **`paint.sqlite`**, and `paint-undo.sqlite` while Retouch has painted it this session (ADR-148).
+  - **`adjustments.json`**: its adjustment sliders and reframe, once set; a render without one is neutral (ADR-152).
 - **The codec** is the vendored libjxl wrapped by `deptheos_dng::jxl` (`crates/deptheos_dng/native/jxl_c_api.cpp`).
 - **A render is made crash-safe**: it is built under `Renders/<id>.partial` with `render.json` written last, then renamed into place, so an interrupted save leaves a `.partial` folder the next open sweeps, never a half-written render.
 - **No depth-map picture is saved.** The depth map is drawn from the frame map when shown (ADR-149); both apps show the frame map as the depth map, so nothing showed a saved 8-bit picture, which cost about 7 MB and a GPU render a stack and a decode on every open. The command line has no `--map`.
@@ -32,6 +33,7 @@ A delete that removes at once has to ask first, and still can't be undone. A que
 
 - **`History::open` takes an OS lock on `<Library>/library.lock` and holds it until the last clone of the History goes** (`crates/deptheos_app/src/library/history/lock.rs`). A second opener, in this process or another, on this computer or another, is refused with `StoreError::InUse`. A volume that can't lock a file is refused too (`StoreError::NoLocks`), never opened unguarded.
 - **Who holds it is said.** The holder writes `library-owner.json` beside the lock (the computer's name and the app's version) once it has the lock and the Library's format has passed. A refused open reads it and says "The Library is open in Deptheos 0.3.0 on Studio Mac" or "in another Deptheos on this computer" (`crates/deptheos_app/src/words/explain.rs`). It is read only while someone holds the lock, so one left from an earlier session never misleads.
+- **A render's pictures are written once.** Only its paint and its adjustments change after it is saved, each in its own file.
 - **One render's folder can be read without the lock** (`crates/deptheos_app/src/library/render_folder.rs`), by the redraw command (ADR-103). It writes nothing there but SQLite's own files beside the paint, which share the paint with the app writing it.
 - **Maintenance runs as the lock's holder.** The open's sweep (a crashed save's `.partial` folders and temporaries, the undo spills of a session that ended) runs after the lock is taken, as the only writer, so it takes whatever is there however new.
 - **A Library on a drive not connected isn't made in its place.** `History::open` makes a Library's folder only in a folder that is there (the default Library's folders are made as needed); otherwise it is `StoreError::NotConnected`, said as a drive to connect, not a permissions problem.
@@ -48,7 +50,7 @@ A delete that removes at once has to ask first, and still can't be undone. A que
 - **Kept 30 days (`KEPT_DAYS`), removed by the lock's holder.** `History::open` removes older records after its sweep, as the Library's only writer. A stack then left with nothing (no render, failed run, kept working version or record, and not on screen) is forgotten, its name and numbering with it (`forget_if_unused`). This is done here, not when a stack's last render is deleted, so a restore within the 30 days finds its stack named.
 - **What is deleted still counts.** The listing reads `Renders/`, `Failed/` and `Stacks/` only, so nothing deleted lists or opens. The roots a record's files name are kept (`roots_named`), so a restored render finds its frames, and a save's number passes the numbers a record holds of its stack (`claim_number`), so a restored render never shares one.
 - **The record first, the moves after.** The record is written under `<id>.partial` and renamed into place before anything moves into it, so a crash part way leaves a record of what moved, restored like any other, or a `.partial` the next open sweeps.
-- **Recently Deleted is the Library's format 2** (`SOURCES_SCHEMA`, ADR-141).
+- **Recently Deleted is the Library's format 2** (`SOURCES_SCHEMA`, ADR-141); adjustments are format 3 (ADR-152).
 - **Each app's Library has a Recently Deleted entry**, with its size; the notice after a delete, with Undo, shows at the foot of the Library and of the Renders list.
 
 ## Alternatives considered
@@ -78,7 +80,7 @@ A question is clicked through and can't undo; the trash is missing on shares, ca
 
 ## Code
 
-- `crates/deptheos_app/src/library/history.rs`, `history/lock.rs`, `history/synced.rs`, `history/deleted.rs`, `history/words.rs`, `crates/deptheos_app/src/library/render_file.rs`, `crates/deptheos_app/src/library/stacks.rs`, `crates/deptheos_app/src/words/explain.rs`, `crates/deptheos_app/src/frames/sources/mod.rs`.
+- `crates/deptheos_app/src/library/history.rs`, `crates/deptheos_app/src/library/adjustments.rs`, `history/lock.rs`, `history/synced.rs`, `history/deleted.rs`, `history/words.rs`, `crates/deptheos_app/src/library/render_file.rs`, `crates/deptheos_app/src/library/stacks.rs`, `crates/deptheos_app/src/words/explain.rs`, `crates/deptheos_app/src/frames/sources/mod.rs`.
 - `crates/deptheos_dng/native/jxl_c_api.cpp`.
 - Desktop: `crates/deptheos_gpui/src/start.rs`, `crates/deptheos_gpui/src/renders/library_deleted.rs`, `crates/deptheos_gpui/src/renders/queue.rs`, `crates/deptheos_gpui/src/app.rs`.
 - iOS: `crates/deptheos_ffi/src/engine.rs`, `ios/DeptheosMobile/Model/AppModel+Deleted.swift`, `ios/DeptheosMobile/Views/RecentlyDeletedView.swift`.

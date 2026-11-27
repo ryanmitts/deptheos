@@ -480,3 +480,39 @@ fn a_batch_numbers_its_renders_in_the_order_they_save() {
     let after = history.save_render(&listed, &stack, &thumbnail(), &bee, None).unwrap();
     assert_eq!(after.number, 5);
 }
+
+/// A render's adjustments go to Recently Deleted with its folder and come
+/// back with it.
+#[test]
+fn a_restored_render_keeps_its_adjustments() {
+    use deptheos_app::library::adjustments::{RenderAdjustments, Saved};
+    use deptheos_app::reframe::{Rect, Turn};
+    use deptheos_app::{Adjustments, Reframe};
+    let dir = tempfile::tempdir().unwrap();
+    let history = History::open(dir.path()).unwrap();
+    let listed = paths(dir.path(), &["a.png", "b.png"]);
+    let render = history.save_render(
+        &listed,
+        &srgb_stack(listed.clone()),
+        &thumbnail(),
+        &StackId::new(),
+        None,
+    );
+    let render = render.unwrap();
+    assert_eq!(history.adjustments(&render), Ok(RenderAdjustments::NONE));
+    let value = RenderAdjustments {
+        adjustments: Adjustments { exposure: 0.5, ..Adjustments::NEUTRAL },
+        reframe: Reframe {
+            crop: Some(Rect { x: 1, y: 1, width: 8, height: 6 }),
+            turn: Turn::Half,
+            ..Reframe::NONE
+        },
+    };
+    let write = history.adjustment_writes(&render.id).send(value.clone());
+    assert_eq!(write.save().unwrap(), Saved::Written);
+    let ids = std::slice::from_ref(&render.id);
+    let deletion = history.delete_renders(ids, history.close_paint(ids)).unwrap();
+    history.restore(&deletion.ids()).unwrap();
+    let back = history.render(&render.id).unwrap();
+    assert_eq!(history.adjustments(&back), Ok(value));
+}

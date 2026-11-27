@@ -14,9 +14,9 @@
 //!
 //! Inside a Library that passed, a file of another schema or that doesn't
 //! parse is damaged: a render or failed stack is skipped, paint set aside,
-//! `list.json` replaced by the next write, a stack's file set aside by the
-//! next write. A file that couldn't be read (a drive that didn't answer) is
-//! never taken for damaged.
+//! `list.json` replaced by the next write, a stack's file or a render's
+//! adjustments set aside by the next write. A file that couldn't be read
+//! (a drive that didn't answer) is never taken for damaged.
 
 use std::fs::File;
 use std::io::Write;
@@ -391,10 +391,11 @@ mod tests {
     /// with its upgrade (ADR-141), then update the pins.
     #[test]
     fn a_file_schema_changes_only_with_the_library_format() {
-        use crate::library::{history, render_file, stacks};
+        use crate::library::{adjustments, history, render_file, stacks};
         let pinned = [
-            ("SOURCES_SCHEMA", 2),
+            ("SOURCES_SCHEMA", 3),
             ("RENDER_SCHEMA", 1),
+            ("ADJUSTMENTS_SCHEMA", 1),
             ("LIST_SCHEMA", 1),
             ("STACK_SCHEMA", 1),
             ("FAILURE_SCHEMA", 1),
@@ -404,6 +405,7 @@ mod tests {
         let now = [
             ("SOURCES_SCHEMA", crate::frames::sources::SOURCES_SCHEMA),
             ("RENDER_SCHEMA", render_file::RENDER_SCHEMA),
+            ("ADJUSTMENTS_SCHEMA", adjustments::ADJUSTMENTS_SCHEMA),
             ("LIST_SCHEMA", stacks::LIST_SCHEMA),
             ("STACK_SCHEMA", stacks::STACK_SCHEMA),
             ("FAILURE_SCHEMA", history::FAILURE_SCHEMA),

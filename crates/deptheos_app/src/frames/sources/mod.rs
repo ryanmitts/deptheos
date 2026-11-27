@@ -49,9 +49,12 @@ pub const PREVIOUS_SOURCES_FILE: &str = "sources.previous.json";
 /// whole (`fsutil.rs`'s module doc).
 ///
 /// - 1: builds before 0.2.0 (the `library-0.2.0` fixture).
-/// - 2: Recently Deleted, `Deleted/` (ADR-140); 0.2.0 on. A 1 is moved to
-///   2 on open, changing only this number.
-pub(crate) const SOURCES_SCHEMA: u32 = 2;
+/// - 2: Recently Deleted, `Deleted/` (ADR-140); 0.2.0 on.
+/// - 3: a render's adjustments, `adjustments.json` (ADR-152).
+///
+/// An older format is moved to 3 on open, changing only this number: a
+/// render with no adjustments file is neutral.
+pub(crate) const SOURCES_SCHEMA: u32 = 3;
 
 /// `sources.json`'s `written_by` for this build.
 const THIS_VERSION: &str = env!("CARGO_PKG_VERSION");

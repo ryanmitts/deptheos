@@ -12,6 +12,7 @@ use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
 use deptheos_app::frames::list::List;
+use deptheos_app::library::adjustments::{ADJUSTMENTS_FILE, RenderAdjustments};
 use deptheos_app::library::history::{Batch, BatchLabel, History, StackId, Took};
 use deptheos_app::library::stacks::Settings;
 use deptheos_app::library::stacks::Working;
@@ -155,6 +156,17 @@ fn write_fixtures() {
     history.rename_render(&render.id, Some("Bee")).unwrap();
     let manifest = history.render_path(&render.id).join("render.json");
     keep(dir.path(), "render", schema(&manifest));
+
+    // A render's adjustments, every field off its default.
+    let dir = tempfile::tempdir().unwrap();
+    let history = History::open(dir.path()).unwrap();
+    let listed = make_frames(dir.path());
+    let render = history
+        .save_render(&listed, &render_stack(dir.path()), &thumb, &StackId::new(), None)
+        .unwrap();
+    history.adjustment_writes(&render.id).send(every_adjustment_set()).save().unwrap();
+    let file = history.render_path(&render.id).join(ADJUSTMENTS_FILE);
+    keep(dir.path(), "adjustments", schema(&file));
 
     // The list and live settings.
     let dir = tempfile::tempdir().unwrap();
@@ -308,6 +320,7 @@ fn check_library_fixture(dir: &Path) {
     for render in &renders {
         history.load_render(&render.id).expect("its pixels load");
         history.load_thumbnail(&render.id).expect("its thumbnail loads");
+        assert_eq!(history.adjustments(render), Ok(RenderAdjustments::NONE), "no adjustments");
     }
     let stacks = history.stacks().unwrap();
     let bees = &stacks[&first.stack];
@@ -356,7 +369,9 @@ fn walk(dir: &Path, each: &mut dyn FnMut(&Path)) {
 #[test]
 fn a_library_made_by_0_2_0_opens() {
     let dir = fixture("library-0.2.0");
+    assert_eq!(schema(&dir.path().join("sources.json")), 1);
     check_library_fixture(dir.path());
+    assert_eq!(schema(&dir.path().join("sources.json")), 3, "upgraded");
 }
 
 /// Every later 0.x build opens a 0.2.1 Library whole, its render in
@@ -382,6 +397,7 @@ fn a_library_made_by_0_2_1_opens_and_restores_its_deleted_render() {
     let back = renders.iter().find(|r| r.id == item.renders[0]).expect("restored");
     assert_eq!((&back.stack, back.number), (&bees, 3));
     history.load_render(&back.id).expect("its pixels load");
+    assert_eq!(schema(&dir.path().join("sources.json")), 3, "upgraded");
 }
 
 /// Date `library`'s Recently Deleted records now: an open removes one
@@ -450,6 +466,44 @@ fn a_v1_render_loads() {
     // Its stack's file keeps the number it gave.
     let stacks = history.stacks().unwrap();
     assert_eq!(stacks[&render.stack].last_number, 1);
+}
+
+/// Every field off its default, as the `adjustments` fixture holds.
+fn every_adjustment_set() -> RenderAdjustments {
+    use deptheos_app::reframe::{Flip, Rect, Turn};
+    use deptheos_app::{Adjustments, ProcessVersion, Reframe, Sharpening, Vignette, WhiteBalance};
+    RenderAdjustments {
+        adjustments: Adjustments {
+            process: ProcessVersion::V1,
+            exposure: 0.75,
+            white_balance: WhiteBalance::Relative { temperature: -20.0, tint: 6.0 },
+            contrast: 10.0,
+            highlights: -40.0,
+            shadows: 35.0,
+            whites: 5.0,
+            blacks: -8.0,
+            clarity: 20.0,
+            texture: 15.0,
+            sharpening: Sharpening { amount: 40.0, radius: 1.5, detail: 30.0, masking: 10.0 },
+            vibrance: 12.0,
+            saturation: -6.0,
+            vignette: Vignette { amount: -25.0, midpoint: 40.0 },
+        },
+        reframe: Reframe {
+            crop: Some(Rect { x: 4, y: 2, width: 30, height: 18 }),
+            flip: Flip::Horizontal,
+            turn: Turn::Quarter,
+        },
+    }
+}
+
+#[test]
+fn v1_adjustments_load() {
+    let dir = fixture("adjustments-v1");
+    let history = History::open(dir.path()).unwrap();
+    let renders = history.list().unwrap();
+    assert_eq!(renders.len(), 1, "the render is listed");
+    assert_eq!(history.adjustments(&renders[0]), Ok(every_adjustment_set()));
 }
 
 #[test]
@@ -706,7 +760,7 @@ fn an_open_says_which_version_last_used_the_library() {
     assert!(read(&sources).get("written_by").is_none(), "written before 0.2.0, with none");
     drop(History::open(dir.path()).unwrap());
     assert_eq!(read(&sources)["written_by"], env!("CARGO_PKG_VERSION"));
-    assert_eq!(read(&sources)["schema"], 2, "moved to the format of Recently Deleted");
+    assert_eq!(read(&sources)["schema"], 3, "moved to the format of adjustments");
     // A new Library has one from its first open.
     let new = tempfile::tempdir().unwrap();
     drop(History::open(new.path()).unwrap());

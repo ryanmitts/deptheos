@@ -25,3 +25,4 @@ crates/develop/src/raster/resample.rs
 crates/develop/src/raster/blur.rs
 crates/develop/src/finish.rs
 crates/develop-model/src/settings.rs
+docs/process-versions.md

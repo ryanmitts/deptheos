@@ -66,6 +66,7 @@ of a record, cites only records in this folder.
 - [149](149-the-viewer.md) The viewer: one view reducer, a focus rail through the render's frames, the depth map as the frame map, Contribution as one light
 - [150](150-shared-preference-definitions.md) Preferences both apps offer are defined in `deptheos_app`; each front end keeps its own storage
 - [151](151-the-apps-carry-a-sample-stack.md) Both apps carry two sample stacks, each copied into the user's storage and opened as a new stack that waits for Stack
+- [152](152-a-renders-adjustments-are-a-file-of-their-own.md) A render's adjustments are a file of their own beside it, naming their process version; Library format 3
 
 ## Website, iOS, logs, localization and tools
 

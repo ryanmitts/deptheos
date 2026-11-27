@@ -1,0 +1,13 @@
+{
+  "schema": 3,
+  "written_by": "0.2.1",
+  "roots": {
+    "01a21b5632a077a7a06712a6cac235f1": {
+      "place": {
+        "at": "anchored",
+        "anchor": "library",
+        "path": "Photos/Bee"
+      }
+    }
+  }
+}

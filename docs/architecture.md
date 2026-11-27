@@ -117,7 +117,8 @@ goes through the store thread.
   list.json                          the working version on screen
   Stacks/<id>.json                   a stack's name, numbering and working version
   Renders/<id>/                      render.json, result.jxl, thumb.jpg, and as needed
-                                     frame_map.jxl, color.dng, profile.icc, paint.sqlite
+                                     frame_map.jxl, color.dng, profile.icc, paint.sqlite,
+                                     adjustments.json (ADR-152)
   Failed/<id>.json                   a stack a batch couldn't make
   Deleted/<id>/                      Recently Deleted, kept 30 days
 ```

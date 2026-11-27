@@ -5,7 +5,7 @@ import DocsLayout from "../../../layouts/DocsLayout.astro";
 <DocsLayout
   docKey="shortcuts"
   title="Keyboard shortcuts"
-  description="Every keyboard shortcut in Deptheos for macOS, Windows, and Linux: stacking, frame list, Library, zoom, comparing, retouching, and window controls."
+  description="Every keyboard shortcut in Deptheos for macOS, Windows, and Linux: stacking, frame list, Library, zoom, comparing, retouching, adjusting, and window controls."
 >
   <div class="prose">
     <h1>Keyboard shortcuts</h1>
@@ -171,6 +171,39 @@ import DocsLayout from "../../../layouts/DocsLayout.astro";
     </div>
     <div class="prose">
       <p><a href="/docs/retouching/">Retouching</a> explains the brush and the sources.</p>
+    </div>
+  </section>
+
+  <section id="adjusting">
+    <div class="prose">
+      <h2>Adjusting</h2>
+      <p>
+        In Adjust some keys change meaning: <kbd>C</kbd> opens the Crop tool rather than Contribution, the
+        arrow keys move the sliders, and <kbd>Esc</kbd> leaves.
+      </p>
+    </div>
+    <div class="table-wrap">
+      <table class="choose">
+        <thead><tr><th scope="col">Key</th><th scope="col">What it does</th></tr></thead>
+        <tbody>
+          <tr><th scope="row"><kbd>A</kbd></th><td>Adjust, or Done Adjusting.</td></tr>
+          <tr><th scope="row"><kbd>Esc</kbd></th><td>Leave Adjust; with the Crop tool or the eyedropper open, close that first.</td></tr>
+          <tr><th scope="row"><kbd>↑</kbd>, <kbd>↓</kbd></th><td>The previous or next slider.</td></tr>
+          <tr><th scope="row"><kbd>←</kbd>, <kbd>→</kbd></th><td>Move the slider a step; with <kbd>⇧</kbd>, ten.</td></tr>
+          <tr><th scope="row"><kbd>\</kbd> (held)</th><td>See the render without its adjustments.</td></tr>
+          <tr><th scope="row"><kbd>W</kbd></th><td>The white balance eyedropper.</td></tr>
+          <tr><th scope="row"><kbd>C</kbd></th><td>Crop, turn and flip.</td></tr>
+          <tr><th scope="row"><kbd>⌘[</kbd>, <kbd>⌘]</kbd></th><td>Turn left or right.</td></tr>
+          <tr><th scope="row"><kbd>X</kbd></th><td>In the Crop tool, swap the Crop's width and height.</td></tr>
+          <tr><th scope="row"><kbd>↩</kbd></th><td>Keep the Crop.</td></tr>
+          <tr><th scope="row"><kbd>⇧⌘C</kbd>, <kbd>⇧⌘V</kbd></th><td>Copy Adjustments, Paste Adjustments; in Adjust or on the render shown.</td></tr>
+          <tr><th scope="row"><kbd>⌘Z</kbd></th><td>Undo a change.</td></tr>
+          <tr><th scope="row"><kbd>⇧⌘Z</kbd></th><td>Redo. Ctrl+Y also redoes on Windows and Linux.</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="prose">
+      <p><a href="/docs/adjust/">Adjust</a> explains the sliders and the Crop.</p>
     </div>
   </section>
 

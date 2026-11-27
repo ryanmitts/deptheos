@@ -11,6 +11,7 @@ homepage.workspace = true
 publish = false
 
 [dependencies]
+deptheos_adjust = { workspace = true }
 deptheos_aligner = { workspace = true }
 deptheos_core = { workspace = true }
 serde_json = { workspace = true }

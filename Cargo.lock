@@ -1924,6 +1924,7 @@ dependencies = [
 name = "deptheos_webexport"
 version = "0.2.1"
 dependencies = [
+ "deptheos_adjust",
  "deptheos_aligner",
  "deptheos_core",
  "serde_json",

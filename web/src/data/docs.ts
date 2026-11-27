@@ -101,6 +101,13 @@ export const DOCS: readonly DocMeta[] = [
     summary: "Paint detail in from a source frame or another render.",
   },
   {
+    key: "adjust",
+    group: "Working",
+    title: "Adjust",
+    short: "Adjust",
+    summary: "White balance, exposure, tone, color, sharpening and vignette on a render, and its Crop, turn and flip.",
+  },
+  {
     key: "batch",
     group: "Working",
     title: "Batch",
@@ -133,7 +140,7 @@ export const DOCS: readonly DocMeta[] = [
     group: "Help",
     title: "Keyboard shortcuts",
     short: "Keyboard shortcuts",
-    summary: "Every key, by what you are doing: the list, the viewer, comparing and retouching.",
+    summary: "Every key, by what you are doing: the list, the viewer, comparing, retouching and adjusting.",
   },
   {
     key: "faq",

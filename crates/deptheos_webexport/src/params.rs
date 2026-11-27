@@ -7,11 +7,14 @@
 //!   (`step` is the app's slider step).
 //! - `at`: derived values at the defaults and ends of each setting for
 //!   article text.
+//! - `adjust`: each adjustment slider's `{min, max, default, step}`
+//!   (`deptheos_adjust::slider`), and the Kelvin track's middle.
 //!
 //! Every f32 is written in its shortest f32 spelling (`1.1`, not the
 //! widened `1.100000023841858`), so the values read well in the articles;
 //! `Math.fround` on the web side recovers the exact bits.
 
+use deptheos_adjust::slider::{self as s, SliderSpec};
 use deptheos_aligner::{EccConfig, GridConfig};
 use deptheos_core::web_params as p;
 use serde_json::{Value, json};
@@ -23,6 +26,7 @@ pub fn params() -> Value {
         "defaults": defaults(),
         "ranges": ranges(),
         "at": at(),
+        "adjust": adjust(),
     });
     shortest_f32(&mut params);
     params
@@ -140,5 +144,36 @@ fn at() -> Value {
             "max": pyramid_row(p::SMOOTHNESS_RANGE.1),
             "score_blur_from": blur_from,
         },
+    })
+}
+
+fn slider(spec: SliderSpec) -> Value {
+    json!({ "min": spec.min, "max": spec.max, "default": spec.default, "step": spec.step })
+}
+
+/// The adjustment sliders, by the name the docs use.
+fn adjust() -> Value {
+    json!({
+        "exposure": slider(s::EXPOSURE),
+        "temperature_kelvin": slider(s::TEMPERATURE_KELVIN),
+        "kelvin_center": s::KELVIN_CENTER,
+        "tint_raw": slider(s::TINT_RAW),
+        "temperature_relative": slider(s::TEMPERATURE_RELATIVE),
+        "tint_relative": slider(s::TINT_RELATIVE),
+        "contrast": slider(s::CONTRAST),
+        "highlights": slider(s::HIGHLIGHTS),
+        "shadows": slider(s::SHADOWS),
+        "whites": slider(s::WHITES),
+        "blacks": slider(s::BLACKS),
+        "clarity": slider(s::CLARITY),
+        "texture": slider(s::TEXTURE),
+        "vibrance": slider(s::VIBRANCE),
+        "saturation": slider(s::SATURATION),
+        "sharpening": slider(s::SHARPENING),
+        "sharpen_radius": slider(s::SHARPEN_RADIUS),
+        "sharpen_detail": slider(s::SHARPEN_DETAIL),
+        "sharpen_masking": slider(s::SHARPEN_MASKING),
+        "vignette": slider(s::VIGNETTE),
+        "vignette_midpoint": slider(s::VIGNETTE_MIDPOINT),
     })
 }

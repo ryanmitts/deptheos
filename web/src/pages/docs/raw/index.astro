@@ -37,6 +37,12 @@ import Measured from "../../../components/Measured.astro";
         stacking, and retouching in linear camera RGB, so you can export a 16-bit linear DNG and do your RAW
         editing once, on the finished stack.
       </p>
+      <p>
+        Or develop it in Deptheos: <a href="/docs/adjust/">Adjust</a> sets a RAW render's white balance in
+        kelvins, its exposure, tone, color, sharpening and Crop on the same linear data, and exports it as TIFF,
+        PNG or JPEG in sRGB, Display P3, Adobe RGB or ProPhoto RGB. A DNG export still keeps every pixel as
+        stacked, carrying only the white balance and the Crop as settings your RAW editor can change.
+      </p>
     </div>
     <figure class="raw-flow" aria-label="Comparison of developing before stacking versus RAW in, DNG out">
       <div class="raw-flow-row">
@@ -205,6 +211,7 @@ import Measured from "../../../components/Measured.astro";
         <li><strong>White balance as a setting.</strong> None was applied to the pixels, so the editor sets it as it would for an original frame.</li>
         <li><strong>The camera's color profile</strong>, so colors match the original frames, and the editor can switch to another profile for the camera.</li>
         <li><strong>The camera and lens details</strong>, which editors use to pick a lens profile for distortion and vignetting. The GPS position is left out.</li>
+        <li><strong>Adjust's white balance and Crop</strong>, when the render has them: the white balance as the one the editor starts from, the Crop as a crop the editor shows and can undo, and a turn or flip as the picture's orientation. Adjust's other sliders don't reach a DNG.</li>
       </ul>
       <p>It differs from the camera's own RAW files in these ways:</p>
       <ul>
@@ -233,7 +240,7 @@ import Measured from "../../../components/Measured.astro";
       <p>
         Keep the original RAW files for anything that needs the sensor's mosaic. A RAW stack can also be exported
         as 16-bit TIFF or PNG, or as JPEG, rendered to sRGB with the same profile and white balance, which is
-        also how the app shows it on screen.
+        also how the app shows it on screen; with adjustments, in the space you choose.
       </p>
     </div>
   </section>

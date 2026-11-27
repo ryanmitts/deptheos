@@ -27,7 +27,9 @@ import DocsLayout from "../../../layouts/DocsLayout.astro";
         inspector holds the brush, and the list's header reads <em>Paint from · Click a frame</em>, with a
         <em>Frames | Renders</em> switch under it. Done, Esc
         or <em>P</em> again leaves Retouch. A result has to be saved as a render before it can be painted,
-        which happens on its own a moment after a stack finishes.
+        which happens on its own a moment after a stack finishes. Retouch shows the render without its
+        <a href="/docs/adjust/">adjustments</a>, as it was stacked; leaving Retouch draws them over the new
+        paint.
       </p>
     </div>
     <figure class="shot"><Shot name="paint-edge" width="2880" height="1800" loading="lazy" alt="Retouch at 100%: source frames in the left list, Brush and Eraser sliders in the inspector, and the hornet result in the viewer." /><figcaption>Retouch: the source frame is chosen in the list, the brush in the inspector.</figcaption></figure>

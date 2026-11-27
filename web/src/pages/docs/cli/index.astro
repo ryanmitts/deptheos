@@ -6,7 +6,7 @@ import Param from "../../../components/Param.astro";
 <DocsLayout
   docKey="cli"
   title="The command line"
-  description="The deptheos CLI for macOS, Windows, and Linux: stacking, batch processing, aligned frame export, grow and turntable sequences, benchmarks, and exit codes."
+  description="The deptheos CLI for macOS, Windows, and Linux: stacking, batch processing, aligned frame export, grow and turntable sequences, redrawing a render with adjustments, benchmarks, and exit codes."
 >
   <div class="prose">
     <h1>The command line</h1>
@@ -159,6 +159,46 @@ import Param from "../../../components/Param.astro";
         from the back unless you add <code>--front-to-back</code>; <code>--every 2</code> writes every second
         frame. <code>turntable</code> takes one folder per angle; <code>--mode</code> is <code>grow</code> (the
         default), <code>full</code> or <code>both</code>. <code>--long-edge</code> scales the frames down.
+      </p>
+    </div>
+  </section>
+
+  <section id="redraw">
+    <div class="prose">
+      <h2>redraw</h2>
+      <p>
+        Draws a render saved in the Library again, with its retouching and the adjustments given as flags, and
+        writes it to <code>-o</code>. It reads only that render's folder (<code>Renders/</code> and the
+        render's id, in the <a href="/docs/install/#data">Library folder</a>), never changes it, and runs while
+        the app is open. It draws the flags' values, not the sliders the render has in
+        <a href="/docs/adjust/">Adjust</a>; a slider not given stays where it starts.
+      </p>
+      <p><code class="cmd">deptheos redraw ~/Library/Application\ Support/Deptheos/Renders/&lt;id&gt; -o bee.tif --exposure 0.5 --shadows 30 --clarity 15</code></p>
+      <p><code class="cmd">deptheos redraw ~/Library/Application\ Support/Deptheos/Renders/&lt;id&gt; -o bee.dng --temperature 5200 --reframe 400,300,6000,4000 --turn 90</code></p>
+      <div class="table-wrap">
+        <table class="choose">
+          <thead><tr><th scope="col">Option</th><th scope="col">Range</th><th scope="col">What it sets</th></tr></thead>
+          <tbody>
+            <tr><th scope="row"><code>--exposure</code></th><td><Param path="adjust.exposure.min" /> to <Param path="adjust.exposure.max" /></td><td>Exposure, in stops.</td></tr>
+            <tr><th scope="row"><code>--temperature</code>, <code>--tint</code></th><td>RAW: <Param path="adjust.temperature_kelvin.min" /> to <Param path="adjust.temperature_kelvin.max" /> K, tint <Param path="adjust.tint_raw.min" /> to <Param path="adjust.tint_raw.max" />. Others: <Param path="adjust.temperature_relative.min" /> to <Param path="adjust.temperature_relative.max" /></td><td>White balance; as shot when not given.</td></tr>
+            <tr><th scope="row"><code>--contrast</code>, <code>--highlights</code>, <code>--shadows</code>, <code>--whites</code>, <code>--blacks</code></th><td><Param path="adjust.contrast.min" /> to <Param path="adjust.contrast.max" /></td><td>The Tone sliders.</td></tr>
+            <tr><th scope="row"><code>--clarity</code>, <code>--texture</code>, <code>--vibrance</code>, <code>--saturation</code></th><td><Param path="adjust.clarity.min" /> to <Param path="adjust.clarity.max" /></td><td>The Presence sliders.</td></tr>
+            <tr><th scope="row"><code>--sharpening</code></th><td><Param path="adjust.sharpening.min" /> to <Param path="adjust.sharpening.max" /></td><td>Sharpening's Amount.</td></tr>
+            <tr><th scope="row"><code>--sharpen-radius</code>, <code>--sharpen-detail</code>, <code>--sharpen-masking</code></th><td><Param path="adjust.sharpen_radius.min" /> to <Param path="adjust.sharpen_radius.max" /> px; <Param path="adjust.sharpen_detail.min" /> to <Param path="adjust.sharpen_detail.max" /></td><td>Its Radius (from <Param path="adjust.sharpen_radius.default" />), Detail (from <Param path="adjust.sharpen_detail.default" />) and Masking (from <Param path="adjust.sharpen_masking.default" />).</td></tr>
+            <tr><th scope="row"><code>--vignette</code>, <code>--vignette-midpoint</code></th><td><Param path="adjust.vignette.min" /> to <Param path="adjust.vignette.max" />; <Param path="adjust.vignette_midpoint.min" /> to <Param path="adjust.vignette_midpoint.max" /></td><td>The vignette, centered on <code>--reframe</code>, and where it starts (from <Param path="adjust.vignette_midpoint.default" />).</td></tr>
+            <tr><th scope="row"><code>--reframe</code></th><td><code>X,Y,W,H</code></td><td>Adjust's Crop: the rectangle kept, in the stored picture's pixels. Not stacking's <code>--no-crop</code>.</td></tr>
+            <tr><th scope="row"><code>--turn</code>, <code>--flip</code></th><td><code>90</code>, <code>180</code>, <code>270</code>; <code>horizontal</code>, <code>vertical</code></td><td>Turn clockwise, after any flip; mirror.</td></tr>
+            <tr><th scope="row"><code>--space</code></th><td><code>srgb</code>, <code>own</code>, <code>display-p3</code>, <code>adobe-rgb</code>, <code>prophoto</code></td><td>The color space written: <code>own</code> (the frames') for standard images, <code>srgb</code> for camera RAW at first. The wide spaces are for camera RAW; <code>prophoto</code> writes 16 bits only.</td></tr>
+            <tr><th scope="row"><code>--process</code></th><td>a number</td><td>The process version the values are read in, the latest at first.</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p>
+        The extension of <code>-o</code> picks the format, as for a stack, with <code>--bit-depth</code>,
+        <code>--jpeg-quality</code> and <code>--tiff-compression</code>. A <code>.dng</code>, from a camera RAW
+        render only, keeps every pixel and takes only the white balance, <code>--reframe</code>,
+        <code>--turn</code> and <code>--flip</code>, as settings a RAW editor reads; it refuses the other
+        sliders and <code>--space</code>.
       </p>
     </div>
   </section>

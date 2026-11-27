@@ -1,5 +1,128 @@
 {
   "params": {
+    "adjust": {
+      "blacks": {
+        "default": 0.0,
+        "max": 100.0,
+        "min": -100.0,
+        "step": 1.0
+      },
+      "clarity": {
+        "default": 0.0,
+        "max": 100.0,
+        "min": -100.0,
+        "step": 1.0
+      },
+      "contrast": {
+        "default": 0.0,
+        "max": 100.0,
+        "min": -100.0,
+        "step": 1.0
+      },
+      "exposure": {
+        "default": 0.0,
+        "max": 5.0,
+        "min": -5.0,
+        "step": 0.01
+      },
+      "highlights": {
+        "default": 0.0,
+        "max": 100.0,
+        "min": -100.0,
+        "step": 1.0
+      },
+      "kelvin_center": 7000.0,
+      "saturation": {
+        "default": 0.0,
+        "max": 100.0,
+        "min": -100.0,
+        "step": 1.0
+      },
+      "shadows": {
+        "default": 0.0,
+        "max": 100.0,
+        "min": -100.0,
+        "step": 1.0
+      },
+      "sharpen_detail": {
+        "default": 25.0,
+        "max": 100.0,
+        "min": 0.0,
+        "step": 1.0
+      },
+      "sharpen_masking": {
+        "default": 0.0,
+        "max": 100.0,
+        "min": 0.0,
+        "step": 1.0
+      },
+      "sharpen_radius": {
+        "default": 1.0,
+        "max": 3.0,
+        "min": 0.5,
+        "step": 0.1
+      },
+      "sharpening": {
+        "default": 0.0,
+        "max": 150.0,
+        "min": 0.0,
+        "step": 1.0
+      },
+      "temperature_kelvin": {
+        "default": 6500.0,
+        "max": 50000.0,
+        "min": 2000.0,
+        "step": 50.0
+      },
+      "temperature_relative": {
+        "default": 0.0,
+        "max": 100.0,
+        "min": -100.0,
+        "step": 1.0
+      },
+      "texture": {
+        "default": 0.0,
+        "max": 100.0,
+        "min": -100.0,
+        "step": 1.0
+      },
+      "tint_raw": {
+        "default": 0.0,
+        "max": 150.0,
+        "min": -150.0,
+        "step": 1.0
+      },
+      "tint_relative": {
+        "default": 0.0,
+        "max": 100.0,
+        "min": -100.0,
+        "step": 1.0
+      },
+      "vibrance": {
+        "default": 0.0,
+        "max": 100.0,
+        "min": -100.0,
+        "step": 1.0
+      },
+      "vignette": {
+        "default": 0.0,
+        "max": 100.0,
+        "min": -100.0,
+        "step": 1.0
+      },
+      "vignette_midpoint": {
+        "default": 50.0,
+        "max": 100.0,
+        "min": 0.0,
+        "step": 1.0
+      },
+      "whites": {
+        "default": 0.0,
+        "max": 100.0,
+        "min": -100.0,
+        "step": 1.0
+      }
+    },
     "at": {
       "depth": {
         "default": {

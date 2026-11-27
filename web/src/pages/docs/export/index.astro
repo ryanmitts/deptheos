@@ -13,7 +13,7 @@ import DocsLayout from "../../../layouts/DocsLayout.astro";
     <p class="lede">
       A render lives in the Library until you export it as a file for an editor, a print or the web. Export…
       (⌘E, or <em>Export</em> in the title bar) opens the Export sheet for the render on screen, retouching
-      included. From the Library, right-click a stack and choose Export…. Export Again (⇧⌘E) saves with the
+      and <a href="/docs/adjust/">adjustments</a> included. From the Library, right-click a stack and choose Export…. Export Again (⇧⌘E) saves with the
       last choices and no sheet.
     </p>
   </div>
@@ -62,6 +62,23 @@ import DocsLayout from "../../../layouts/DocsLayout.astro";
         <li><em>sRGB, developed through the frames' camera profile</em>: a RAW stack saved as TIFF, PNG or JPEG.</li>
         <li><em>Linear camera color, with the frames' camera profile</em>: a RAW stack saved as DNG.</li>
       </ul>
+      <p>For a render with <a href="/docs/adjust/">adjustments</a>:</p>
+      <ul>
+        <li>
+          A RAW render saved as TIFF, PNG or JPEG offers <em>sRGB</em>, <em>Display P3</em>, <em>Adobe RGB</em>
+          or <em>ProPhoto RGB</em>, with its profile embedded. ProPhoto RGB is written with 16 bits only.
+        </li>
+        <li>A render of standard frames keeps their color space, unless their profile can't be kept with adjustments; then it is saved in sRGB, and the line says so.</li>
+        <li><em>16 bits per channel</em> is offered for any adjusted render, even one of 8-bit frames.</li>
+        <li>
+          A DNG reads <em>Linear camera color; of the adjustments it carries only the white balance and the
+          crop</em>: its pixels are as stacked, the white balance and Crop are settings your RAW editor reads.
+        </li>
+      </ul>
+      <p>
+        If a render's saved adjustments are damaged or can't be read, its export stops with a notice rather than
+        coming out without them.
+      </p>
     </div>
   </section>
 

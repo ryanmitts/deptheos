@@ -1,0 +1,236 @@
+---
+import DocsLayout from "../../../layouts/DocsLayout.astro";
+import Param from "../../../components/Param.astro";
+---
+
+<DocsLayout
+  docKey="adjust"
+  title="Adjust"
+  description="How to set a stacked render's white balance, exposure, tone, color, sharpening and vignette in Deptheos, crop, turn and flip it, and what exports keep."
+>
+  <div class="prose">
+    <h1>Adjust</h1>
+    <p class="lede">
+      Adjust sets a render's look: its white balance, exposure, tone, color, sharpening and vignette, and its
+      Crop, with quarter-turns and flips. The adjustments are kept beside the render and drawn over it, never
+      written into its pixels, so every slider can go back to where it started at any time.
+    </p>
+  </div>
+
+  <section id="open">
+    <div class="prose">
+      <h2>Opening Adjust</h2>
+      <p>
+        With a result on screen, click <em>Adjust</em> in the title bar, press <em>A</em>, or choose Stack ▸
+        Adjust. The title bar then shows "Adjusting #4" with Undo, Redo, Export and <em>Done</em>, and the
+        inspector holds the sliders. Done or Esc leaves Adjust. As with Retouch, a result has to be saved as a
+        render first, which happens on its own a moment after a stack finishes. Adjust and Retouch don't open
+        together: opening one closes the other.
+      </p>
+      <p>
+        At the top of the inspector, a histogram shows the picture's brightness and its red, green and blue. A
+        mark at each end lights when some pixels show at black (shadows clipped) or at white (highlights
+        clipped); a single bright pixel is enough. The histogram is of the whole picture under the Crop, so it
+        stays the same as you zoom and move around.
+      </p>
+    </div>
+  </section>
+
+  <section id="sliders">
+    <div class="prose">
+      <h2>The sliders</h2>
+      <p>
+        The sliders sit under five headings. Each starts at a value that changes nothing, and a render with every
+        slider there looks exactly as it did before Adjust. A stack with no color, such as a monochrome one,
+        shows no color sliders.
+      </p>
+    </div>
+    <div class="table-wrap">
+      <table class="choose">
+        <thead><tr><th scope="col">Slider</th><th scope="col">Range</th><th scope="col">What it does</th></tr></thead>
+        <tbody>
+          <tr><th scope="row" colspan="3">White Balance</th></tr>
+          <tr><th scope="row">Temperature</th><td>RAW: <Param path="adjust.temperature_kelvin.min" /> to <Param path="adjust.temperature_kelvin.max" /> K, from as shot. Others: <Param path="adjust.temperature_relative.min" /> to <Param path="adjust.temperature_relative.max" /></td><td>Higher warms the picture toward yellow; lower cools it toward blue.</td></tr>
+          <tr><th scope="row">Tint</th><td>RAW: <Param path="adjust.tint_raw.min" /> to <Param path="adjust.tint_raw.max" />, from as shot. Others: <Param path="adjust.tint_relative.min" /> to <Param path="adjust.tint_relative.max" /></td><td>Higher shifts the picture toward magenta; lower shifts it toward green.</td></tr>
+          <tr><th scope="row" colspan="3">Tone</th></tr>
+          <tr><th scope="row">Exposure</th><td><Param path="adjust.exposure.min" /> to <Param path="adjust.exposure.max" /> EV</td><td>Higher brightens the whole picture, in stops; bright areas roll off into white rather than clip.</td></tr>
+          <tr><th scope="row">Contrast</th><td><Param path="adjust.contrast.min" /> to <Param path="adjust.contrast.max" /></td><td>Higher darkens the dark tones and brightens the bright ones; lower brings both toward the middle.</td></tr>
+          <tr><th scope="row">Highlights</th><td><Param path="adjust.highlights.min" /> to <Param path="adjust.highlights.max" /></td><td>Lower brings back detail in bright areas; higher brightens them.</td></tr>
+          <tr><th scope="row">Shadows</th><td><Param path="adjust.shadows.min" /> to <Param path="adjust.shadows.max" /></td><td>Higher opens up dark areas; lower deepens them.</td></tr>
+          <tr><th scope="row">Whites</th><td><Param path="adjust.whites.min" /> to <Param path="adjust.whites.max" /></td><td>Higher makes the brightest tones brighter; lower pulls them down from white.</td></tr>
+          <tr><th scope="row">Blacks</th><td><Param path="adjust.blacks.min" /> to <Param path="adjust.blacks.max" /></td><td>Lower makes the darkest tones darker; higher lifts them from black.</td></tr>
+          <tr><th scope="row" colspan="3">Presence</th></tr>
+          <tr><th scope="row">Clarity</th><td><Param path="adjust.clarity.min" /> to <Param path="adjust.clarity.max" /></td><td>Higher strengthens contrast across broad areas so shapes stand out; lower softens it.</td></tr>
+          <tr><th scope="row">Texture</th><td><Param path="adjust.texture.min" /> to <Param path="adjust.texture.max" /></td><td>Higher brings out fine surface detail; lower smooths it, leaving larger edges as they are.</td></tr>
+          <tr><th scope="row">Vibrance</th><td><Param path="adjust.vibrance.min" /> to <Param path="adjust.vibrance.max" /></td><td>Higher strengthens muted colors more than strong ones; lower mutes them.</td></tr>
+          <tr><th scope="row">Saturation</th><td><Param path="adjust.saturation.min" /> to <Param path="adjust.saturation.max" /></td><td>Higher strengthens every color alike; lower takes color out, to gray at the far left.</td></tr>
+          <tr><th scope="row" colspan="3">Sharpening</th></tr>
+          <tr><th scope="row">Amount</th><td><Param path="adjust.sharpening.min" /> to <Param path="adjust.sharpening.max" /></td><td>Higher sharpens edges more; a stacked result is already sharp, so a little goes a long way.</td></tr>
+          <tr><th scope="row">Radius</th><td><Param path="adjust.sharpen_radius.min" /> to <Param path="adjust.sharpen_radius.max" /> px, from <Param path="adjust.sharpen_radius.default" /></td><td>Higher sharpens a wider band around each edge; lower keeps it to the finest detail.</td></tr>
+          <tr><th scope="row">Detail</th><td><Param path="adjust.sharpen_detail.min" /> to <Param path="adjust.sharpen_detail.max" />, from <Param path="adjust.sharpen_detail.default" /></td><td>Higher sharpens the finest detail more; lower holds back halos along large edges.</td></tr>
+          <tr><th scope="row">Masking</th><td><Param path="adjust.sharpen_masking.min" /> to <Param path="adjust.sharpen_masking.max" /></td><td>Higher sharpens only the stronger edges, leaving smooth areas such as a plain background alone.</td></tr>
+          <tr><th scope="row" colspan="3">Vignette</th></tr>
+          <tr><th scope="row">Amount</th><td><Param path="adjust.vignette.min" /> to <Param path="adjust.vignette.max" /></td><td>Lower darkens the edges of the picture; higher lightens them.</td></tr>
+          <tr><th scope="row">Midpoint</th><td><Param path="adjust.vignette_midpoint.min" /> to <Param path="adjust.vignette_midpoint.max" />, from <Param path="adjust.vignette_midpoint.default" /></td><td>Lower starts the vignette nearer the center; higher keeps it to the corners.</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="prose">
+      <p>
+        A RAW or DNG stack's Temperature reads in kelvins, as the camera recorded it; its track is even up to
+        <Param path="adjust.kelvin_center" /> K, the middle, and stretches out above it. A stack of JPEG, PNG or
+        TIFF frames has no known temperature, so its Temperature and Tint run from
+        <Param path="adjust.temperature_relative.min" /> to <Param path="adjust.temperature_relative.max" />,
+        warmer or cooler than the frames. Sharpening's Radius, Detail and Masking change nothing while its Amount
+        is 0, and the Vignette's Midpoint nothing while its Amount is 0. The vignette is centered on the Crop.
+      </p>
+      <p>
+        Drag a slider, or pick one with ↑ and ↓ and move it a step with ← and →, ten with Shift. Click a
+        slider's value to type one, then press Return, or Esc to keep the old value. Double-click a slider's
+        name to set it back where it started; <em>Reset All</em>, at the bottom of the inspector, sets every
+        slider back and leaves the Crop.
+      </p>
+      <p>
+        While you drag, the picture follows at the size shown. Zoomed out, Texture and Sharpening wait until
+        you let go, since a picture shrunk to fit can't show a filter a few pixels wide; from 50% zoom and
+        closer they follow the drag too.
+      </p>
+    </div>
+  </section>
+
+  <section id="white-balance">
+    <div class="prose">
+      <h2>Setting the white balance from the picture</h2>
+      <p>
+        Click the eyedropper on the White Balance heading, or press <em>W</em>, then click something that should
+        be neutral gray or white. Temperature and Tint are set so that spot has no color cast. The spot is read
+        from the render before any adjustment, so the other sliders don't change what it finds. A spot that is
+        blown out or too dark is refused with a notice saying why. The eyedropper is for one
+        click; Esc puts it away without one.
+      </p>
+    </div>
+  </section>
+
+  <section id="crop">
+    <div class="prose">
+      <h2>Crop, turn and flip</h2>
+      <p>
+        Click <em>Crop</em> in the inspector or press <em>C</em>. The whole picture shows, with the Crop
+        marked. Drag a corner or an edge to resize it, or inside it to move it. The aspect choices are
+        Original, Free, 1:1, 4:5, 3:2 and 16:9; <em>X</em> swaps the Crop's width and height. <em>Turn
+        Left</em> and <em>Turn Right</em> (⌘[ and ⌘]) turn the picture a quarter at a time, and <em>Flip
+        Horizontal</em> and <em>Flip Vertical</em> mirror it. <em>Reset Crop</em> takes off the Crop, the turn
+        and the flip.
+      </p>
+      <p>
+        Return or <em>Done</em> keeps the Crop; Esc puts it back as it was when you opened the tool. Outside the
+        Crop tool, the result shows cropped, turned and flipped, and the Library's thumbnail follows once you
+        leave Adjust. Cropping keeps the pixels: the Crop can always be widened again. It is Adjust's Crop, not
+        stacking's <a href="/docs/alignment/#settings">Crop to the area every frame covers</a>.
+      </p>
+      <p>
+        The turn and flip show in every view of the render: source frames, the depth map, comparisons and
+        Retouch, so a click on any of them still lands on the right spot. Only the result is cropped; the
+        others show the whole picture.
+      </p>
+    </div>
+  </section>
+
+  <section id="before">
+    <div class="prose">
+      <h2>Before and after</h2>
+      <p>
+        Hold <em>\</em>, or hold <em>Before</em> at the bottom of the inspector, to see the render without its
+        adjustments, with its retouching. Let go to see them again.
+      </p>
+    </div>
+  </section>
+
+  <section id="copy">
+    <div class="prose">
+      <h2>Copy and Paste Adjustments</h2>
+      <p>
+        Edit ▸ Copy Adjustments (⇧⌘C) takes the sliders of the render shown, and Edit ▸ Paste Adjustments
+        (⇧⌘V) sets another render's sliders to them, in Adjust or not. The Crop, turn and flip stay with each
+        render, since one picture's framing rarely fits another.
+      </p>
+      <p>
+        A new render of a stack starts with the sliders of the render it was made from, and with its Crop too
+        when the two have the same framing, so a restack keeps your look. A stack with nothing to start from, and
+        every render a Batch makes, starts with none.
+      </p>
+    </div>
+  </section>
+
+  <section id="undo">
+    <div class="prose">
+      <h2>Undo and what is saved</h2>
+      <p>
+        Every change is one step to undo: a drag, a typed value, the eyedropper, a Crop, Reset All or a paste.
+        ⌘Z undoes it and ⇧⌘Z redoes it (Ctrl+Y also redoes on Windows and Linux), back through the changes made
+        to that render since Deptheos started, after leaving Adjust and coming back too.
+      </p>
+      <p>
+        Each change is saved with the render as you make it, and is there when you open the render again, after
+        a restart too. Adjust never changes the render's pixels, or your frames.
+      </p>
+    </div>
+  </section>
+
+  <section id="export">
+    <div class="prose">
+      <h2>What exports keep</h2>
+      <p>
+        A TIFF, PNG or JPEG of an adjusted render is the picture Adjust shows, with every slider and the Crop,
+        turn and flip, and its retouching. A RAW render can be saved in sRGB, Display P3, Adobe RGB or ProPhoto
+        RGB (ProPhoto at 16 bits only), and 16 bits per channel is offered for any adjusted render, even from 8-bit
+        frames. A render of JPEG, PNG or TIFF frames keeps their color space, unless its profile is one that
+        can't take adjustments, which is saved as sRGB, and the sheet says so.
+        <a href="/docs/export/#color">Exporting</a> has the details.
+      </p>
+      <p>
+        A DNG keeps every pixel as it was stacked. Of the adjustments it carries only the white balance and the
+        Crop, turn and flip, written as settings your RAW editor reads and can change; the other sliders don't
+        reach it.
+      </p>
+      <p>
+        Retouch shows the render without its adjustments, so you paint on the picture as it was stacked;
+        leaving Retouch draws the adjustments over the new paint. Comparisons show each render with its own
+        adjustments. A grow sequence takes the final render's sliders, but not its Crop, so every frame keeps
+        the stack's size. Aligned frames are exported as stacked, and a turntable sequence is made as its Batch
+        runs, before its renders have any adjustments.
+      </p>
+    </div>
+  </section>
+
+  <section id="keys">
+    <div class="prose">
+      <h2>Keys</h2>
+    </div>
+    <div class="table-wrap">
+      <table class="choose">
+        <thead><tr><th scope="col">Key</th><th scope="col">What it does</th></tr></thead>
+        <tbody>
+          <tr><th scope="row"><kbd>A</kbd></th><td>Adjust, or Done Adjusting.</td></tr>
+          <tr><th scope="row"><kbd>Esc</kbd></th><td>Leave Adjust; with the Crop tool or the eyedropper open, close that first.</td></tr>
+          <tr><th scope="row"><kbd>↑</kbd>, <kbd>↓</kbd></th><td>The previous or next slider.</td></tr>
+          <tr><th scope="row"><kbd>←</kbd>, <kbd>→</kbd></th><td>Move the slider a step; with <kbd>⇧</kbd>, ten.</td></tr>
+          <tr><th scope="row"><kbd>\</kbd> (held)</th><td>See Before.</td></tr>
+          <tr><th scope="row"><kbd>W</kbd></th><td>The white balance eyedropper.</td></tr>
+          <tr><th scope="row"><kbd>C</kbd></th><td>Crop, turn and flip.</td></tr>
+          <tr><th scope="row"><kbd>⌘[</kbd>, <kbd>⌘]</kbd></th><td>Turn left or right.</td></tr>
+          <tr><th scope="row"><kbd>X</kbd></th><td>Swap the Crop's width and height.</td></tr>
+          <tr><th scope="row"><kbd>↩</kbd></th><td>Keep the Crop.</td></tr>
+          <tr><th scope="row"><kbd>⇧⌘C</kbd>, <kbd>⇧⌘V</kbd></th><td>Copy Adjustments, Paste Adjustments.</td></tr>
+          <tr><th scope="row"><kbd>⌘Z</kbd>, <kbd>⇧⌘Z</kbd></th><td>Undo, Redo a change.</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="prose">
+      <p>
+        From the command line, <a href="/docs/cli/#redraw"><code>deptheos redraw</code></a> draws a saved render
+        with given adjustments, without opening the app's Library.
+      </p>
+    </div>
+  </section>
+</DocsLayout>

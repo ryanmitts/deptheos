@@ -1,12 +1,14 @@
 //! Vibrance and Saturation: lightcraft's chroma scaling in OkLCh, as it
-//! stands (MIT OR Apache-2.0: craft-libs `crates/develop/src/colorops.rs`),
-//! on linear ProPhoto after the curve. Vibrance raises low chroma most,
-//! and less near skin's hue when raised; Saturation scales every chroma.
+//! stands (MIT OR Apache-2.0: craft-libs b2d2a1e94
+//! `crates/develop/src/colorops.rs`), on linear ProPhoto after the curve.
+//! Vibrance raises low chroma most, and less near skin's hue when raised;
+//! Saturation scales every chroma.
 //!
 //! OkLab is Ottosson's ("A perceptual color space for image processing",
 //! 2020), taken from linear ProPhoto through XYZ with its white adapted
-//! to D65 (Bradford), as craft-libs `crates/color-transform/src/oklab.rs`
-//! builds it for any space, and white set exactly on its neutral axis.
+//! to D65 (Bradford), as craft-libs b2d2a1e94
+//! `crates/color-transform/src/oklab.rs` builds it for any space, and
+//! white set exactly on its neutral axis.
 
 use crate::white::{self, Mat3};
 

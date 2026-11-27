@@ -8,8 +8,8 @@
 
 // Identity up to `knee`, then the gap to white closes in stops, halving
 // each stop in the end and joined at slope 1: lightcraft's roll-off (MIT
-// OR Apache-2.0, craft-libs `crates/develop/src/tone.rs`, `rolloff_past`).
-// A knee of 1 clamps at white.
+// OR Apache-2.0, craft-libs b2d2a1e94 `crates/develop/src/tone.rs`,
+// `rolloff_past`). A knee of 1 clamps at white.
 fn shoulder(v: f32, knee: f32) -> f32 {
     if (v <= knee) {
         return v;
@@ -38,7 +38,7 @@ fn wrap_angle(a: f32) -> f32 {
 }
 
 // Vibrance, then Saturation, each -1 to 1, scaling OkLab's chroma:
-// lightcraft's (MIT OR Apache-2.0, craft-libs
+// lightcraft's (MIT OR Apache-2.0, craft-libs b2d2a1e94
 // `crates/develop/src/colorops.rs`). Vibrance raises low chroma most, and
 // less near skin's hue when raised.
 fn chroma(prophoto: vec3f, vibrance: f32, saturation: f32) -> vec3f {

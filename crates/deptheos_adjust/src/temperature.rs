@@ -1,7 +1,7 @@
 //! A standard stack's relative temperature against kelvins. Its scene's
 //! temperature is unknown, so the slider runs from -100 to 100 around
 //! 6500 K, each step the same number of mireds, so equal steps look equal.
-//! The scale is lightcraft's (MIT OR Apache-2.0,
+//! The scale is lightcraft's (MIT OR Apache-2.0: lightcraft 5bdb4e7a6
 //! `crates/ui-egui/src/panels/edit/sliders.rs`).
 
 /// The temperature the relative scale's 0 stands for.

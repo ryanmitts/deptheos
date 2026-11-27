@@ -5,12 +5,12 @@
 //!
 //! - a tone map on luminance in a gamma-2.2 domain, identity at neutral,
 //!   the pixel scaled by its ratio and pulled toward its luminance where a
-//!   channel passes white (craft-libs `crates/develop/src/tone.rs`,
+//!   channel passes white (craft-libs b2d2a1e94 `crates/develop/src/tone.rs`,
 //!   `ToneMap::display`): a standard stack's three sliders, a camera RAW
 //!   stack's Whites;
 //! - on a camera RAW stack, then, Contrast and Blacks as fitted operators
 //!   on sRGB-encoded ProPhoto, per channel or mixed with luminance
-//!   (craft-libs `crates/develop/src/light_v3.rs`), from the fitted
+//!   (craft-libs b2d2a1e94 `crates/develop/src/light_v3.rs`), from the fitted
 //!   constants in [`crate::curve_fits`].
 //!
 //! The tables are made here, once per draw, and read by `adjust.wgsl`'s

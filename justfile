@@ -261,6 +261,11 @@ baselines sets="~/Desktop/sample_images":
 source-tarball:
     script/source-tarball.sh
 
+# What lightcraft changed in the files the sliders take from (ADR-137)
+[group('tidy')]
+upstream *rev:
+    script/upstream.sh {{rev}}
+
 # Regenerate THIRD_PARTY_NOTICES.txt
 [group('release')]
 notices:

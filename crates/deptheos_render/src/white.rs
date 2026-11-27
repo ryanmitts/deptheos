@@ -3,10 +3,10 @@
 //! reference white, scaled so no channel of white gains above 1.
 //!
 //! The locus and tint are lightcraft's, as they stand (MIT OR Apache-2.0:
-//! craft-libs `crates/color-transform/src/cct.rs`), and so is the checked
-//! Bradford adaptation, which gives the identity where a white's cone
-//! response is not above 0 (craft-libs `crates/cms/src/math.rs`,
-//! `bradford_checked`).
+//! craft-libs b2d2a1e94 `crates/color-transform/src/cct.rs`), and so is
+//! the checked Bradford adaptation, which gives the identity where a
+//! white's cone response is not above 0 (craft-libs b2d2a1e94
+//! `crates/cms/src/math.rs`, `bradford_checked`).
 
 use deptheos_adjust::temperature::{REFERENCE_KELVIN, relative_to_kelvin};
 

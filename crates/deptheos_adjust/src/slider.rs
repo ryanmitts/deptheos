@@ -2,8 +2,8 @@
 //! Labels and help are messages in `deptheos_app.ftl`; what a value does
 //! to the picture is the process version's.
 //!
-//! The ranges and the Kelvin track are lightcraft's (MIT OR Apache-2.0,
-//! `crates/develop/src/controls.rs`).
+//! The ranges and the Kelvin track are lightcraft's (MIT OR Apache-2.0:
+//! lightcraft 5bdb4e7a6 `crates/develop/src/controls.rs`).
 
 /// How a value sits along the slider's track.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]

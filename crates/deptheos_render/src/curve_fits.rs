@@ -1,6 +1,6 @@
 //! lightcraft's fitted constants for Contrast and Blacks, as they stand
-//! (MIT OR Apache-2.0: craft-libs `crates/develop/src/light_v3_params.rs`),
-//! with the curve's own values at a few amounts to check the port against.
+//! (MIT OR Apache-2.0: craft-libs b2d2a1e94
+//! `crates/develop/src/light_v3_params.rs`), with the curve's own values at a few amounts to check the port against.
 
 /// The knots the displacement shapes are piecewise linear on.
 pub(crate) const KNOTS: [f64; 12] =

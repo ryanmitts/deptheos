@@ -65,8 +65,9 @@
 #                 0, 90, 180 or 270 (clockwise, after the flip; ADR-136).
 #                 Not with dng, which keeps every pixel and writes the
 #                 reframe as tags the checker doesn't read
-#   The apps' drivers refuse a case that sets adjust, space or reframe:
-#   only the checker reads them.
+#   The desktop's driver sets adjust and reframe in Adjust and space in
+#   the Export sheet; the iOS driver refuses a case that sets any of them,
+#   as the iOS app has no Adjust.
 
 # Where the sets are, kept beside the references and never edited, so a
 # reference always matches the frames it was made from: each set has a
@@ -172,6 +173,19 @@ set = "cr3/canon1"
 stack_bits = 16
 decoder = "libraw"
 exports = ["dng", "jpeg"]
+on = ["desktop"]
+
+# The same frames adjusted in Adjust (sliders typed, a spatial one among
+# them) with a crop and a quarter turn, exported in Display P3.
+[[case]]
+name = "canon1-adjusted"
+set = "cr3/canon1"
+stack_bits = 16
+decoder = "libraw"
+exports = ["tiff-16", "jpeg"]
+adjust = { exposure = 0.4, kelvin = 5600, tint = 6, contrast = 20, highlights = -40, shadows = 30, clarity = 15, saturation = 10, vignette = -20 }
+space = "display-p3"
+reframe = { crop = [1200, 800, 5200, 3400], turn = 90 }
 on = ["desktop"]
 
 # Through Adobe DNG Converter, which must be installed: checked against

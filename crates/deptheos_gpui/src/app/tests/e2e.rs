@@ -19,9 +19,12 @@
 
 use std::time::Duration;
 
+use deptheos_app::Reframe;
+use deptheos_app::adjust::Slider;
+use deptheos_app::adjust::machine::Phase;
 use deptheos_app::paint::{Dab, SourceKind};
 use deptheos_app::{PyramidConfig, StackerKind, WaveletConfig};
-use deptheos_e2e::cases::{Case, Config, Decoder, Method, Platform};
+use deptheos_e2e::cases::{Case, Config, Decoder, Method, OutputSpace as CaseSpace, Platform};
 use deptheos_e2e::{Frames, Report, Set, check_paint, check_stack};
 
 use super::*;
@@ -121,9 +124,6 @@ fn run_case(
     case: &Case,
     places: &Places,
 ) -> Vec<Report> {
-    if let Err(e) = case.apps_can_run() {
-        return vec![Report::failed(case.name.clone(), "case", e)];
-    }
     // The frames stacked and those exports are checked against: the same
     // set, or the same frames from another decoder (`check_set`).
     let set = match Set::open_checked(&case.set_dir(config)) {
@@ -233,13 +233,17 @@ fn run_case(
         return reports;
     }
 
+    if case.adjust.is_some() || case.reframe.is_some() {
+        adjust(cx, window, &app, case);
+    }
+
     // Exported with the sheet as the case asks, checked at the case's
     // `stack_bits` whatever the sheet offered.
     let stack_dir = out.join("stack");
     let mut plain_tiff = None;
     for export_kind in &case.exports {
-        let file =
-            export(cx, window, &app, export_kind.format, export_kind.sixteen_bit, &stack_dir);
+        let (format, sixteen) = (export_kind.format, export_kind.sixteen_bit);
+        let file = export(cx, window, &app, format, sixteen, case.space, &stack_dir);
         let bits = export_kind.bits(case.stack_bits);
         reports.push(check_stack(
             check,
@@ -260,7 +264,7 @@ fn run_case(
     let (tiff, sixteen) = match plain_tiff {
         Some(t) => t,
         None => {
-            let file = export(cx, window, &app, ExportFormat::Tiff, false, &stack_dir);
+            let file = export(cx, window, &app, ExportFormat::Tiff, false, case.space, &stack_dir);
             let bits = 8;
             reports.push(check_stack(
                 check,
@@ -343,20 +347,82 @@ fn run_case(
     cx.simulate_keystrokes(window, "escape");
     app.read_with(cx, |app, _| assert!(!app.is_retouching(), "Retouch closed"));
 
-    let painted = export(cx, window, &app, ExportFormat::Tiff, sixteen, &out.join("retouched"));
+    let retouched = out.join("retouched");
+    let painted = export(cx, window, &app, ExportFormat::Tiff, sixteen, case.space, &retouched);
     reports.push(check_paint(check, &frames, &tiff, &painted, &check.frames[source_ix]));
     reports
 }
 
+/// The case's adjustments and reframe applied in Adjust as a user does:
+/// A, each slider's value typed (Enter commits it), the reframe as the crop
+/// tool sets and commits it on a drag's release, then Esc.
+fn adjust(
+    cx: &mut TestAppContext,
+    window: gpui::AnyWindowHandle,
+    app: &Entity<AppView>,
+    case: &Case,
+) {
+    let wanted = case.expect(ExportFormat::Tiff, 8);
+    let status = |cx: &mut TestAppContext| {
+        app.read_with(cx, |app, cx| app.adjust.read(cx).status().cloned())
+    };
+    let undo = |cx: &mut TestAppContext| status(cx).map_or(0, |s| s.undo);
+    cx.simulate_keystrokes(window, "a");
+    wait_up_to(cx, LONG, "Adjust ready", |cx| status(cx).is_some_and(|s| s.phase == Phase::Ready));
+    let panel = app.read_with(cx, |app, cx| app.adjust.read(cx).panel()).expect("its panel");
+    for slider in Slider::ALL.into_iter().filter(|s| panel.shows(*s)) {
+        let target = slider.get(&wanted.adjustments, &panel);
+        let now = app.read_with(cx, |app, cx| app.adjust.read(cx).value(slider));
+        if now == Some(target) {
+            continue;
+        }
+        let before = undo(cx);
+        act(cx, window, app, |app, window, cx| {
+            app.adjust.update(cx, |a, cx| a.start_typing(slider, window, cx))
+        });
+        let input = app.read_with(cx, |app, cx| app.adjust.read(cx).typing(slider).cloned());
+        let input = input.unwrap_or_else(|| panic!("{}: typing {slider:?}", case.name));
+        act(cx, window, app, |_, window, cx| {
+            input.update(cx, |i, cx| i.set_value(target.to_string(), window, cx))
+        });
+        cx.simulate_keystrokes(window, "enter");
+        wait_up_to(cx, LONG, "the typed value", |cx| undo(cx) > before);
+    }
+    if wanted.reframe != Reframe::NONE {
+        let before = undo(cx);
+        app.update(cx, |app, cx| {
+            let adjust = app.adjust.read(cx);
+            adjust.set_reframe(wanted.reframe);
+            adjust.commit();
+        });
+        wait_up_to(cx, LONG, "the reframe", |cx| undo(cx) > before);
+    }
+    let value = status(cx).expect("still adjusting").value;
+    assert_eq!(
+        value.adjustments.in_process(wanted.adjustments.process),
+        wanted.adjustments,
+        "{}: the adjustments set",
+        case.name
+    );
+    assert_eq!(value.reframe, wanted.reframe, "{}: the reframe set", case.name);
+    cx.simulate_keystrokes(window, "escape");
+    wait_up_to(cx, LONG, "Adjust left", |cx| {
+        app.read_with(cx, |app, cx| {
+            app.adjusting().is_none() && app.adjust.read(cx).session().adjusting().is_none()
+        })
+    });
+}
+
 /// Export with the sheet as a user does: Export, the format segment, the
-/// depth radio, Last Folder (`dir`, Show When Done off), Export. Returns the
-/// file once written.
+/// depth radio, the space (when the case names one), Last Folder (`dir`,
+/// Show When Done off), Export. Returns the file once written.
 fn export(
     cx: &mut TestAppContext,
     window: gpui::AnyWindowHandle,
     app: &Entity<AppView>,
     format: ExportFormat,
     sixteen_bit: bool,
+    space: Option<CaseSpace>,
     dir: &Path,
 ) -> PathBuf {
     std::fs::create_dir_all(dir).unwrap();
@@ -383,6 +449,15 @@ fn export(
     // The radio, unless the format or the stack fixes the depth.
     if !dialog.read_with(cx, |d, _| d.depth_fixed()) {
         click(cx, window, if sixteen_bit { "export-16" } else { "export-8" });
+    }
+    if let Some(space) = space.filter(|_| format != ExportFormat::Dng) {
+        let id = match space {
+            CaseSpace::Srgb => "export-space-srgb",
+            CaseSpace::DisplayP3 => "export-space-display-p3",
+            CaseSpace::AdobeRgb => "export-space-adobe-rgb",
+            CaseSpace::ProPhoto => "export-space-prophoto",
+        };
+        click(cx, window, id);
     }
     click(cx, window, "export-last");
     let choice = dialog.read_with(cx, |d, cx| d.choice(cx)).expect("it can export");

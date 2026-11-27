@@ -469,7 +469,7 @@ impl Case {
     /// folder (`setDir`) and that set's readable frames in name order
     /// (`frames`), which the script copies.
     pub fn for_ios(&self, config: &Config) -> Result<String, String> {
-        self.apps_can_run()?;
+        self.ios_can_run()?;
         let dir = config.sets_dir().join(self.ios_set.as_ref().unwrap_or(&self.set));
         let set = crate::Set::open_checked(&dir)?;
         let mut json: serde_json::Value =
@@ -489,9 +489,10 @@ impl Case {
         }
     }
 
-    /// Refuses a case that sets `adjust`, `space` or `reframe`: the checks
-    /// read them, and neither app's driver applies them.
-    pub fn apps_can_run(&self) -> Result<(), String> {
+    /// Refuses a case that sets `adjust`, `space` or `reframe` on iOS, which
+    /// has no Adjust to apply them; the desktop's driver applies them in its
+    /// Adjust mode and Export sheet.
+    pub fn ios_can_run(&self) -> Result<(), String> {
         let set: Vec<&str> = [
             ("adjust", self.adjust.is_some()),
             ("space", self.space.is_some()),
@@ -506,7 +507,7 @@ impl Case {
             [rest @ .., last] => format!("{} and {last}", rest.join(", ")),
         };
         Err(format!(
-            "case {} sets {keys}, which the app can't apply yet; only the checker reads them",
+            "case {} sets {keys}, which the iOS app can't apply: it has no Adjust",
             self.name
         ))
     }
@@ -673,9 +674,9 @@ mod tests {
     }
 
     /// A case's adjustments, space and reframe read as the engine takes
-    /// them, and the apps' drivers refuse it.
+    /// them, and the iOS driver refuses it.
     #[test]
-    fn adjustments_space_and_reframe_read_and_are_refused_by_the_apps() {
+    fn adjustments_space_and_reframe_read_and_are_refused_on_ios() {
         let config = parse(
             "sets = \"s\"\n[[case]]\nname = \"a\"\nset = \"a\"\nstack_bits = 16\n\
              adjust = { exposure = 0.5, kelvin = 4300, tint = 12, vibrance = 20, clarity = 15, \
@@ -714,16 +715,16 @@ mod tests {
             b.expect(ExportFormat::Png, 8).adjustments.white_balance,
             WhiteBalance::Relative { temperature: -30.0, tint: 0.0 }
         );
-        let refused = a.apps_can_run().unwrap_err();
+        let refused = a.ios_can_run().unwrap_err();
         assert!(refused.contains("adjust, space and reframe"), "{refused}");
         assert!(a.for_ios(&config).unwrap_err().contains("can't apply"));
-        assert!(b.apps_can_run().unwrap_err().contains("sets adjust,"));
+        assert!(b.ios_can_run().unwrap_err().contains("sets adjust,"));
         let back: Case = serde_json::from_str(&a.to_json()).unwrap();
         assert_eq!((back.adjust, back.space, back.reframe), (a.adjust, a.space, a.reframe));
-        // The repository's cases set none of them.
+        // The repository's iOS cases set none of them.
         let repository = Config::load(&default_path()).unwrap();
-        for case in &repository.cases {
-            case.apps_can_run().unwrap();
+        for case in repository.cases.iter().filter(|c| c.on.contains(&Platform::Ios)) {
+            case.ios_can_run().unwrap();
         }
     }
 

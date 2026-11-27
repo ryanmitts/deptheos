@@ -18,6 +18,7 @@ use deptheos_core::{FramePlane, PlaneRamp, UNLIT, io};
 use deptheos_gpu::GpuContext;
 use deptheos_gpu::gpu_utils::download_texture_rows;
 use deptheos_render::OutputSpace;
+use deptheos_render::reframe::Size;
 use image::GrayImage;
 use rayon::prelude::*;
 
@@ -104,6 +105,18 @@ impl PresentedImage {
         let (width, height) = (image.width, image.height);
         let plane = Plane { width: width as usize, height: height as usize, pixels: image.pixels };
         Self { width, height, first_level: 0, levels: vec![tile(&plane)] }
+    }
+
+    /// `first` as level `first_level` of a `full`-sized picture, its
+    /// smaller levels made from it, `count` levels in all.
+    pub(crate) fn from_first(first: CpuImage, count: usize, first_level: u32, full: Size) -> Self {
+        let (w, h) = (first.width as usize, first.height as usize);
+        let mut levels = Levels::new(w, h, count.max(1));
+        for band in first.pixels.chunks(BAND_ROWS * w * 4) {
+            levels.fill(band.len() / (w * 4), |rows| rows.copy_from_slice(band));
+        }
+        let made = levels.finish();
+        Self { width: full.width, height: full.height, first_level, levels: made.levels }
     }
 
     /// Full-size width, whatever the first level's.

@@ -28,6 +28,7 @@ use super::histogram::{self, Histogram};
 use super::machine::{Action, AdjustClosed, Event, Machine, Phase, Report, RequestId, Status};
 use super::preview::{Draft, FlatPicture, FlatSlot, Shown};
 use super::sliders::{Panel, Slider};
+use crate::engine::orient::Orient;
 use crate::engine::store::store;
 use crate::engine::work::{self, Key, Lane};
 use crate::library::adjustments::rules::{pasted, reset_all};
@@ -709,7 +710,7 @@ impl Inner {
         let crop = value.reframe.crop;
         let full = copies.draw_full(engine, &constants);
         let clipping = histogram::clipping(engine, &full, crop)?;
-        let picture = engine.present(&full, None)?;
+        let picture = Self::orient(open, value).presented(engine.present(&full, None)?);
         drop(full);
         let histogram =
             copies.histogram(engine, &constants, crop, Draft::Settled)?.with_clipping(clipping);
@@ -729,8 +730,15 @@ impl Inner {
         let mut held = crate::lock(&self.copies);
         let (copies, constants) = Self::copies_for(&mut held, open, value)?;
         let picture = copies.draw_preview(engine, &constants, shown, draft, &self.slot)?;
+        let picture = picture.oriented(&Self::orient(open, value), &self.slot);
         let histogram = copies.histogram(engine, &constants, value.reframe.crop, draft)?;
         Ok((picture, histogram))
+    }
+
+    /// How `value` turns and flips `open`'s pictures at the hand-off.
+    fn orient(open: &Opened, value: &RenderAdjustments) -> Orient {
+        let picture = Size { width: open.stack.width, height: open.stack.height };
+        Orient::of(value.reframe, picture)
     }
 
     /// The copies of `open` and the constants of `value` on them.

@@ -314,6 +314,39 @@ fn strokes_patch_the_display_and_survive_a_render_switch() {
     same(&shown_b, &h.canvas(), "patched B vs its reopened display");
 }
 
+/// On a turned, flipped render the canvas and its patches are the stored
+/// picture turned and flipped, the strokes in stored pixels.
+#[test]
+fn a_turned_render_is_painted_turned() {
+    use deptheos_app::engine::orient::Orient;
+    use deptheos_app::library::adjustments::RenderAdjustments;
+    use deptheos_app::reframe::{Flip, Reframe, Size, Turn};
+    let Some(engine) = engine() else { return };
+    let renders = Renders::new();
+    let a = stack(1300, 700, 4);
+    renders.dir(1);
+    let reframe = Reframe { crop: None, flip: Flip::Horizontal, turn: Turn::Quarter };
+    let saved = RenderAdjustments { reframe, ..RenderAdjustments::NONE };
+    renders.history.adjustment_writes(&key(1)).send(saved).save().unwrap();
+    let orient = Orient::of(reframe, Size { width: 1300, height: 700 });
+    let turned =
+        |pixels: &[u16]| orient.presented(engine.present_pixels(Look::stored(&a), pixels).unwrap());
+
+    let h = Harness::new(&engine, &renders);
+    open(&h, 1, &a);
+    let mut shown = h.canvas();
+    assert_eq!((shown.width(), shown.height()), (700, 1300));
+    same(&shown, &turned(&a.pixels), "fresh canvas, turned");
+    paint_source(&h, &engine, &a, 60000);
+    h.stroke(&[[480.0, 300.0], [530.0, 320.0], [1100.0, 520.0], [1299.0, 699.0]], 40.0);
+    h.stroke(&[[0.0, 0.0], [700.0, 10.0]], 25.0);
+    h.settle(&mut shown, |s| s.undo == 2);
+    let (reply, flat) = channel();
+    h.worker.send(Command::Flatten { key: key(1), stack: a.clone(), reply });
+    let flat = flat.recv().unwrap().unwrap().expect("painted");
+    same(&shown, &turned(&flat), "patched, turned");
+}
+
 /// Undoing a diagonal stroke updates only the tiles along it.
 #[test]
 fn undoing_a_diagonal_stroke_updates_only_the_tiles_along_it() {

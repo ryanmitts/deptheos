@@ -163,7 +163,7 @@ enum Displays {
 
 impl StackResult {
     pub(crate) fn new(engine: Arc<AppEngine>, presented: PresentedStack) -> Arc<Self> {
-        let PresentedStack { stack, display, map } = presented;
+        let PresentedStack { stack, display, map, .. } = presented;
         Arc::new(Self {
             engine,
             stack: Arc::new(stack),

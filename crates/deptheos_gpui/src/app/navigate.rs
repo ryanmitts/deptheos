@@ -263,7 +263,7 @@ impl AppView {
         window: &mut Window,
         cx: &mut Context<Self>,
     ) {
-        let PresentedStack { stack, display, map } = presented;
+        let PresentedStack { stack, display, map, .. } = presented;
         let stacked = render.stacked().cloned().collect();
         let stack = Arc::new(stack);
         // A frame compared with the result before it: compared with this one.

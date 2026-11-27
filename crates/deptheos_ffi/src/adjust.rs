@@ -320,7 +320,8 @@ impl From<Region> for PictureRegion {
 
 /// One flat picture of the drag preview, or of the view on screen as it
 /// settles: `width` × `height` 8-bit BGRA, covering `covers` of the stored
-/// picture. Its buffer goes back to the session for the next tick when the
+/// picture turned and flipped as the render's reframe says (the crop left
+/// to the app). Its buffer goes back to the session for the next tick when the
 /// app lets go of it, so let go of each once it is replaced on screen.
 #[derive(uniffi::Object)]
 pub struct AdjustPreview {

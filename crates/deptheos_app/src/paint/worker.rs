@@ -30,12 +30,14 @@ use super::stroke::{CoveragePool, Stroke, StrokeSource};
 use super::tile::TileId;
 use super::undo::{Blob, Change, UndoStack};
 use crate::engine::memory::Budget;
+use crate::engine::orient::Orient;
 use crate::engine::present::PresentedImage;
 use crate::library::adjustments::RenderAdjustments;
 use crate::library::history::History;
 use crate::words::explain::{Explain, Kind};
 use crate::words::{Words, say, sentences};
 use crate::{CompletedStack, Engine, Error, Moves, RenderId};
+use deptheos_render::reframe::Size;
 
 /// The undo history an open render may keep on disk.
 const HISTORY_DISK_CAP: u64 = 2 << 30;
@@ -899,7 +901,11 @@ impl Worker {
                 return;
             }
         };
-        let canvas_display = CanvasDisplay::new(self.engine.gpu(), &display);
+        // Retouch shows the stored picture, turned and flipped as the result.
+        let picture = Size { width: stack.width, height: stack.height };
+        let orient = Orient::of(self.saved(&key).reframe, picture);
+        let display = orient.presented(display);
+        let canvas_display = CanvasDisplay::new(self.engine.gpu(), &display, orient);
         (self.output)(Output::Canvas { key: key.clone(), display });
         self.mode.open(Active { key, display: canvas_display });
     }
@@ -913,7 +919,10 @@ impl Worker {
         let shown = crate::Look::shown_saved(stack, &saved);
         let error = match painted {
             Ok(flat) => match self.engine.present_pixels(shown, &flat?) {
-                Ok(display) => return Some(display),
+                Ok(display) => {
+                    let picture = Size { width: stack.width, height: stack.height };
+                    return Some(Orient::of(saved.reframe, picture).presented(display));
+                }
                 Err(e) => failed(words, Lead::Shown, &e),
             },
             Err(unread) => failed(words, Lead::ShownWithout, &Error::PaintUnread(unread)),
@@ -1156,10 +1165,16 @@ impl Worker {
 
     fn show_source(&self, source: &PaintSource) {
         let Some(active) = self.mode.active() else { return };
+        // Turned and flipped as the canvas is.
+        let orient = active.display.orient();
+        let display = match orient.is_none() {
+            true => source.display.clone(),
+            false => Arc::new(orient.presented((*source.display).clone())),
+        };
         (self.output)(Output::Source {
             key: active.key.clone(),
             kind: source.kind.clone(),
-            display: source.display.clone(),
+            display,
         });
     }
 

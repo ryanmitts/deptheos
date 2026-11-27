@@ -12,6 +12,7 @@ pub mod generation;
 pub mod logs;
 pub mod look;
 pub mod memory;
+pub mod orient;
 pub mod present;
 pub(crate) mod preview;
 pub mod store;
@@ -43,7 +44,10 @@ use crate::words::Words;
 use crate::{Converted, DngCache, RawBackend, StackConversions};
 use crate::{Error, RenderUse};
 use deptheos_render::dng_render::Constants;
+use deptheos_render::reframe::Size;
 use deptheos_render::{Adjustments, Color, Draw, Reframe, resolve};
+
+use crate::engine::orient::Orient;
 use look::Look;
 use present::{
     PresentedImage, conversion, display_space, present_map, present_rgb, present_rgb16,
@@ -100,11 +104,13 @@ struct Colored {
     to_srgb: Option<io::ToSrgb>,
 }
 
-/// A finished stack with its display and half-size map ready to show.
+/// A finished stack with its display and half-size map ready to show,
+/// both turned and flipped by `reframe`, its saved one ([`Orient`]).
 pub struct PresentedStack {
     pub stack: CompletedStack,
     pub display: Option<PresentedImage>,
     pub map: Option<PresentedImage>,
+    pub reframe: Reframe,
 }
 
 impl PresentedStack {
@@ -654,7 +660,11 @@ impl Engine {
         let _t = cpu_scope("present: map");
         let map = stack.present_map(None);
         drop(_t);
-        PresentedStack { stack, display, map }
+        // Turned and flipped at the hand-off; the crop is the app's window.
+        let orient = Orient::of(saved.reframe, Size { width: stack.width, height: stack.height });
+        let (display, map) =
+            (display.map(|d| orient.presented(d)), map.map(|m| orient.presented(m)));
+        PresentedStack { stack, display, map, reframe: saved.reframe }
     }
 
     /// A live map ([`crate::LiveMap::render`]) read back in the depth map's

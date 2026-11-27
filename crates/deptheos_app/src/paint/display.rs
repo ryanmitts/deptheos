@@ -1,5 +1,7 @@
 //! The painted canvas as display tiles: touched full-size tiles
-//! re-rendered, the change halved into the smaller levels on the CPU.
+//! re-rendered, the change halved into the smaller levels on the CPU. The
+//! tiles are of the picture turned and flipped as the render's reframe
+//! says ([`Orient`]); the canvas stays in stored pixels.
 
 use std::collections::BTreeSet;
 use std::sync::Arc;
@@ -12,6 +14,7 @@ use super::render::{RectPixels, RectRenderer};
 use super::tile::{self, TileId};
 use crate::Error;
 use crate::engine::look::Look;
+use crate::engine::orient::Orient;
 use crate::engine::present::{
     CpuImage, PixelRect, PresentedImage, TILE_CORE, core_rect, cut_tile, present_rect, stored_rect,
     tiles_touching,
@@ -33,15 +36,23 @@ pub(crate) struct CanvasDisplay {
     /// Levels 1.. as whole images (level 0 is rendered from the canvas).
     levels: Vec<CpuImage>,
     renderer: RectRenderer,
+    /// The stored picture's turn and flip.
+    orient: Orient,
 }
 
 impl CanvasDisplay {
-    /// From the canvas's whole display, which must be full size first.
-    pub(crate) fn new(ctx: &GpuContext, display: &PresentedImage) -> Self {
+    /// The stored picture's turn and flip, as the canvas is shown.
+    pub(crate) fn orient(&self) -> Orient {
+        self.orient
+    }
+
+    /// From the canvas's whole display, turned and flipped by `orient`,
+    /// which must be full size first.
+    pub(crate) fn new(ctx: &GpuContext, display: &PresentedImage, orient: Orient) -> Self {
         assert_eq!(display.first_level, 0, "a canvas display starts at full size");
         let sizes = display.levels.iter().map(|l| [l.width, l.height]).collect();
         let levels = display.levels.iter().skip(1).map(|l| l.assemble()).collect();
-        Self { sizes, levels, renderer: RectRenderer::new(ctx) }
+        Self { sizes, levels, renderer: RectRenderer::new(ctx), orient }
     }
 
     /// The display tiles `dirty` changed, at every level. Each full-size
@@ -55,8 +66,12 @@ impl CanvasDisplay {
         dirty: &BTreeSet<TileId>,
     ) -> Result<Vec<DisplayPatch>, Error> {
         let full = self.sizes[0];
-        let changed: Vec<PixelRect> =
-            dirty.iter().map(|&id| tile::rect(full[0], full[1], id)).collect();
+        let stored =
+            self.orient.to_stored(PixelRect { x: 0, y: 0, width: full[0], height: full[1] });
+        let changed: Vec<PixelRect> = dirty
+            .iter()
+            .map(|&id| self.orient.to_shown(tile::rect(stored.width, stored.height, id)))
+            .collect();
         let mut patches = Vec::new();
         // What changed of the next level down, as rects of its pixels.
         let mut halves = Vec::new();
@@ -113,7 +128,8 @@ impl CanvasDisplay {
         Ok(patches)
     }
 
-    /// The canvas's pixels of `rect` (full size), rendered for display.
+    /// The canvas's pixels under shown `rect` (full size), rendered for
+    /// display and turned as shown.
     fn render_rect(
         &mut self,
         ctx: &Arc<GpuContext>,
@@ -121,11 +137,13 @@ impl CanvasDisplay {
         canvas: &Canvas,
         rect: PixelRect,
     ) -> Result<CpuImage, Error> {
+        let rect = self.orient.to_stored(rect);
         let pixels = canvas.read(rect);
         let stack = canvas.stack();
         let input = RectPixels { pixels: &pixels, width: rect.width, height: rect.height };
         // Retouch shows the stored picture.
-        self.renderer.render(ctx, color, input, Look::stored(stack))
+        let drawn = self.renderer.render(ctx, color, input, Look::stored(stack))?;
+        Ok(self.orient.image(&drawn))
     }
 }
 

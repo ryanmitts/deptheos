@@ -12,7 +12,8 @@ use deptheos_render::OutputSpace;
 pub use deptheos_render::dng_render::Region;
 use rayon::prelude::*;
 
-use crate::engine::present::{DISPLAY_FORMAT, display_pixel, source_rgb};
+use crate::engine::orient::Orient;
+use crate::engine::present::{DISPLAY_FORMAT, PixelRect, display_pixel, source_rgb};
 use crate::{Error, Result};
 
 /// The zoom (screen pixels per stored pixel) past which the preview draws
@@ -73,7 +74,9 @@ pub enum Draft {
 }
 
 /// One flat picture handed to an app: [`DISPLAY_FORMAT`] pixels, row by
-/// row, covering `covers` of the stored picture, their colors in `space`.
+/// row, covering `covers` of the stored picture (turned and flipped as
+/// the render's reframe says once [`Self::oriented`]), their colors in
+/// `space`.
 pub struct FlatPicture {
     pub width: u32,
     pub height: u32,
@@ -83,6 +86,32 @@ pub struct FlatPicture {
     pub space: OutputSpace,
     pub format: wgpu::TextureFormat,
     pub pixels: Vec<u8>,
+}
+
+impl FlatPicture {
+    /// Turned and flipped by `orient`, `covers` then in the turned
+    /// picture's pixels, into a buffer from `slot` (this one given back).
+    pub fn oriented(self, orient: &Orient, slot: &FlatSlot) -> Self {
+        if orient.is_none() {
+            return self;
+        }
+        let Region { x, y, width, height } = self.covers;
+        let shown = orient.to_shown(PixelRect { x, y, width, height });
+        let size = deptheos_render::reframe::Size { width: self.width, height: self.height };
+        let mut out = slot.take(self.pixels.len());
+        orient.write(&self.pixels, size, &mut out);
+        let turned = orient.turned(size);
+        let picture = Self {
+            width: turned.width,
+            height: turned.height,
+            covers: Region { x: shown.x, y: shown.y, width: shown.width, height: shown.height },
+            space: self.space,
+            format: self.format,
+            pixels: out,
+        };
+        slot.give_back(self);
+        picture
+    }
 }
 
 /// The flat pictures' pixel buffers, handed back by the app and reused,
@@ -111,8 +140,9 @@ impl FlatSlot {
     /// picture it has replaced on screen.
     pub fn give_back(&self, picture: FlatPicture) {
         let mut free = self.free.lock().unwrap_or_else(|e| e.into_inner());
-        // Two are enough: the one on screen and the one being drawn.
-        if free.len() < 2 {
+        // Three are enough: the one on screen, the one being drawn and the
+        // one it is turned into.
+        if free.len() < 3 {
             free.push(picture.pixels);
         }
     }

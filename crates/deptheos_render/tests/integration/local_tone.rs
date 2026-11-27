@@ -186,6 +186,53 @@ fn a_region_with_a_vignette_draws_as_the_whole_picture() {
     }
 }
 
+/// Planes kept between draws draw as planes made for each: kept while only
+/// sliders after the log brightness move (exposure, the curve, the local
+/// sliders' amounts), made again when the white moves, for both kinds.
+#[test]
+fn kept_planes_draw_as_planes_made_for_each_draw() {
+    use deptheos_render::WhiteBalance;
+    use deptheos_render::dng_render::KeptPlanes;
+    let Some(ctx) = GpuContext::new_or_skip() else { return };
+    let pipeline = DngRenderPipeline::new(&ctx);
+    let source = upload(&ctx, FRAME, frame());
+    let whole = Region::whole(FRAME[0], FRAME[1]);
+    let first = Adjustments { clarity: 30.0, ..adjusted(-40.0, 50.0) };
+    let moved = Adjustments { exposure: -0.7, contrast: 25.0, clarity: 60.0, ..first.clone() };
+    let params = file_params();
+    // A camera RAW stack's white is its render parameters' (the SDK's).
+    let mut warmer = file_params();
+    warmer.camera_to_prophoto.iter_mut().step_by(4).for_each(|v| *v *= 0.9);
+    let raw = |p: &RenderParams, a: &Adjustments| {
+        *resolve_adjusted(Color::Linear(p), a, OutputSpace::Srgb)
+    };
+    let standard = |a: &Adjustments| *resolve_adjusted(Color::Standard(None), a, OutputSpace::Srgb);
+    let white = WhiteBalance::Relative { temperature: 40.0, tint: -20.0 };
+    let kinds = [
+        [raw(&params, &first), raw(&params, &moved), raw(&warmer, &first)],
+        [
+            standard(&first),
+            standard(&moved),
+            standard(&Adjustments { white_balance: white, ..first.clone() }),
+        ],
+    ];
+    for [first, moved, rebalanced] in kinds {
+        assert_eq!(first.planes_key(FRAME), moved.planes_key(FRAME), "the same planes");
+        assert_ne!(first.planes_key(FRAME), rebalanced.planes_key(FRAME), "the white moved");
+        let mut kept = KeptPlanes::default();
+        for (i, constants) in [&first, &moved, &rebalanced, &first].into_iter().enumerate() {
+            let source_of = Source::whole(&source);
+            let made = PreparedRender::new(&ctx, constants);
+            let made = pipeline.with_planes(&ctx, made, source_of, FRAME[1]);
+            let reused = pipeline.with_kept_planes(&ctx, constants, source_of, FRAME[1], &mut kept);
+            assert!(kept.is_kept());
+            let made = read(&ctx, &draw(&ctx, &pipeline, &made, &source, whole), whole, [0, 0]);
+            let reused = read(&ctx, &draw(&ctx, &pipeline, &reused, &source, whole), whole, [0, 0]);
+            assert!(made == reused, "draw {i}");
+        }
+    }
+}
+
 /// The green channel of a standard stack's draw, in linear light.
 fn linear_green(ctx: &GpuContext, size: [u32; 2], pixels: &[u16], a: &Adjustments) -> Vec<f64> {
     let pipeline = DngRenderPipeline::new(ctx);

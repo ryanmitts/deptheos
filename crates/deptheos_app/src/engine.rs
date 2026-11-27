@@ -8,6 +8,7 @@
 //! GPU types.
 
 pub(crate) mod colormap;
+pub mod generation;
 pub mod logs;
 pub mod look;
 pub mod memory;
@@ -25,7 +26,7 @@ use std::sync::{Arc, Condvar, Mutex};
 use deptheos_core::converter::parallel_jobs as converter_parallel_jobs;
 use deptheos_core::{CommonPipelines, FrameAlignment, io};
 use deptheos_gpu::profile::cpu_scope;
-use deptheos_gpu::{DeviceChoice, GpuContext};
+use deptheos_gpu::{DeviceChoice, GpuContext, PooledTexture};
 use deptheos_render::dng_render::DngRenderPipeline;
 use image::math::Rect;
 use image::{DynamicImage, RgbImage};
@@ -94,7 +95,7 @@ pub enum SourceInput<'a> {
 /// A texture in a draw's colors as far as the GPU takes them, and the
 /// conversion left for the CPU ([`Engine::colored`]).
 struct Colored {
-    texture: wgpu::Texture,
+    texture: PooledTexture,
     to_srgb: Option<io::ToSrgb>,
 }
 
@@ -146,6 +147,8 @@ pub struct Engine {
     camera_profile: Mutex<DcpPreference>,
     /// The language of the engine's sentences (ADR-161).
     words: Words,
+    /// Each render's stored picture with paint, as it changes.
+    generations: generation::Generations,
 }
 
 impl Engine {
@@ -174,11 +177,18 @@ impl Engine {
             dng_cache: Mutex::new(None),
             camera_profile: Mutex::new(DcpPreference::default()),
             words,
+            generations: generation::Generations::default(),
         })
     }
 
     pub fn gpu(&self) -> &Arc<GpuContext> {
         &self.gpu
+    }
+
+    /// Each render's generation: paint raises it, Adjust's GPU copies
+    /// follow it.
+    pub fn generations(&self) -> &generation::Generations {
+        &self.generations
     }
 
     /// The language the engine's sentences are worded in.
@@ -284,7 +294,13 @@ impl Engine {
                 if !stack.geometry.is_left_out(index) =>
             {
                 let _t = cpu_scope("contribution");
-                self.common.contribution.light(&self.gpu, &texture, map, stack.frame_plane(index))
+                let lit = self.common.contribution.light(
+                    &self.gpu,
+                    &texture,
+                    map,
+                    stack.frame_plane(index),
+                );
+                PooledTexture::unpooled(lit)
             }
             _ => texture,
         };
@@ -394,9 +410,10 @@ impl Engine {
                 texture: self.color.render(&self.gpu, &texture, &constants),
                 to_srgb: None,
             },
-            Draw::Stored { profile, output } => {
-                Colored { texture, to_srgb: conversion(profile, output) }
-            }
+            Draw::Stored { profile, output } => Colored {
+                texture: PooledTexture::unpooled(texture),
+                to_srgb: conversion(profile, output),
+            },
         }
     }
 
@@ -610,7 +627,7 @@ impl Engine {
         &self,
         stack: CompletedStack,
         adjustments: &Adjustments,
-        display: Option<wgpu::Texture>,
+        display: Option<PooledTexture>,
     ) -> PresentedStack {
         let display = {
             let _t = cpu_scope("present: display");

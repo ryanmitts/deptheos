@@ -185,7 +185,11 @@ impl LinearDisplay {
     /// The cropped result rendered through `constants` (the stack's look,
     /// resolved): Rgba16Unorm where the adapter stores it
     /// (`GpuContext::source_format`), else Rgba32Float.
-    pub fn render(self, color: &DngRenderPipeline, constants: &Constants) -> wgpu::Texture {
+    pub fn render(
+        self,
+        color: &DngRenderPipeline,
+        constants: &Constants,
+    ) -> deptheos_gpu::PooledTexture {
         let _t = cpu_scope("complete: display render");
         color.render(&self.ctx, &self.cropped, constants)
     }

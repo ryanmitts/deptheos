@@ -4,18 +4,20 @@
 //! (`tests/integration/dng_render.rs`; ADR-130). An adjusted standard
 //! stack: its stored values through its profile (`standard.rs`; ADR-135).
 
-use deptheos_gpu::GpuContext;
+use deptheos_gpu::{GpuContext, PooledTexture};
 use glam::{Mat3, UVec4, Vec4};
 
 use deptheos_core::pack::{QUANTIZE_MODULE, threshold_bind_group};
 use deptheos_core::pipelines::COLOR_MODULE;
 
 pub use deptheos_dng::{HueSatMap, RenderParams};
-pub use draw::{NeighborStage, Region, Source, TILE};
+pub use draw::{KeptPlanes, NeighborStage, Region, Source, TILE};
+pub use reduce::{REDUCED_FORMAT, REDUCED_LONG, reduced_size};
 pub(crate) use stages::{Exposure, LocalTone, Stages};
 pub use standard::Linearizer;
 
 mod draw;
+mod reduce;
 #[cfg(test)]
 mod reference;
 mod stages;
@@ -77,6 +79,7 @@ const TONE_CURVE_SAMPLES: usize = 4097;
 pub struct DngRenderPipeline {
     linear: Shader,
     standard: Shader,
+    reduce: reduce::Reduce,
 }
 
 /// One kind's compiled shader.
@@ -120,10 +123,15 @@ impl Shader {
 }
 
 impl DngRenderPipeline {
+    const OUTPUT_USAGE: wgpu::TextureUsages = wgpu::TextureUsages::STORAGE_BINDING
+        .union(wgpu::TextureUsages::TEXTURE_BINDING)
+        .union(wgpu::TextureUsages::COPY_SRC);
+
     pub fn new(ctx: &GpuContext) -> Self {
         Self {
             linear: Shader::new(ctx, include_str!("dng_render.wgsl"), "dng_render", 7),
             standard: Shader::new(ctx, include_str!("standard.wgsl"), "standard_render", 5),
+            reduce: reduce::Reduce::new(ctx),
         }
     }
 
@@ -136,9 +144,9 @@ impl DngRenderPipeline {
         ctx: &GpuContext,
         input: &wgpu::Texture,
         constants: &Constants,
-    ) -> wgpu::Texture {
+    ) -> PooledTexture {
         let (width, height) = (input.width(), input.height());
-        let output = Self::create_output(ctx, width, height);
+        let output = Self::pooled_output(ctx, width, height);
         let source = Source::whole(input);
         // Any band makes the same planes; a tile's height keeps the frame's
         // log brightness out of memory at once.
@@ -163,7 +171,7 @@ impl DngRenderPipeline {
         let band = band.clamp(1, height);
         let source = Source::whole(input);
         let prepared = self.with_planes(ctx, PreparedRender::new(ctx, constants), source, band);
-        let output = Self::create_output(ctx, width, band);
+        let output = Self::pooled_output(ctx, width, band);
         for y in (0..height).step_by(band as usize) {
             let region = Region { x: 0, y, width, height: band.min(height - y) };
             self.draw(ctx, &prepared, source, region, &output);
@@ -174,15 +182,12 @@ impl DngRenderPipeline {
     /// A texture [`Self::draw`] can write: `ctx.source_format()`,
     /// readable back.
     pub fn create_output(ctx: &GpuContext, width: u32, height: u32) -> wgpu::Texture {
-        ctx.create_texture(
-            width,
-            height,
-            ctx.source_format(),
-            wgpu::TextureUsages::STORAGE_BINDING
-                | wgpu::TextureUsages::TEXTURE_BINDING
-                | wgpu::TextureUsages::COPY_SRC,
-            "dng_render_out",
-        )
+        ctx.create_texture(width, height, ctx.source_format(), Self::OUTPUT_USAGE, "dng_render_out")
+    }
+
+    /// [`Self::create_output`] from the GPU's texture pool.
+    pub fn pooled_output(ctx: &GpuContext, width: u32, height: u32) -> PooledTexture {
+        ctx.pooled_texture(width, height, ctx.source_format(), Self::OUTPUT_USAGE, "dng_render_out")
     }
 }
 
@@ -294,6 +299,40 @@ impl Constants {
         }
     }
 
+    /// What the local tone's planes of a `frame`-sized source are made
+    /// from under these constants: which planes, and every value the log
+    /// brightness reads (the white balance, the camera's tables, the
+    /// decode). `None` without local tone.
+    pub fn planes_key(&self, frame: [u32; 2]) -> Option<PlanesKey> {
+        let needs = self.local?;
+        let bits = |values: &[f32]| values.iter().map(|v| v.to_bits()).collect::<Vec<_>>();
+        let vecs = |vs: &[Vec4]| vs.iter().flat_map(|v| v.to_array()).collect::<Vec<_>>();
+        let inputs = match &self.kind {
+            Kind::Linear { uniform: u, hsm, .. } => {
+                let mut inputs = bits(&vecs(&[
+                    u.range_inv,
+                    u.cam_to_prophoto_c0,
+                    u.cam_to_prophoto_c1,
+                    u.cam_to_prophoto_c2,
+                    u.camera_white,
+                    u.base_exposure,
+                ]));
+                inputs.extend([u.flags.x, u.hsm_dims.x, u.hsm_dims.y, u.hsm_dims.z, u.hsm_dims.w]);
+                inputs.extend(bits(hsm));
+                inputs
+            }
+            Kind::Standard(standard) => {
+                let u = &standard.uniform;
+                let mut inputs =
+                    bits(&vecs(&[u.to_prophoto_c0, u.to_prophoto_c1, u.to_prophoto_c2]));
+                inputs.push(u.flags.x);
+                inputs.extend(bits(&standard.decode));
+                inputs
+            }
+        };
+        Some(PlanesKey { needs, frame, inputs })
+    }
+
     /// Whether the draw has a slider that reads neighbors, so it needs
     /// planes of the whole frame ([`DngRenderPipeline::with_planes`]).
     pub fn has_local_tone(&self) -> bool {
@@ -308,6 +347,15 @@ impl Constants {
             Kind::Standard(standard) => standard.linearizer.as_ref(),
         }
     }
+}
+
+/// What a draw's local tone planes are made from ([`Constants::planes_key`]):
+/// equal keys of one source's pixels make equal planes.
+#[derive(Clone, Debug, PartialEq)]
+pub struct PlanesKey {
+    needs: crate::local_tone::Needs,
+    frame: [u32; 2],
+    inputs: Vec<u32>,
 }
 
 /// One [`Constants`]' GPU buffers, built once and reused by every render
@@ -325,7 +373,7 @@ pub struct PreparedRender {
 enum Planes {
     None,
     Needed(crate::local_tone::Needs),
-    Built(Box<crate::local_tone::Planes>),
+    Built(std::sync::Arc<crate::local_tone::Planes>),
 }
 
 enum Prepared {

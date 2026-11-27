@@ -26,7 +26,7 @@ During a stack, the prefetch decode threads allocate and free several frame-size
 ### One headless device, CPU pixels out
 
 - `deptheos_app::Engine` holds one headless `GpuContext`, separate from any UI toolkit's device (`crates/deptheos_app/src/engine.rs`). What crosses back to a front end is CPU data only (`PresentedImage`, `CpuImage`, `CompletedStack`); a shell needs no GPU types.
-- **At most one readback per result.** Pixels cross once per stack or preview, not per displayed frame; pan and zoom are layout in the front end. A stack in sRGB needs no readback for display, because its display image is built from the pixels the CPU already holds.
+- **At most one readback per result.** Pixels cross once per stack or preview, not per displayed frame; pan and zoom are layout in the front end. A stack in sRGB needs no readback for display, because its display image is built from the pixels the CPU already holds. An adjusted render is the exception: it draws on the GPU, so each drag preview and each full redraw is read back once, from the copies the render keeps on the GPU while Adjust is open (ADR-114).
 - **The GPU makes pixels; the CPU does what only the screen needs** (`crates/deptheos_app/src/engine/present.rs`): 8-bit conversion, the display's channel order (BGRA, which GPUI and Core Graphics both read), the depth map's colors, color management to sRGB, and the half-size display levels. GPUI samples images bilinearly with no mipmaps and limits its atlas size, so each image comes with its own levels, each cut into tiles of `TILE_CORE` px with a 1 px gutter; the desktop's atlas of those tiles is `crates/deptheos_gpui/src/images.rs`.
 
 ### mimalloc in the binaries

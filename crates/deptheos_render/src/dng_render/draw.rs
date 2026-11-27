@@ -2,10 +2,12 @@
 //! constants, tile by tile, optionally followed by a stage that reads each
 //! pixel's neighbors. A region draws as that region of the whole picture.
 
-use deptheos_gpu::GpuContext;
+use std::sync::Arc;
+
 use deptheos_gpu::gpu_utils::{
     WORKGROUP_SIZE, create_bind_group, dispatch_compute_with, download_texture_with, tex,
 };
+use deptheos_gpu::{GpuContext, PooledTexture};
 
 use super::{DngRenderPipeline, Planes, Prepared, PreparedRender, place};
 use crate::local_tone::{self, Patch, Plane, Rect};
@@ -120,6 +122,24 @@ impl<'a> Source<'a> {
     }
 }
 
+/// The local tone's planes of one source kept between draws
+/// ([`DngRenderPipeline::with_kept_planes`]), with what they were made
+/// from.
+#[derive(Default)]
+pub struct KeptPlanes(Option<(super::PlanesKey, Arc<local_tone::Planes>)>);
+
+impl KeptPlanes {
+    /// Whether it holds planes.
+    pub fn is_kept(&self) -> bool {
+        self.0.is_some()
+    }
+
+    /// Bytes the kept planes hold.
+    pub fn bytes(&self) -> u64 {
+        self.0.as_ref().map_or(0, |(_, planes)| planes.bytes() as u64)
+    }
+}
+
 /// A stage that reads each pixel's neighbors, run after the per-pixel
 /// pass: the pass draws the region grown by `margin` (within what the
 /// source covers), and the stage writes the region from it.
@@ -203,7 +223,8 @@ impl DngRenderPipeline {
         region: Region,
     ) -> Plane {
         assert!(source.covers.contains(region), "{region:?} outside {:?}", source.covers);
-        let output = ctx.create_texture(
+        let _drawing = ctx.drawing();
+        let output = ctx.pooled_texture(
             region.width,
             region.height,
             wgpu::TextureFormat::R32Float,
@@ -296,7 +317,33 @@ impl DngRenderPipeline {
             self.log_brightness(ctx, &prepared, source, Region::of(rect))
         });
         tracing::debug!("local tone planes: {needs:?} built");
-        prepared.planes = Planes::Built(Box::new(planes));
+        prepared.planes = Planes::Built(Arc::new(planes));
+        prepared
+    }
+
+    /// [`Self::with_planes`], taking them from `kept` when it holds the
+    /// planes these constants read of this `source`, and keeping them
+    /// there. The caller empties `kept` when the source's pixels change.
+    pub fn with_kept_planes(
+        &self,
+        ctx: &GpuContext,
+        constants: &super::Constants,
+        source: Source<'_>,
+        band: u32,
+        kept: &mut KeptPlanes,
+    ) -> PreparedRender {
+        let mut prepared = PreparedRender::new(ctx, constants);
+        let Some(key) = constants.planes_key(source.frame) else { return prepared };
+        if let Some((held, planes)) = &kept.0
+            && *held == key
+        {
+            prepared.planes = Planes::Built(planes.clone());
+            return prepared;
+        }
+        let prepared = self.with_planes(ctx, prepared, source, band);
+        if let Planes::Built(planes) = &prepared.planes {
+            kept.0 = Some((key, planes.clone()));
+        }
         prepared
     }
 
@@ -309,7 +356,7 @@ impl DngRenderPipeline {
         prepared: &PreparedRender,
         source: Source<'_>,
         region: Region,
-    ) -> wgpu::Texture {
+    ) -> PooledTexture {
         let (width, height, values) = match &prepared.planes {
             Planes::None => (1, 1, vec![[0.0f32; 4]]),
             Planes::Needed(_) => panic!("local tone draws with its planes (`with_planes`)"),
@@ -320,7 +367,7 @@ impl DngRenderPipeline {
                 (region.width, region.height, values)
             }
         };
-        let texture = ctx.create_texture(
+        let texture = ctx.pooled_texture(
             width,
             height,
             wgpu::TextureFormat::Rgba32Float,
@@ -351,6 +398,7 @@ impl DngRenderPipeline {
     ) {
         assert!(source.covers.contains(region), "{region:?} outside {:?}", source.covers);
         assert!(region.width <= output.width() && region.height <= output.height());
+        let _drawing = ctx.drawing();
         let (in_view, out_view) = (
             source.texture.create_view(&Default::default()),
             output.create_view(&Default::default()),
@@ -432,8 +480,9 @@ impl DngRenderPipeline {
         output: &wgpu::Texture,
         side: u32,
     ) {
+        let _drawing = ctx.drawing();
         let grown = region.grown(stage.margin, source.covers);
-        let around = Self::create_output(ctx, grown.width, grown.height);
+        let around = Self::pooled_output(ctx, grown.width, grown.height);
         self.draw_tiled(ctx, prepared, source, grown, &around, side);
 
         let views =

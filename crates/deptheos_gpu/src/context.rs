@@ -14,11 +14,13 @@ use crate::error::{FrameLimit, GpuError, Result};
 
 mod adapter;
 mod memory;
+mod pool;
 mod shaders;
 
 pub use adapter::{DeviceChoice, DeviceInfo, DeviceKind};
 use memory::{BudgetSource, d3d12_memory, gigabytes};
 pub use memory::{MemoryBudget, MemoryPool};
+pub use pool::{Drawing, POOL_LIMIT, PooledTexture, trim_pools};
 
 /// Optional storage-texture formats this adapter supports, each with a
 /// fallback picked by the `*_format()` helpers on [`GpuContext`]; GPU
@@ -88,6 +90,8 @@ pub struct GpuContext {
     id: u64,
     /// What [`Self::programs`] has built on this device, by type.
     programs: Mutex<HashMap<TypeId, Arc<dyn Any + Send + Sync>>>,
+    /// Large textures kept for reuse (`pool`).
+    pool: Arc<pool::TexturePool>,
 }
 
 static NEXT_CONTEXT: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(1);
@@ -198,6 +202,7 @@ impl GpuContext {
             lost,
             id,
             programs: Mutex::default(),
+            pool: pool::TexturePool::registered(),
         };
         ctx.log_startup();
         Ok(ctx)
@@ -268,9 +273,12 @@ impl GpuContext {
         self.device.create_command_encoder(&wgpu::CommandEncoderDescriptor { label: Some(label) })
     }
 
-    /// Finish `encoder` and submit it on its own.
+    /// Finish `encoder` and submit it on its own; then the pooled textures
+    /// this thread dropped before may be reused.
     pub fn submit(&self, encoder: wgpu::CommandEncoder) -> wgpu::SubmissionIndex {
-        self.queue.submit(std::iter::once(encoder.finish()))
+        let index = self.queue.submit(std::iter::once(encoder.finish()));
+        self.submitted();
+        index
     }
 
     /// Block until the submission `index` (and every one before it) is

@@ -35,6 +35,7 @@ of a record, cites only records in this folder.
 - [111](111-frames-streamed-memory-planned-gpu-failures-are-errors.md) Stackers take frames one at a time, a stack's memory is planned first, and GPU failures are errors
 - [112](112-alignment-on-the-cpu-each-frame-to-the-one-before.md) Alignment runs on the CPU, with two aligners that each align a frame to the one before
 - [113](113-golden-references-and-where-the-tests-run.md) Golden references hold each stacker's output within a GPU's rounding; the Rust tests run on the developer's GPU and on CI's software GPUs
+- [114](114-gpu-memory-for-an-open-render.md) An open render keeps its full-size source, a reduced copy and the local tone's planes for one generation of its pixels, within a stated budget; large passes reuse pooled textures
 
 ## Stacking algorithms
 

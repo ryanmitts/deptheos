@@ -426,6 +426,16 @@ impl Planes {
         Self { frame, base, clarity, texture, sharpen }
     }
 
+    /// Bytes the planes hold.
+    pub fn bytes(&self) -> usize {
+        let plane = |p: &Plane| p.data.len() * size_of::<f32>();
+        let guided = |g: &Guided| plane(&g.mean_a) + plane(&g.mean_b);
+        let base = self.base.as_ref().map_or(0, |b| {
+            guided(&b.guided) + b.detail.coarse.as_ref().map_or(0, |c| plane(&c.plane))
+        });
+        base + self.clarity.as_ref().map_or(0, guided)
+    }
+
     /// The rectangle around `rect` whose log brightness [`Self::at`] reads.
     pub fn around(&self, rect: Rect) -> Rect {
         let base = self.base.as_ref().map_or(0, Base::margin);

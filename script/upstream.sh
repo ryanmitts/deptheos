@@ -14,6 +14,7 @@ LIGHTCRAFT_FILES=(
   crates/develop/src/controls.rs
   crates/ui-egui/src/panels/edit/sliders.rs
   crates/pipeline/src/finish.rs
+  crates/gpu/src/ctx.rs
 )
 CRAFT_LIBS_FILES=(
   crates/develop/src/tone.rs

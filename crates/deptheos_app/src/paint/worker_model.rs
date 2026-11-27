@@ -369,7 +369,21 @@ impl Rig {
         }
     }
 
+    /// [`Self::run_step`]; every change to the pixels is a new generation
+    /// of the render.
     fn run(&mut self, step: Step) {
+        let before = (self.revision(), self.engine.generations().of(&key()));
+        self.run_step(step);
+        let after = (self.revision(), self.engine.generations().of(&key()));
+        // Tests share the engine and the render's id, so only this way holds.
+        if let (Some(was), Some(now)) = (before.0, after.0)
+            && was != now
+        {
+            assert_ne!(before.1, after.1, "a change is a new generation");
+        }
+    }
+
+    fn run_step(&mut self, step: Step) {
         let model = &mut self.model;
         match step {
             Step::Stroke { from, x, y, radius, hardness, opacity, scrub } => {

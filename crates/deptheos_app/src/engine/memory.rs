@@ -8,7 +8,8 @@
 //!
 //! Budgets read from here each time: [`stack_budget`], [`prefetch_bytes`],
 //! [`Budget`] and [`DISPLAY_ATLAS`]. A [`shed`] asks every paint worker to
-//! let go at a [`Shed`] level; the app sheds its own memory beside it.
+//! let go at a [`Shed`] level and empties the GPU's texture pool; the app
+//! sheds its own memory beside it.
 
 use deptheos_gpu::{GpuContext, MemoryBudget, MemoryPool};
 
@@ -113,11 +114,12 @@ pub enum Shed {
     Critical,
 }
 
-/// Asks every paint worker to shed at `level`, without waiting; callable
-/// from any thread.
+/// Asks every paint worker to shed at `level`, without waiting, and frees
+/// the GPU's pooled textures; callable from any thread.
 pub fn shed(level: Shed) {
     log(&format!("shedding ({level:?})"));
     crate::paint::worker::shed(level);
+    deptheos_gpu::trim_pools(0);
 }
 
 /// "footprint 812 MB, 2304 MB left": the physical footprint and, under a

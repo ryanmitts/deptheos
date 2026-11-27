@@ -6,6 +6,7 @@ mod adjust;
 mod dcp;
 mod dng_render;
 mod local_tone;
+mod reduced;
 mod regions;
 mod standard;
 mod vignette;

@@ -11,8 +11,8 @@ pub mod profile;
 pub mod wgsl_mirror;
 
 pub use context::{
-    DeviceChoice, DeviceInfo, DeviceKind, FormatSupport, GpuContext, MemoryBudget, MemoryPool,
-    StagedFrames, clear_thread_faults,
+    DeviceChoice, DeviceInfo, DeviceKind, Drawing, FormatSupport, GpuContext, MemoryBudget,
+    MemoryPool, POOL_LIMIT, PooledTexture, StagedFrames, clear_thread_faults, trim_pools,
 };
 pub use error::{FrameLimit, GpuError, Result};
 

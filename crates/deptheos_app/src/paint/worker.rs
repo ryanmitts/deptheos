@@ -760,13 +760,13 @@ impl Worker {
         let Some(mut painting) = self.mode.end_stroke() else { return };
         let dirty = painting.stroke.take_dirty();
         let finished = painting.stroke.abandon();
-        let Some(doc) = self.mode.active().and_then(|a| self.docs.get_mut(&a.key)) else {
-            return;
-        };
+        let Some(key) = self.mode.active().map(|a| a.key.clone()) else { return };
+        let Some(doc) = self.docs.get_mut(&key) else { return };
         let blobs = doc.history.push(painting.label, finished.before);
         let spill = doc.history.spill().cloned();
         doc.mark_changed();
         Self::commit(&self.store, doc);
+        self.engine.generations().raise(&key);
         self.store_blobs(spill, blobs);
         self.dirty.extend(dirty);
     }
@@ -1022,6 +1022,7 @@ impl Worker {
         if let Some(doc) = self.docs.get_mut(&key) {
             doc.mark_changed();
             Self::commit(&self.store, doc);
+            self.engine.generations().raise(&key);
         }
     }
 

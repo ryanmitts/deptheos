@@ -41,8 +41,8 @@ use reading::{FrameShape, Reading};
 use stack::flip;
 pub(crate) use stack::render_params_or_identity;
 pub use stack::{
-    CompletedStack, Gray16Image, LeftOut, SaveOptions, StackColor, StackGeometry, left_out_line,
-    left_out_message,
+    CompletedStack, ExportSpace, Gray16Image, LeftOut, SaveOptions, StackColor, StackGeometry,
+    left_out_line, left_out_message,
 };
 pub(crate) use stack::{export, export_pixels, left_out_limit};
 

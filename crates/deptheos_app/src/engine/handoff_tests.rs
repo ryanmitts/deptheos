@@ -20,6 +20,7 @@ use crate::paint::render::{RectPixels, RectRenderer};
 use crate::runs::session::{CompletedStack, SaveOptions, StackColor, export_pixels};
 use crate::test_support::engine;
 use crate::{Adjustments, Engine, Look, Overlay, RawBackend, SourceInput};
+use deptheos_render::OutputSpace;
 
 /// A synthetic stack's size: several display tiles and levels.
 const SIZE: (u32, u32) = (1100, 700);
@@ -402,4 +403,32 @@ fn handoff_pixels() {
         if mode == Mode::Write { "written" } else { "checked" }
     );
     assert!(out.failed.is_empty(), "changed:\n{}", out.failed.join("\n"));
+}
+
+/// An adjusted RAW render exports in the space chosen (ProPhoto only at
+/// 16 bits); unadjusted it stays sRGB, and a standard stack keeps its own
+/// profile whatever is chosen (ADR-133).
+#[test]
+fn an_adjusted_raw_render_exports_in_the_space_chosen() {
+    use crate::ExportSpace;
+    use crate::library::adjustments::RenderAdjustments;
+    let dir = tempfile::tempdir().unwrap();
+    let raw = synthetic_linear(dir.path());
+    let stack = &raw.stack;
+    let adjusted = RenderAdjustments {
+        adjustments: Adjustments { exposure: 0.5, ..Adjustments::NEUTRAL },
+        ..RenderAdjustments::NONE
+    };
+    let icc = |saved: &RenderAdjustments, space, sixteen| {
+        Look::saved_in(stack, saved, space, sixteen).icc().map(|p| p.bytes().to_vec())
+    };
+    let wide = |space: OutputSpace| space.wide_icc().map(|p| p.bytes().to_vec());
+    assert_eq!(icc(&adjusted, ExportSpace::DisplayP3, false), wide(OutputSpace::DisplayP3));
+    assert_eq!(icc(&adjusted, ExportSpace::ProPhoto, true), wide(OutputSpace::ProPhoto));
+    assert_eq!(icc(&adjusted, ExportSpace::ProPhoto, false), wide(OutputSpace::AdobeRgb));
+    assert_eq!(icc(&adjusted, ExportSpace::Srgb, true), None);
+    assert_eq!(icc(&RenderAdjustments::NONE, ExportSpace::AdobeRgb, true), None, "unadjusted");
+    let standard = CompletedStack::srgb(4, 4, vec![0; 48], Vec::new());
+    let look = Look::saved_in(&standard, &adjusted, ExportSpace::AdobeRgb, true);
+    assert_eq!(look.icc().map(|p| p.bytes().to_vec()), None, "its own profile: none, sRGB");
 }

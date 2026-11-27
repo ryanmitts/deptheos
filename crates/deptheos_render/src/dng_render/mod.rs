@@ -15,7 +15,7 @@ pub use deptheos_dng::{HueSatMap, RenderParams};
 pub use draw::{GridPlanes, KeptPlanes, NeighborStage, Region, Source, TILE};
 pub use reduce::{Encoding, REDUCED_FORMAT, REDUCED_LONG, reduced_size};
 pub(crate) use stages::{Exposure, LocalTone, Stages};
-pub use standard::Linearizer;
+pub use standard::{Linearizer, adjusted_in_srgb};
 
 mod clip;
 mod draw;

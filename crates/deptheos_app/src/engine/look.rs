@@ -88,6 +88,25 @@ impl<'a> Look<'a> {
         Self { reframe: saved.reframe, ..exported }
     }
 
+    /// [`Self::saved`], an adjusted RAW render in `space` (`sixteen_bit`
+    /// or not); a standard stack keeps its own profile, but for one drawn
+    /// through tables, which writes sRGB (ADR-133).
+    pub fn saved_in(
+        stack: &'a CompletedStack,
+        saved: &'a RenderAdjustments,
+        space: crate::ExportSpace,
+        sixteen_bit: bool,
+    ) -> Self {
+        let look = Self::saved(stack, saved);
+        let adjusted = !saved.adjustments.is_neutral();
+        match (&stack.color, adjusted) {
+            (StackColor::Linear { .. }, true) => {
+                Self { target: Target::File(space.output(sixteen_bit)), ..look }
+            }
+            _ => look,
+        }
+    }
+
     /// The render exported under `adjustments` and `reframe` into
     /// `output`, always through the adjusted path: the redraw command's,
     /// which shows that path before any slider is set.

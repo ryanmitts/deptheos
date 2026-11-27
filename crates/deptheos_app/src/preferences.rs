@@ -60,6 +60,7 @@ impl ExportPreferences {
             jpeg_quality: self.clone().sanitized().jpeg_quality,
             sixteen_bit: self.sixteen_bit,
             tiff_compression: self.tiff_compression,
+            space: crate::ExportSpace::Srgb,
         }
     }
 

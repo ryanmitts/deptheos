@@ -135,6 +135,12 @@ enum Input {
     Linearized(Linearizer),
 }
 
+/// Whether an adjusted picture in `profile` is drawn, and written, in
+/// sRGB: a table-based profile has no curves to encode back through.
+pub fn adjusted_in_srgb(profile: &IccProfile) -> bool {
+    ColorProfile::new_from_slice(profile.bytes()).is_ok_and(|p| is_table_based(&p))
+}
+
 /// A profile drawn through moxcms on the CPU: one with lookup tables, or
 /// without a matrix and three curves.
 fn is_table_based(profile: &ColorProfile) -> bool {

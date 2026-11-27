@@ -15,6 +15,7 @@ use gpui_kit::component::input::{Input, InputState};
 use gpui_kit::component::radio::Radio;
 use gpui_kit::component::{ActiveTheme as _, Disableable as _, Sizable as _, h_flex, v_flex};
 
+use deptheos_app::ExportSpace;
 use deptheos_app::library::export::{ExportFormat, strip_extension, with_extension};
 use deptheos_app::library::history::RenderId;
 
@@ -64,8 +65,14 @@ pub struct ExportInfo {
     pub thumbnail: Option<(Entity<Renders>, RenderId)>,
     pub color: ExportColor,
     /// The stack has 16 bits to write (`StackResult::has_sixteen_bit`); for
-    /// 8-bit frames, 8 bits is the only choice.
+    /// 8-bit frames, 8 bits is the only choice unless it is adjusted.
     pub sixteen_bit_source: bool,
+    /// The render has an adjustment set: 16 bits are offered, a RAW
+    /// render picks its space, and DNG carries only part of them.
+    pub adjusted: bool,
+    /// A standard stack's profile is drawn through tables: adjusted, it is
+    /// written in sRGB (ADR-133).
+    pub adjusted_in_srgb: bool,
     /// The file name without its extension: "canon1-4".
     pub base_name: String,
     pub frames_dir: Option<PathBuf>,
@@ -95,6 +102,8 @@ impl ExportColor {
 pub struct ExportChoice {
     pub format: ExportFormat,
     pub sixteen_bit: bool,
+    /// The space an adjusted RAW render is written in.
+    pub space: ExportSpace,
     /// The destination; a chosen folder becomes the last one used.
     pub dir: PathBuf,
     pub place: ExportPlace,
@@ -125,6 +134,7 @@ pub struct ExportDialog {
     info: ExportInfo,
     format: ExportFormat,
     sixteen_bit: bool,
+    space: ExportSpace,
     place: Place,
     chosen: Option<PathBuf>,
     reveal: bool,
@@ -151,11 +161,13 @@ impl ExportDialog {
     }
 
     /// From the last choices: `format` (TIFF when DNG can't be had),
-    /// `sixteen_bit`, `place` and `reveal`.
+    /// `sixteen_bit`, `space`, `place` and `reveal`.
+    #[allow(clippy::too_many_arguments)]
     pub fn new(
         info: ExportInfo,
         format: ExportFormat,
         sixteen_bit: bool,
+        space: ExportSpace,
         place: ExportPlace,
         reveal: bool,
         window: &mut Window,
@@ -177,6 +189,7 @@ impl ExportDialog {
             info,
             format,
             sixteen_bit,
+            space,
             place: Place::Remembered(place),
             chosen: None,
             reveal,
@@ -214,6 +227,7 @@ impl ExportDialog {
         Some(ExportChoice {
             format: self.format,
             sixteen_bit: self.sixteen_bit(),
+            space: self.space(),
             dir,
             place: match self.place {
                 Place::Remembered(place) => place,
@@ -282,11 +296,36 @@ fn format_note(w: &DesktopWords, format: ExportFormat) -> String {
     }
 }
 
+/// A space's radio, by name for tests.
+fn space_id(space: ExportSpace) -> &'static str {
+    match space {
+        ExportSpace::Srgb => "export-space-srgb",
+        ExportSpace::DisplayP3 => "export-space-display-p3",
+        ExportSpace::AdobeRgb => "export-space-adobe-rgb",
+        ExportSpace::ProPhoto => "export-space-prophoto",
+    }
+}
+
+fn space_label(w: &DesktopWords, space: ExportSpace) -> String {
+    match space {
+        ExportSpace::Srgb => say!(w, "export-space-srgb"),
+        ExportSpace::DisplayP3 => say!(w, "export-space-display-p3"),
+        ExportSpace::AdobeRgb => say!(w, "export-space-adobe-rgb"),
+        ExportSpace::ProPhoto => say!(w, "export-space-prophoto"),
+    }
+}
+
 /// The color line: what the pixels are; non-sRGB frames keep their space,
-/// embedded.
-fn color_note(w: &DesktopWords, format: ExportFormat, color: &ExportColor) -> SharedString {
-    match (format, color) {
+/// embedded, but for a table-based profile adjusted; a DNG of an adjusted
+/// render carries only its white balance and crop.
+fn color_note(w: &DesktopWords, format: ExportFormat, info: &ExportInfo) -> SharedString {
+    let adjusted = info.adjusted;
+    match (format, &info.color) {
+        (ExportFormat::Dng, _) if adjusted => say!(w, "export-color-dng-adjusted").into(),
         (ExportFormat::Dng, _) => say!(w, "export-color-dng").into(),
+        (_, ExportColor::Profile(_)) if adjusted && info.adjusted_in_srgb => {
+            say!(w, "export-color-adjusted-srgb").into()
+        }
         (_, ExportColor::Linear) => say!(w, "export-color-developed").into(),
         (_, ExportColor::Srgb) => say!(w, "export-color-srgb").into(),
         (_, ExportColor::Profile(Some(name))) => {
@@ -301,7 +340,7 @@ impl Render for ExportDialog {
         let w = cx.wording().clone();
         let muted = cx.theme().muted_foreground;
         let linear = self.info.color.is_linear();
-        let color = div().text_sm().child(color_note(&w, self.format, &self.info.color));
+        let color = div().text_sm().child(color_note(&w, self.format, &self.info));
         v_flex()
             .w_full()
             .gap_4()
@@ -318,7 +357,10 @@ impl Render for ExportDialog {
                 ),
             )
             .child(row(say!(w, "export-bit-depth")).child(self.render_depth(cx)))
-            .child(row(say!(w, "export-color")).child(color))
+            .map(|el| match self.offers_spaces() {
+                true => el.child(row(say!(w, "export-color")).child(self.render_spaces(cx))),
+                false => el.child(row(say!(w, "export-color")).child(color)),
+            })
             .child(
                 row(say!(w, "export-name")).child(
                     v_flex()
@@ -393,12 +435,60 @@ impl ExportDialog {
 
     /// The depth is fixed by the format (JPEG 8, DNG 16) or by 8-bit frames.
     pub fn depth_fixed(&self) -> bool {
-        self.format.is_depth_fixed(self.info.sixteen_bit_source)
+        self.format.is_depth_fixed(self.has_sixteen())
+            || self.space == ExportSpace::ProPhoto && self.offers_spaces()
+    }
+
+    /// 16 bits can be written: the stack has them, or it is adjusted.
+    fn has_sixteen(&self) -> bool {
+        self.info.sixteen_bit_source || self.info.adjusted
     }
 
     /// Whether the file is written with 16 bits, as the radios show.
     pub fn sixteen_bit(&self) -> bool {
-        self.format.depth(self.sixteen_bit, self.info.sixteen_bit_source)
+        let prophoto = self.offers_spaces() && self.space == ExportSpace::ProPhoto;
+        self.format.depth(self.sixteen_bit || prophoto, self.has_sixteen())
+    }
+
+    /// An adjusted RAW render, written developed: its space is chosen.
+    pub fn offers_spaces(&self) -> bool {
+        self.info.color.is_linear() && self.info.adjusted && self.format != ExportFormat::Dng
+    }
+
+    /// The space written, as the radios show: ProPhoto only at 16 bits.
+    pub fn space(&self) -> ExportSpace {
+        let sixteen = self.format.depth(true, self.has_sixteen());
+        match self.space {
+            ExportSpace::ProPhoto if !sixteen => ExportSpace::AdobeRgb,
+            space => space,
+        }
+    }
+
+    /// The spaces of an adjusted RAW render, ProPhoto only where 16 bits
+    /// can be written.
+    fn render_spaces(&self, cx: &mut Context<Self>) -> gpui::Div {
+        let w = cx.wording().clone();
+        let chosen = self.space();
+        let sixteen = self.format.depth(true, self.has_sixteen());
+        let mut radios = v_flex().gap_1p5();
+        for space in ExportSpace::ALL {
+            let id = space_id(space);
+            radios = radios.child(
+                h_flex().child(
+                    div().debug_selector(move || id.into()).child(
+                        Radio::new(id)
+                            .label(space_label(&w, space))
+                            .checked(chosen == space)
+                            .disabled(space == ExportSpace::ProPhoto && !sixteen)
+                            .on_click(cx.listener(move |this, _, _, cx| {
+                                this.space = space;
+                                cx.notify();
+                            })),
+                    ),
+                ),
+            );
+        }
+        radios.child(note(say!(w, "export-space-prophoto-note"), cx.theme().muted_foreground))
     }
 
     /// 16 or 8 bits, fixed for JPEG (8), DNG (16) and 8-bit frames (8).
@@ -578,69 +668,136 @@ impl ModalDialog for ExportDialog {
 mod tests {
     use super::*;
 
-    /// The color line names a non-sRGB color space, which the file keeps.
+    fn info(color: ExportColor, sixteen_bit_source: bool, adjusted: bool) -> ExportInfo {
+        ExportInfo {
+            title: "Export #1".into(),
+            subtitle: "canon1 · Pyramid".into(),
+            thumbnail: None,
+            color,
+            sixteen_bit_source,
+            adjusted,
+            adjusted_in_srgb: false,
+            base_name: "canon1-1".into(),
+            frames_dir: Some(std::env::temp_dir()),
+            last_dir: None,
+        }
+    }
+
+    /// The color line names a non-sRGB color space, which the file keeps;
+    /// adjusted, a table-based profile writes sRGB and a DNG says what of
+    /// the adjustments it carries.
     #[test]
     fn color_note_names_the_frames_space() {
         let w = DesktopWords::english();
-        let color_note = |format, color: &ExportColor| super::color_note(&w, format, color);
-        let p3 = ExportColor::Profile(Some("Display P3".into()));
-        assert_eq!(color_note(ExportFormat::Tiff, &p3).as_ref(), "Display P3, like the frames");
+        let note = |format, color: ExportColor, adjusted: bool, srgb: bool| {
+            let info = ExportInfo { adjusted_in_srgb: srgb, ..info(color, true, adjusted) };
+            super::color_note(&w, format, &info).to_string()
+        };
+        let p3 = || ExportColor::Profile(Some("Display P3".into()));
+        assert_eq!(note(ExportFormat::Tiff, p3(), false, false), "Display P3, like the frames");
+        assert_eq!(note(ExportFormat::Tiff, p3(), true, false), "Display P3, like the frames");
         assert_eq!(
-            color_note(ExportFormat::Jpeg, &ExportColor::Srgb).as_ref(),
+            note(ExportFormat::Jpeg, ExportColor::Srgb, false, false),
             "sRGB, like the frames"
         );
-        let unnamed = ExportColor::Profile(None);
         assert_eq!(
-            color_note(ExportFormat::Png, &unnamed).as_ref(),
+            note(ExportFormat::Png, ExportColor::Profile(None), false, false),
             "An unnamed color profile, like the frames"
         );
         assert_eq!(
-            color_note(ExportFormat::Tiff, &ExportColor::Linear).as_ref(),
+            note(ExportFormat::Tiff, ExportColor::Linear, false, false),
             "sRGB, developed through the frames' camera profile"
+        );
+        let table = note(ExportFormat::Tiff, ExportColor::Profile(None), true, true);
+        assert_eq!(table, say!(w, "export-color-adjusted-srgb"));
+        let dng = note(ExportFormat::Dng, ExportColor::Linear, true, false);
+        assert_eq!(dng, say!(w, "export-color-dng-adjusted"));
+        assert_eq!(
+            note(ExportFormat::Dng, ExportColor::Linear, false, false),
+            say!(w, "export-color-dng")
         );
     }
 
-    /// 16 bits only where the stack has them: 8-bit frames write 8, radios
-    /// fixed; a 16-bit stack keeps the choice, but for JPEG (8) and DNG (16).
+    fn open(
+        cx: &mut gpui::TestAppContext,
+        info: ExportInfo,
+        format: ExportFormat,
+        sixteen: bool,
+        space: ExportSpace,
+    ) -> (gpui::AnyWindowHandle, Entity<ExportDialog>) {
+        crate::test_support::open(cx, |window, cx| {
+            cx.new(|cx| {
+                ExportDialog::new(
+                    info,
+                    format,
+                    sixteen,
+                    space,
+                    ExportPlace::Frames,
+                    false,
+                    window,
+                    cx,
+                )
+            })
+        })
+    }
+
+    fn pick(
+        cx: &mut gpui::TestAppContext,
+        window: gpui::AnyWindowHandle,
+        dialog: &Entity<ExportDialog>,
+        format: ExportFormat,
+    ) {
+        cx.update_window(window, |_, window, cx| {
+            dialog.update(cx, |d, cx| d.pick_format(format, window, cx))
+        })
+        .unwrap();
+    }
+
+    /// 16 bits only where the stack has them or it is adjusted: 8-bit
+    /// frames unadjusted write 8, radios fixed; otherwise the choice is
+    /// kept, but for JPEG (8) and DNG (16).
     #[gpui::test]
-    fn sixteen_bits_only_where_the_stack_has_them(cx: &mut gpui::TestAppContext) {
-        for source in [false, true] {
-            let info = ExportInfo {
-                title: "Export #1".into(),
-                subtitle: "canon1 · Pyramid".into(),
-                thumbnail: None,
-                color: ExportColor::Srgb,
-                sixteen_bit_source: source,
-                base_name: "canon1-1".into(),
-                frames_dir: Some(std::env::temp_dir()),
-                last_dir: None,
-            };
-            let (window, dialog) = crate::test_support::open(cx, |window, cx| {
-                cx.new(|cx| {
-                    ExportDialog::new(
-                        info,
-                        ExportFormat::Tiff,
-                        true,
-                        ExportPlace::Frames,
-                        false,
-                        window,
-                        cx,
-                    )
-                })
-            });
+    fn sixteen_bits_where_the_stack_has_them_or_is_adjusted(cx: &mut gpui::TestAppContext) {
+        for (source, adjusted) in [(false, false), (true, false), (false, true)] {
+            let has = source || adjusted;
+            let info = info(ExportColor::Srgb, source, adjusted);
+            let (window, dialog) = open(cx, info, ExportFormat::Tiff, true, ExportSpace::Srgb);
             let seen = |cx: &mut gpui::TestAppContext| {
                 dialog.read_with(cx, |d, cx| {
                     (d.depth_fixed(), d.sixteen_bit(), d.choice(cx).unwrap().sixteen_bit)
                 })
             };
-            assert_eq!(seen(cx), (!source, source, source), "TIFF, 16 chosen last");
-            for (format, sixteen) in [(ExportFormat::Jpeg, false), (ExportFormat::Png, source)] {
-                cx.update_window(window, |_, window, cx| {
-                    dialog.update(cx, |d, cx| d.pick_format(format, window, cx))
-                })
-                .unwrap();
+            assert_eq!(seen(cx), (!has, has, has), "TIFF, 16 chosen last: {source} {adjusted}");
+            for (format, sixteen) in [(ExportFormat::Jpeg, false), (ExportFormat::Png, has)] {
+                pick(cx, window, &dialog, format);
                 assert_eq!(seen(cx).1, sixteen, "{format:?}");
             }
         }
+    }
+
+    /// An adjusted RAW render offers the four spaces, ProPhoto only at 16
+    /// bits; unadjusted, or as DNG, it offers none and writes as before.
+    #[gpui::test]
+    fn an_adjusted_raw_render_picks_its_space(cx: &mut gpui::TestAppContext) {
+        let raw = |adjusted| info(ExportColor::Linear, true, adjusted);
+        let (window, dialog) =
+            open(cx, raw(true), ExportFormat::Tiff, false, ExportSpace::ProPhoto);
+        let seen = |cx: &mut gpui::TestAppContext| {
+            dialog.read_with(cx, |d, cx| {
+                let c = d.choice(cx).unwrap();
+                (d.offers_spaces(), c.space, c.sixteen_bit, d.depth_fixed())
+            })
+        };
+        assert_eq!(seen(cx), (true, ExportSpace::ProPhoto, true, true), "ProPhoto holds 16 bits");
+        pick(cx, window, &dialog, ExportFormat::Jpeg);
+        assert_eq!(seen(cx), (true, ExportSpace::AdobeRgb, false, true), "JPEG has no ProPhoto");
+        pick(cx, window, &dialog, ExportFormat::Dng);
+        assert!(!seen(cx).0, "a DNG is linear: no space to pick");
+
+        let (_, plain) = open(cx, raw(false), ExportFormat::Tiff, true, ExportSpace::DisplayP3);
+        assert!(!plain.read_with(cx, |d, _| d.offers_spaces()), "unadjusted: sRGB as before");
+        let standard = info(ExportColor::Srgb, true, true);
+        let (_, std) = open(cx, standard, ExportFormat::Tiff, true, ExportSpace::DisplayP3);
+        assert!(!std.read_with(cx, |d, _| d.offers_spaces()), "a standard stack keeps its profile");
     }
 }

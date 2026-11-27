@@ -22,6 +22,7 @@ pub mod view;
 pub mod words;
 
 pub use deptheos_dng::Temperature;
+pub use deptheos_render::dng_render::adjusted_in_srgb;
 pub use deptheos_render::{
     Adjustments, OutputSpace, ProcessVersion, Reframe, Sharpening, Vignette, WhiteBalance, reframe,
     slider, temperature,
@@ -41,8 +42,8 @@ pub use frames::sources::{FrameRef, RootId, Sources};
 pub use fsutil::{check_space, set_aside, write_json_atomic};
 pub use library::history::{Frames, Moves, RenderId, StoreError};
 pub use runs::session::{
-    AlignSettings, Alignment, CompletedStack, DcpPreference, Gray16Image, LeftOut, LiveMap,
-    SaveOptions, SessionEvent, SessionOptions, SessionOutput, StackColor, StackGeometry,
+    AlignSettings, Alignment, CompletedStack, DcpPreference, ExportSpace, Gray16Image, LeftOut,
+    LiveMap, SaveOptions, SessionEvent, SessionOptions, SessionOutput, StackColor, StackGeometry,
     StackingSession, left_out_line, left_out_message,
 };
 pub use runs::stacker::{SettingHelp, StackerConfig, StackerKind, align_label};

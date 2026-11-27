@@ -171,7 +171,9 @@ async fn save_stack(
             Some((history, key)) => history.adjustments_to_export(&key)?,
             None => deptheos_app::library::adjustments::RenderAdjustments::NONE,
         };
-        engine.save_flattened(deptheos_app::Look::saved(&stack, &adjusted), painted, &path, options)
+        let look =
+            deptheos_app::Look::saved_in(&stack, &adjusted, options.space, options.sixteen_bit);
+        engine.save_flattened(look, painted, &path, options)
     })
     .await
     .unwrap_or_else(|e| Err(deptheos_app::Error::InvalidState(format!("save {e}"))))

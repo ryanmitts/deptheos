@@ -93,6 +93,9 @@ impl AppView {
                 date: &today(),
             }),
             sixteen_bit_source: stack.has_sixteen_bit(),
+            // Read off this thread as the sheet opens.
+            adjusted: false,
+            adjusted_in_srgb: stack.profile().is_some_and(deptheos_app::adjusted_in_srgb),
             frames_dir: stack.paths.first().and_then(|p| p.parent()).map(Path::to_path_buf),
             last_dir,
         })
@@ -117,18 +120,52 @@ impl AppView {
             return;
         }
         let Some(info) = self.export_info(&of, cx) else { return };
-        let p = prefs(cx);
-        let format = p.save_format_for(info.color.is_linear());
-        let (sixteen, place, reveal) = (p.export.sixteen_bit, p.export_place, p.reveal_export);
         let render = match &of {
             ExportOf::Shown => self.result_doc(cx).map(|(_, id)| id),
             ExportOf::Render { render, .. } => Some(render.id.clone()),
         };
-        if let Some(id) = render {
-            self.renders.update(cx, |r, cx| r.request_thumbnails(vec![id], cx));
-        }
+        let Some(id) = render else { return self.open_export_dialog(of, info, window, cx) };
+        self.renders.update(cx, |r, cx| r.request_thumbnails(vec![id.clone()], cx));
+        // Whether it is adjusted decides what the sheet offers: read after
+        // the render's pending writes, off this thread.
+        let history = self.renders.read(cx).store().clone();
+        let shown = Some(id.clone());
+        cx.spawn_in(window, async move |this, cx| {
+            let read = crate::work::interactive("export-adjusted", move || {
+                history.adjustments_to_export(&id).map(|a| !a.adjustments.is_neutral())
+            });
+            let adjusted = read.await.ok().and_then(Result::ok).unwrap_or(false);
+            this.update_in(cx, |this, window, cx| {
+                // Opened only while it is still what was asked for.
+                let current = match &of {
+                    ExportOf::Shown => {
+                        this.can_export(cx) && this.result_doc(cx).map(|(_, k)| k) == shown
+                    }
+                    ExportOf::Render { .. } => true,
+                };
+                if current && matches!(this.sheet, Sheet::None) {
+                    this.open_export_dialog(of, ExportInfo { adjusted, ..info }, window, cx);
+                }
+            })
+            .ok();
+        })
+        .detach();
+    }
+
+    /// The Export sheet over `info`.
+    fn open_export_dialog(
+        &mut self,
+        of: ExportOf,
+        info: ExportInfo,
+        window: &mut Window,
+        cx: &mut Context<Self>,
+    ) {
+        let p = prefs(cx);
+        let format = p.save_format_for(info.color.is_linear());
+        let (sixteen, place, reveal) = (p.export.sixteen_bit, p.export_place, p.reveal_export);
+        let space = p.export_space;
         let dialog =
-            cx.new(|cx| ExportDialog::new(info, format, sixteen, place, reveal, window, cx));
+            cx.new(|cx| ExportDialog::new(info, format, sixteen, space, place, reveal, window, cx));
         let on_event = move |this: &mut Self,
                              event: &ExportDialogEvent,
                              window: &mut Window,
@@ -178,7 +215,8 @@ impl AppView {
                     return;
                 }
                 let name = file_label(&path);
-                let choice = ExportChoice { format, sixteen_bit, place, name, dir, reveal };
+                let space = prefs(cx).export_space;
+                let choice = ExportChoice { format, sixteen_bit, space, place, name, dir, reveal };
                 this.write_export(choice, ExportOf::Shown, window, cx);
             })
             .ok();
@@ -265,10 +303,14 @@ impl AppView {
             }
             p.export_place = choice.place;
             p.reveal_export = choice.reveal;
+            if linear {
+                p.export_space = choice.space;
+            }
             p.save_dir = Some(choice.dir.clone());
         });
         let mut options = prefs(cx).save_options();
         options.sixteen_bit = choice.sixteen_bit;
+        options.space = choice.space;
         let path: PathBuf = choice.path();
         let what = match of {
             ExportOf::Render { render, stack, .. } => Written::Render(render.id, stack),

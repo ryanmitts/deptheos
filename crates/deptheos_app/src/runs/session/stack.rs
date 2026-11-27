@@ -31,6 +31,36 @@ pub struct SaveOptions {
     pub sixteen_bit: bool,
     /// How TIFF files compress their pixels.
     pub tiff_compression: io::TiffCompression,
+    /// The space an adjusted RAW render is written in; others ignore it.
+    pub space: ExportSpace,
+}
+
+/// The color space an adjusted RAW render is exported in (ADR-133).
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum ExportSpace {
+    #[default]
+    Srgb,
+    DisplayP3,
+    AdobeRgb,
+    /// At 16 bits only; at 8 it writes Adobe RGB.
+    ProPhoto,
+}
+
+impl ExportSpace {
+    pub const ALL: [Self; 4] = [Self::Srgb, Self::DisplayP3, Self::AdobeRgb, Self::ProPhoto];
+
+    /// The space written with `sixteen_bit` or not.
+    pub fn output(self, sixteen_bit: bool) -> deptheos_render::OutputSpace {
+        use deptheos_render::OutputSpace;
+        match self {
+            Self::Srgb => OutputSpace::Srgb,
+            Self::DisplayP3 => OutputSpace::DisplayP3,
+            Self::AdobeRgb => OutputSpace::AdobeRgb,
+            Self::ProPhoto if sixteen_bit => OutputSpace::ProPhoto,
+            Self::ProPhoto => OutputSpace::AdobeRgb,
+        }
+    }
 }
 
 impl Default for SaveOptions {
@@ -39,6 +69,7 @@ impl Default for SaveOptions {
             jpeg_quality: io::JPEG_QUALITY,
             sixteen_bit: true,
             tiff_compression: io::TiffCompression::default(),
+            space: ExportSpace::Srgb,
         }
     }
 }

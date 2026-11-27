@@ -473,6 +473,7 @@ impl SaveArgs {
             jpeg_quality: self.jpeg_quality.unwrap_or(default.jpeg_quality),
             sixteen_bit: self.bit_depth.map_or(default.sixteen_bit, |b| b == BitDepth::Sixteen),
             tiff_compression: self.tiff_compression.map_or(default.tiff_compression, Into::into),
+            ..default
         }
     }
 

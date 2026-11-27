@@ -175,6 +175,7 @@ fn one_export_runs_at_a_time(cx: &mut TestAppContext) {
 
     // The result being written: the Library's Export… waits.
     act(cx, window, &app, |app, window, cx| app.save_result(window, cx));
+    wait_until(cx, "the export sheet", |cx| sheet(cx).is_some());
     export_as(cx, "result.png");
     act(cx, window, &app, |app, window, cx| app.set_screen(Screen::Library, window, cx));
     act(cx, window, &app, |app, window, cx| app.export_from_library(first.clone(), window, cx));
@@ -263,6 +264,7 @@ fn exports_from_the_sheet_and_again(cx: &mut TestAppContext) {
     stack(cx, window, &app);
 
     cx.simulate_keystrokes(window, "secondary-e");
+    wait_until(cx, "the sheet", |cx| app.read_with(cx, |app, _| export_sheet(app).is_some()));
     let dialog = app.read_with(cx, |app, _| export_sheet(app));
     let dialog = dialog.expect("the sheet is open");
     let subtitle = dialog.read_with(cx, |d, _| d.subtitle().to_string());
@@ -327,6 +329,7 @@ fn the_export_sheet_numbers_a_name_taken(cx: &mut TestAppContext) {
     stack(cx, window, &app);
 
     cx.simulate_keystrokes(window, "secondary-e");
+    wait_until(cx, "the sheet", |cx| app.read_with(cx, |app, _| export_sheet(app).is_some()));
     let dialog = app.read_with(cx, |app, _| export_sheet(app));
     let dialog = dialog.expect("the sheet is open");
     let out = tempfile::tempdir().unwrap();
@@ -364,6 +367,7 @@ fn the_export_sheet_cuts_a_long_folder(cx: &mut TestAppContext) {
     cx.update(|cx| cx.bind_keys(key_bindings()));
     stack(cx, window, &app);
     cx.simulate_keystrokes(window, "secondary-e");
+    wait_until(cx, "the sheet", |cx| app.read_with(cx, |app, _| export_sheet(app).is_some()));
     let mut vcx = gpui::VisualTestContext::from_window(window, cx);
     vcx.run_until_parked();
     let folder = vcx.debug_bounds("export-frames-folder").expect("the frames' folder is shown");
@@ -389,6 +393,7 @@ fn an_eight_bit_stack_keeps_sixteen_for_the_next(cx: &mut TestAppContext) {
     stack(cx, window, &app);
 
     cx.simulate_keystrokes(window, "secondary-e");
+    wait_until(cx, "the sheet", |cx| app.read_with(cx, |app, _| export_sheet(app).is_some()));
     let dialog = app.read_with(cx, |app, _| export_sheet(app)).expect("the sheet is open");
     cx.update_window(window, |_, window, cx| {
         dialog.update(cx, |d, cx| d.pick_format(ExportFormat::Tiff, window, cx))
@@ -421,6 +426,7 @@ fn a_canceled_sheets_name_lookup_goes_with_it(cx: &mut TestAppContext) {
 
     let held = crate::work::gate::hold("export-preflight");
     cx.simulate_keystrokes(window, "secondary-e");
+    wait_until(cx, "the sheet", |cx| app.read_with(cx, |app, _| export_sheet(app).is_some()));
     let dialog = app.read_with(cx, |app, _| export_sheet(app)).expect("the sheet is open");
     let out = tempfile::tempdir().unwrap();
     let mut choice = dialog.read_with(cx, |d, cx| d.choice(cx)).expect("it can export");
@@ -436,6 +442,7 @@ fn a_canceled_sheets_name_lookup_goes_with_it(cx: &mut TestAppContext) {
     app.read_with(cx, |app, _| assert!(export_sheet(app).is_none(), "canceled"));
 
     cx.simulate_keystrokes(window, "secondary-e");
+    wait_until(cx, "the sheet", |cx| app.read_with(cx, |app, _| export_sheet(app).is_some()));
     let again = app.read_with(cx, |app, _| export_sheet(app)).expect("open again");
     held.open();
     cx.run_until_parked();

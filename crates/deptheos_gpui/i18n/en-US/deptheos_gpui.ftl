@@ -1322,6 +1322,14 @@ export-color-srgb = sRGB, like the frames
 export-color-profile = { $profile }, like the frames
 # The frames' color space, when its profile gives itself no name.
 export-color-unnamed-profile = An unnamed color profile, like the frames
+export-color-dng-adjusted = Linear camera color; of the adjustments it carries only the white balance and the crop
+export-color-adjusted-srgb = sRGB: the frames' color profile can't be kept with adjustments
+# The color spaces an adjusted RAW render exports in.
+export-space-srgb = sRGB
+export-space-display-p3 = Display P3
+export-space-adobe-rgb = Adobe RGB
+export-space-prophoto = ProPhoto RGB
+export-space-prophoto-note = ProPhoto RGB is written with 16 bits only.
 export-name = Name
 export-name-note = Starts from the file name set in Settings ▸ Export.
 export-save-to = Export to

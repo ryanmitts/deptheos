@@ -91,22 +91,16 @@ impl Curve {
     }
 }
 
-/// The widest shoulder into white: from 0.95 it reaches white at 1.05.
-const SHOULDER: f32 = 0.05;
+/// Where the tone map's shoulder into white starts, display-linear.
+const SHOULDER_START: f32 = 0.95;
 
-/// lightcraft's display tone map at peak 1: a table over [`TONE_N`] steps
-/// of scene stops around gray, of display-linear luminance.
-///
-/// Its short shoulder into white is as wide as Whites lifts white, up to
-/// lightcraft's: Contrast and Blacks keep white at 1, and a small lift
-/// gets a small shoulder, so the first step from neutral moves white by
-/// no more than the lift.
+/// lightcraft's display tone map at peak 1, as it stands: a table over
+/// [`TONE_N`] steps of scene stops around gray, of display-linear
+/// luminance. Built only for an edited curve, so its shoulder always
+/// applies: white draws at 0.9875, as in lightcraft.
 fn tone_display(contrast: f64, whites: f64, blacks: f64) -> Vec<f32> {
     let (c, w, b) = ((contrast / 100.0) as f32, (whites / 100.0) as f32, (blacks / 100.0) as f32);
     let m = GREY.powf(1.0 / 2.2);
-    // Where Whites takes white, the top of what reaches the shoulder.
-    let lifted = (1.0 + w.max(0.0) * 0.12 * 0.5).powf(2.2) - 1.0;
-    let half = lifted.min(SHOULDER);
     (0..TONE_N)
         .map(|i| {
             let ev = TONE_MIN_EV + (TONE_MAX_EV - TONE_MIN_EV) * i as f32 / (TONE_N - 1) as f32;
@@ -123,10 +117,10 @@ fn tone_display(contrast: f64, whites: f64, blacks: f64) -> Vec<f32> {
                 p += w * 0.12 * 0.5;
             }
             let mut o = p.max(0.0).powf(2.2);
-            // The shoulder: slope 1 at 1 - half, reaching 1 at 1 + half.
-            if half > 0.0 && o > 1.0 - half {
-                let d = (o - (1.0 - half)).min(2.0 * half);
-                o = 1.0 - half + d - d * d / (4.0 * half);
+            // The shoulder: slope 1 at 0.95, reaching 1 at 1.05.
+            if o > SHOULDER_START {
+                let d = (o - SHOULDER_START).min(0.1);
+                o = SHOULDER_START + d - d * d / 0.2;
             }
             o.clamp(0.0, 1.0)
         })
@@ -323,13 +317,17 @@ mod tests {
     }
 
     #[test]
-    fn neutral_is_no_curve_and_white_stays_white() {
+    fn neutral_is_no_curve_and_the_tone_map_takes_white_to_its_shoulder() {
         assert_eq!(Curve::raw(0.0, 0.0, 0.0), None);
         assert_eq!(Curve::standard(0.0, 0.0, 0.0), None);
-        for curve in [Curve::raw(60.0, 0.0, -40.0), Curve::standard(60.0, 0.0, -40.0)] {
-            // Within the tone map's table at white: 0.006 stops a step.
-            let white = curve.unwrap().apply([1.0; 3]);
-            assert!(white.iter().all(|v| (v - 1.0).abs() < 5e-4), "{white:?}");
+        // Within the tone map's table at white: 0.006 stops a step.
+        let white = |curve: Option<Curve>| curve.unwrap().apply([1.0; 3]);
+        // A camera RAW stack's Contrast and Blacks take no tone map.
+        assert!(white(Curve::raw(60.0, 0.0, -40.0)).iter().all(|v| (v - 1.0).abs() < 5e-4));
+        for curve in [Curve::raw(0.0, 1.0, 0.0), Curve::standard(1.0, 0.0, 0.0)] {
+            let white = white(curve);
+            // 0.9875, and a little above it with Whites raised.
+            assert!(white.iter().all(|v| (v - 0.988).abs() < 1e-3), "{white:?}");
         }
     }
 

@@ -67,6 +67,18 @@ fn largest(a: &[f32], b: &[f32]) -> f64 {
     a.iter().zip(b).map(|(a, b)| f64::from((a - b).abs()) * 65535.0).fold(0.0, f64::max)
 }
 
+/// [`largest`] over the pixels `neutral` draws below the tone map's
+/// shoulder (0.95 display-linear), which an edited curve always takes.
+fn largest_below_shoulder(neutral: &[f32], a: &[f32], b: &[f32]) -> f64 {
+    let below = |p: &[f32]| p[..3].iter().all(|&v| v < 0.977);
+    let (n, a, b) = (neutral.as_chunks::<4>().0, a.as_chunks::<4>().0, b.as_chunks::<4>().0);
+    n.iter()
+        .zip(a.iter().zip(b))
+        .filter(|(n, _)| below(&n[..]))
+        .flat_map(|(_, (a, b))| (0..3).map(|c| f64::from((a[c] - b[c]).abs()) * 65535.0))
+        .fold(0.0, f64::max)
+}
+
 fn mean(pixels: &[f32]) -> f64 {
     let rgb = pixels.as_chunks::<4>().0.iter().flat_map(|p| &p[..3]);
     rgb.map(|&v| f64::from(v)).sum::<f64>() / (pixels.len() / 4 * 3) as f64
@@ -110,7 +122,9 @@ const SLIDERS: [(&str, SliderSpec, bool); 8] = [
 
 /// How far the first step from neutral may move a picture against the
 /// step after it, which shows where the change is smooth: a slider whose
-/// first step clips or unclips a range of values jumps by far more.
+/// first step clips or unclips a range of values jumps by far more. The
+/// tone map's shoulder takes white to 0.9875 at any edit, as lightcraft's
+/// does, so where it applies only the tones below it are held to this.
 const FIRST_STEP_BOUND: f64 = 2.0;
 
 #[test]
@@ -126,7 +140,15 @@ fn each_sliders_first_step_from_neutral_is_small() {
             for step in [spec.step, -spec.step] {
                 let first = at(&set(name, spec.default + step));
                 let second = at(&set(name, spec.default + 2.0 * step));
-                let (gap, next) = (largest(&neutral, &first), largest(&first, &second));
+                let tone_map = matches!(name, "contrast" | "whites" | "blacks")
+                    && (kind == "standard" || name == "whites");
+                let (gap, next) = match tone_map {
+                    true => (
+                        largest_below_shoulder(&neutral, &neutral, &first),
+                        largest_below_shoulder(&neutral, &first, &second),
+                    ),
+                    false => (largest(&neutral, &first), largest(&first, &second)),
+                };
                 assert!(gap > 0.0, "{kind} {name} {step:+}: no change");
                 assert!(
                     gap <= FIRST_STEP_BOUND * next,

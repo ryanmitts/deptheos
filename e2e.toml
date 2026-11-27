@@ -63,7 +63,8 @@
 #   reframe       a table: crop = [left, top, width, height] in the
 #                 stack's pixels, flip = "horizontal" or "vertical", turn =
 #                 0, 90, 180 or 270 (clockwise, after the flip; ADR-136).
-#                 Not with dng, which keeps the whole picture
+#                 Not with dng, which keeps every pixel and writes the
+#                 reframe as tags the checker doesn't read
 #   The apps' drivers refuse a case that sets adjust, space or reframe:
 #   only the checker reads them.
 

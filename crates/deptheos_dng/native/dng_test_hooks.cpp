@@ -95,3 +95,22 @@ std::vector<uint16_t> deptheos_dng_render_file_srgb(const std::string &path,
     }
     return std::move(rendered.pixels);
 }
+
+DngFrameTags deptheos_dng_frame_of(const std::string &path) {
+    deptheos_host host;
+    utf8_file_stream stream(path);
+    dng_info info;
+    info.Parse(host, stream);
+    info.PostParse(host);
+    if (!info.IsValidDNG()) ThrowBadFormat();
+    AutoPtr<dng_negative> negative(host.Make_dng_negative());
+    negative->Parse(host, stream, info);
+    negative->PostParse(host, stream, info);
+    DngFrameTags frame;
+    frame.userCrop[0] = negative->DefaultUserCropT().As_real64();
+    frame.userCrop[1] = negative->DefaultUserCropL().As_real64();
+    frame.userCrop[2] = negative->DefaultUserCropB().As_real64();
+    frame.userCrop[3] = negative->DefaultUserCropR().As_real64();
+    frame.orientation = negative->BaseOrientation().GetTIFF();
+    return frame;
+}

@@ -430,6 +430,22 @@ pub(crate) fn export(
     let (encoding, allow_sixteen) = (save.encoding(), save.sixteen_bit);
     let sixteen = match &stack.color {
         StackColor::Linear { metadata, .. } if io::is_dng(path) => {
+            // Every pixel is kept: the reframe is the file's user crop and
+            // orientation, which a raw editor can undo.
+            let reframe = look.reframe();
+            let picture = deptheos_render::reframe::Size { width, height };
+            let crop = reframe.window(picture).map_err(|e| {
+                Error::InvalidState(format!(
+                    "{:?} is outside the {width} × {height} picture",
+                    e.crop
+                ))
+            })?;
+            let user_crop = reframe.crop.map(|_| deptheos_dng::DngRect {
+                x: crop.x,
+                y: crop.y,
+                width: crop.width,
+                height: crop.height,
+            });
             let dng_tags = deptheos_dng::DngTags {
                 software: &tags.software,
                 comment: tags.comment.as_deref().unwrap_or_default(),
@@ -437,10 +453,9 @@ pub(crate) fn export(
                 capture_time: &crate::library::export_tags::capture_time_iso(tags),
                 fields: &crate::library::export_tags::dng_fields(tags),
                 white: look.white(),
+                user_crop,
+                orientation: reframe.orientation(),
             };
-            if !look.reframe().is_none() {
-                return Err(Error::InvalidState("a DNG keeps the whole picture".into()));
-            }
             // Written to a temporary moved into place, as every save.
             return io::write_replacing(path, |tmp| {
                 Ok(metadata.write_tagged(tmp, pixels, width, height, 3, &dng_tags)?)

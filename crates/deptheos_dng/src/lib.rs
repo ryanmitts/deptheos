@@ -242,6 +242,8 @@ unsafe extern "C" {
     #[cfg_attr(not(test), allow(dead_code))]
     fn dt_dng_compare_lossless_jpeg(data: *const u8, size: usize, samples: usize) -> i32;
     #[cfg(dng_test_hooks)]
+    fn dt_dng_frame_of(path: *const c_char, user_crop: *mut f64, orientation: *mut u32) -> i32;
+    #[cfg(dng_test_hooks)]
     fn dt_dng_render_file_srgb(
         path: *const c_char,
         dcp_path: *const c_char,
@@ -441,6 +443,34 @@ pub fn sdk_render_file_srgb(path: &Path, dcp: Option<&Path>, rect: [u32; 4]) -> 
     // The hook takes no status: its failure has no cause.
     check(ok, &DtStatus::new(), DngError::RenderFailed)?;
     Ok(out)
+}
+
+/// A DNG's framing as the SDK parses it: its DefaultUserCrop (top, left,
+/// bottom, right, relative to the default crop) and its Orientation tag.
+#[doc(hidden)]
+#[cfg(dng_test_hooks)]
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub struct SdkFrame {
+    pub user_crop: [f64; 4],
+    pub orientation: u32,
+}
+
+/// For tests that read back what a write framed: `path`'s [`SdkFrame`].
+#[doc(hidden)]
+#[cfg(dng_test_hooks)]
+pub fn sdk_frame_of(path: &Path) -> Result<SdkFrame> {
+    let c = c_path(path)?;
+    let mut frame = SdkFrame { user_crop: [0.0; 4], orientation: 0 };
+    // SAFETY: a NUL-terminated path that outlives the call, and room for
+    // the four values and the orientation the C side writes.
+    let ok = unsafe {
+        dt_dng_frame_of(c.as_ptr(), frame.user_crop.as_mut_ptr(), &mut frame.orientation)
+    };
+    check(ok, &DtStatus::new(), |cause| DngError::ReadFailed {
+        path: path.display().to_string(),
+        cause,
+    })?;
+    Ok(frame)
 }
 
 /// Route the bridge's internal diagnostics into `tracing` (the errors behind
@@ -755,6 +785,35 @@ pub struct DngTags<'a> {
     /// are untouched; a monochrome file or one without a profile keeps its
     /// own. A white that is not valid is refused.
     pub white: Option<WhiteXy>,
+    /// The DefaultUserCrop: this rectangle of the pixels written, which a
+    /// raw editor shows cropped and can undo; `None` the whole. One that
+    /// isn't inside them is refused.
+    pub user_crop: Option<DngRect>,
+    /// The Orientation tag, EXIF's 1 to 8, the pixels written as they are
+    /// stored; 1 is upright. Another value is refused.
+    pub orientation: u16,
+}
+
+/// A rectangle of a picture, in its pixels.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct DngRect {
+    pub x: u32,
+    pub y: u32,
+    pub width: u32,
+    pub height: u32,
+}
+
+impl DngRect {
+    /// Why it can't be a `width`×`height` picture's user crop, if it can't.
+    fn refused(crop: Option<Self>, width: u32, height: u32) -> Option<Cause> {
+        let c = crop?;
+        let inside = c.width > 0
+            && c.height > 0
+            && u64::from(c.x) + u64::from(c.width) <= u64::from(width)
+            && u64::from(c.y) + u64::from(c.height) <= u64::from(height);
+        let message = format!("{c:?} is not inside the {width} × {height} picture");
+        (!inside).then_some(Cause::Other { code: 0, message })
+    }
 }
 
 /// One tag of IFD0 or the Exif IFD, by number, as a frame holds it.
@@ -805,9 +864,20 @@ impl DngImage {
         check_pixel_count(pixels.len(), width, height, channels)?;
         let c = c_path(out_path)?;
         let white = tags.and_then(|t| t.white);
+        let refused = |cause| DngError::WriteFailed { path: out_path.display().to_string(), cause };
         if let Some(cause) = WhiteXy::refused(white) {
-            return Err(DngError::WriteFailed { path: out_path.display().to_string(), cause });
+            return Err(refused(cause));
         }
+        let user_crop = tags.and_then(|t| t.user_crop);
+        if let Some(cause) = DngRect::refused(user_crop, width, height) {
+            return Err(refused(cause));
+        }
+        let orientation = tags.map_or(1, |t| t.orientation);
+        if !(1..=8).contains(&orientation) {
+            let message = format!("Orientation {orientation} is not 1 to 8");
+            return Err(refused(Cause::Other { code: 0, message }));
+        }
+        let crop = user_crop.map(|c| [c.x, c.y, c.width, c.height]);
         let text = |s: &str| {
             CString::new(s).map_err(|_| DngError::InvalidPath(format!("{s:?} holds a NUL")))
         };
@@ -833,6 +903,8 @@ impl DngImage {
             fields: if fields.is_empty() { std::ptr::null() } else { fields.as_ptr() },
             field_count: fields.len(),
             white: WhiteXy::c_ptr(&white),
+            user_crop: crop.as_ref().map_or(std::ptr::null(), |c| c.as_ptr()),
+            orientation: u32::from(orientation),
         });
         let mut status = DtStatus::new();
         let ok = unsafe {
@@ -866,6 +938,9 @@ struct DtDngTags {
     fields: *const DtDngField,
     field_count: usize,
     white: *const WhiteXy,
+    /// Left, top, width and height, or null.
+    user_crop: *const u32,
+    orientation: u32,
 }
 
 /// C mirror of `native/dng_c_api.h`'s DtDngField, pointing into an
@@ -932,8 +1007,10 @@ impl OwnedField {
 #[cfg(target_pointer_width = "64")]
 const _: () = {
     use std::mem::{offset_of, size_of};
-    assert!(size_of::<DtDngTags>() == 56);
+    assert!(size_of::<DtDngTags>() == 72);
     assert!(offset_of!(DtDngTags, white) == 48);
+    assert!(offset_of!(DtDngTags, user_crop) == 56);
+    assert!(offset_of!(DtDngTags, orientation) == 64);
     assert!(size_of::<WhiteXy>() == 16);
     assert!(offset_of!(WhiteXy, y) == 8);
     assert!(offset_of!(DtDngTags, software) == 0);
@@ -1339,12 +1416,76 @@ mod tests {
             capture_time: "",
             fields: &[],
             white: None,
+            user_crop: None,
+            orientation: 1,
         };
         DngImage::from_raw_metadata(&meta.into())
             .unwrap()
             .write_tagged(&path, &vec![1000u16; (w * h * 3) as usize], w, h, 3, &tags)
             .unwrap();
         std::fs::read(&path).unwrap()
+    }
+
+    /// A camera RAW export framed by a reframe keeps every pixel: its crop
+    /// is the DefaultUserCrop and its turn the Orientation tag, both read
+    /// back from the file by the SDK's own parse, and a read of the file
+    /// hands out the pixels turned as the tag says.
+    #[test]
+    #[cfg(dng_test_hooks)]
+    fn a_reframe_is_written_as_the_user_crop_and_orientation() {
+        let dir = tempfile::tempdir().unwrap();
+        let meta = deptheos_raw::TestMetadata {
+            make: "Test".into(),
+            model: "Camera".into(),
+            cam_xyz: [1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0],
+            cam_mul: [1.0; 4],
+            raw_colors: 3,
+            ..Default::default()
+        };
+        let image = DngImage::from_raw_metadata(&meta.into()).unwrap();
+        let (w, h) = (40u32, 24u32);
+        let pixels: Vec<u16> = (0..w * h * 3).map(|i| (i * 53 % 65_000) as u16).collect();
+        let crop = DngRect { x: 5, y: 3, width: 30, height: 17 };
+        let tags = |user_crop, orientation| DngTags {
+            software: "Test",
+            comment: "",
+            xmp: "",
+            capture_time: "",
+            fields: &[],
+            white: None,
+            user_crop,
+            orientation,
+        };
+        // A quarter turn clockwise: EXIF's 6.
+        let path = dir.path().join("framed.dng");
+        image.write_tagged(&path, &pixels, w, h, 3, &tags(Some(crop), 6)).unwrap();
+        let frame = crate::sdk_frame_of(&path).unwrap();
+        assert_eq!(frame.orientation, 6);
+        let fractions = [3.0 / 24.0, 5.0 / 40.0, 20.0 / 24.0, 35.0 / 40.0];
+        assert_eq!(frame.user_crop, fractions, "top, left, bottom, right");
+        let read = DngImage::read_with_pixels(&path, FileCache::Use, crate::Budget::unlimited());
+        let Ok(DngRead::Linear(read, upright)) = read else { panic!("read as linear") };
+        assert_eq!((read.width(), read.height()), (h, w), "turned on read");
+        // Upright pixel (x, y) is stored pixel (y, h - 1 - x).
+        let stored = |x: u32, y: u32| &pixels[((y * w + x) * 3) as usize..][..3];
+        for (x, y) in [(0, 0), (h - 1, 0), (7, 31), (h - 1, w - 1)] {
+            let at = ((y * h + x) * 3) as usize;
+            assert_eq!(&upright[at..at + 3], stored(y, h - 1 - x), "({x}, {y})");
+        }
+
+        // None: the whole picture, upright.
+        let plain = dir.path().join("plain.dng");
+        image.write_tagged(&plain, &pixels, w, h, 3, &tags(None, 1)).unwrap();
+        let frame = crate::sdk_frame_of(&plain).unwrap();
+        assert_eq!((frame.orientation, frame.user_crop), (1, [0.0, 0.0, 1.0, 1.0]));
+        // Outside the picture, or not an orientation: refused.
+        let outside = DngRect { x: 20, ..crop };
+        for (crop, orientation) in [(Some(outside), 1), (None, 0), (None, 9)] {
+            let refused = dir.path().join("refused.dng");
+            assert!(
+                image.write_tagged(&refused, &pixels, w, h, 3, &tags(crop, orientation)).is_err()
+            );
+        }
     }
 
     fn contains(haystack: &[u8], needle: &str) -> bool {
@@ -1432,6 +1573,8 @@ mod tests {
             capture_time: "",
             fields: &[],
             white: None,
+            user_crop: None,
+            orientation: 1,
         };
         let dir = tempfile::tempdir().unwrap();
         let export = |image: &DngImage, name: &str, (w, h): (u32, u32)| {
@@ -1530,6 +1673,8 @@ mod tests {
             capture_time: "",
             fields,
             white: None,
+            user_crop: None,
+            orientation: 1,
         };
         DngImage::from_raw_metadata(&meta.into())
             .unwrap()

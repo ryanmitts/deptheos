@@ -59,6 +59,10 @@ int32_t dt_dng_compare_lossless_jpeg(const uint8_t *data, size_t size, size_t sa
 // `dcp_path`, if not NULL, replaces the file's profiles. 1 on success.
 int32_t dt_dng_render_file_srgb(const char *path, const char *dcp_path, uint32_t x, uint32_t y,
                                 uint32_t w, uint32_t h, uint16_t *out, size_t capacity);
+// The file's DefaultUserCrop (top, left, bottom, right, of its default
+// crop) and Orientation tag, as the SDK parses them
+// (deptheos_dng_frame_of). 1 on success.
+int32_t dt_dng_frame_of(const char *path, double *user_crop, uint32_t *orientation);
 #endif // DEPTHEOS_TEST_HOOKS
 
 // Supplies the buffer dt_dng_read_into decodes into: called once, on the
@@ -156,6 +160,11 @@ typedef struct DtDngTags {
     const DtDngField *fields;
     size_t field_count;
     const DtDngWhite *white;
+    // The DefaultUserCrop as left, top, width and height of the pixels
+    // written, or NULL for the whole.
+    const uint32_t *user_crop;
+    // The Orientation tag, 1 to 8.
+    uint32_t orientation;
 } DtDngTags;
 
 // Writes pixels to a DNG with `meta_source`'s metadata, minus GPS and the

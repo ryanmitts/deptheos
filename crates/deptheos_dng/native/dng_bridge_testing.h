@@ -38,3 +38,11 @@ int deptheos_dng_compare_lossless_jpeg(const uint8_t *data, size_t size, size_t 
 std::vector<uint16_t> deptheos_dng_render_file_srgb(const std::string &path,
                                                     const std::string &dcp_path, uint32_t x,
                                                     uint32_t y, uint32_t w, uint32_t h);
+
+// A file's DefaultUserCrop (top, left, bottom, right, relative to its
+// default crop) and Orientation tag (EXIF's 1 to 8), as the SDK parses them.
+struct DngFrameTags {
+    double userCrop[4] = {0, 0, 1, 1};
+    uint32_t orientation = 1;
+};
+DngFrameTags deptheos_dng_frame_of(const std::string &path);

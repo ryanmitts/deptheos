@@ -77,6 +77,9 @@ struct DngDateInfo {
 
 struct DngGeometryInfo {
     uint32_t orientation = 0;
+    // On write, the DefaultUserCrop: left, top, width and height of the
+    // pixels written. A read leaves it empty.
+    std::optional<std::array<uint32_t, 4>> userCrop;
     int32_t channels = 0;
     // On write, compress losslessly with JPEG XL; on read, the source was.
     bool useJXL = false;

@@ -179,6 +179,12 @@ dng_negative * rebuild_negative_from_metadata(
         negative->SetDefaultCropOrigin(0, 0);
         negative->SetDefaultOriginalSizes();
         negative->SetActiveArea(bounds);
+        // Relative to the default crop, which is the whole picture.
+        if (const auto &c = meta.geometry.userCrop) {
+            negative->SetDefaultUserCrop(dng_urational((*c)[1], h), dng_urational((*c)[0], w),
+                                         dng_urational((*c)[1] + (*c)[3], h),
+                                         dng_urational((*c)[0] + (*c)[2], w));
+        }
     }
 
     negative->SetBaseOrientation(dng_orientation::Normal());

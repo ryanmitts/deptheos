@@ -9,6 +9,7 @@
 #include <cstdint>
 #include <cstring>
 #include <memory>
+#include <stdexcept>
 #include <optional>
 #include <utility>
 
@@ -30,8 +31,10 @@ static_assert(offsetof(DtDngRenderParams, look_table_encoding) == 116, "DtDngRen
 static_assert(offsetof(DtDngRenderParams, look_table_data) == 120, "DtDngRenderParams layout changed");
 static_assert(offsetof(DtDngRenderParams, look_table_count) == 128, "DtDngRenderParams layout changed");
 static_assert(offsetof(DtDngRenderParams, tone_curve) == 136, "DtDngRenderParams layout changed");
-static_assert(sizeof(DtDngTags) == 56, "DtDngTags layout changed");
+static_assert(sizeof(DtDngTags) == 72, "DtDngTags layout changed");
 static_assert(offsetof(DtDngTags, white) == 48, "DtDngTags layout changed");
+static_assert(offsetof(DtDngTags, user_crop) == 56, "DtDngTags layout changed");
+static_assert(offsetof(DtDngTags, orientation) == 64, "DtDngTags layout changed");
 static_assert(sizeof(DtDngWhite) == 16, "DtDngWhite layout changed");
 static_assert(offsetof(DtDngWhite, y) == 8, "DtDngWhite layout changed");
 static_assert(offsetof(DtDngTags, fields) == 32, "DtDngTags layout changed");
@@ -284,6 +287,16 @@ int32_t dt_dng_render_file_srgb(const char *path, const char *dcp_path, uint32_t
         return 1;
     });
 }
+
+int32_t dt_dng_frame_of(const char *path, double *user_crop, uint32_t *orientation) {
+    if (!path || !user_crop || !orientation) return 0;
+    return guarded<int32_t>("dng_frame_of", nullptr, [&]() -> int32_t {
+        const DngFrameTags frame = deptheos_dng_frame_of(path);
+        std::memcpy(user_crop, frame.userCrop, sizeof frame.userCrop);
+        *orientation = frame.orientation;
+        return 1;
+    });
+}
 #endif // DEPTHEOS_TEST_HOOKS
 
 DtDngImage *dt_dng_read_into(const char *path, int32_t bypass_cache, uint64_t max_pixels,
@@ -444,6 +457,18 @@ int32_t dt_dng_write(
             if (auto neutral = deptheos_neutral_for_white(md, *white_of(tags->white))) {
                 md.colorScience.asShotNeutral = std::move(*neutral);
             }
+        }
+        if (tags->orientation < 1 || tags->orientation > 8) {
+            throw std::invalid_argument("write_dng: Orientation is not 1 to 8");
+        }
+        md.geometry.orientation = tags->orientation;
+        if (tags->user_crop) {
+            const uint32_t *c = tags->user_crop;
+            if (c[2] == 0 || c[3] == 0 || uint64_t(c[0]) + c[2] > uint64_t(width) ||
+                uint64_t(c[1]) + c[3] > uint64_t(height)) {
+                throw std::invalid_argument("write_dng: the user crop is not inside the picture");
+            }
+            md.geometry.userCrop = std::array<uint32_t, 4>{c[0], c[1], c[2], c[3]};
         }
         deptheos_write_dng(out_path, md, pixels, pixel_count, width, height, channels,
                            DngWriteKind::Picture);

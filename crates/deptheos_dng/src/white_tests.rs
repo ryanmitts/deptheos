@@ -262,6 +262,8 @@ fn an_export_carries_its_white_balance() {
             capture_time: "",
             fields: &[],
             white,
+            user_crop: None,
+            orientation: 1,
         };
         source.write_tagged(&path, &pixels, w, h, 3, &tags).unwrap();
         path
@@ -295,6 +297,8 @@ fn an_export_carries_its_white_balance() {
         capture_time: "",
         fields: &[],
         white: Some(WhiteXy { x: f64::NAN, y: 0.3 }),
+        user_crop: None,
+        orientation: 1,
     };
     assert!(source.write_tagged(&dir.path().join("bad.dng"), &pixels, w, h, 3, &bad).is_err());
 }

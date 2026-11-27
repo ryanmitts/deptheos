@@ -307,6 +307,8 @@ fn a_dngs_white_is_the_one_asked_for() {
             capture_time: "",
             fields: &[],
             white,
+            user_crop: None,
+            orientation: 1,
         };
         source.write_tagged(&path, &dng.pixels(), dng.width, dng.height, 3, &tags).unwrap();
         read(&path, 1).unwrap()

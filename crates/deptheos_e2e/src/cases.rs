@@ -571,7 +571,10 @@ impl Case {
         if let Some(reframe) = &self.reframe {
             reframe.validate()?;
             if dng {
-                return Err("reframe: a DNG keeps the whole picture (ADR-136)".into());
+                return Err(
+                    "reframe: a DNG keeps every pixel, its crop a tag the checker doesn't read"
+                        .into(),
+                );
             }
         }
         Ok(())
@@ -654,7 +657,7 @@ mod tests {
             ("reframe = { crop = [0, 0, 0, 10] }", "more than 0"),
             ("reframe = { crop = [0, 0, 10] }", "invalid length"),
             ("reframe = { flip = \"diagonal\" }", "unknown variant"),
-            ("stack_bits = 16\nexports = [\"dng\"]\nreframe = { turn = 90 }", "a DNG keeps"),
+            ("stack_bits = 16\nexports = [\"dng\"]\nreframe = { turn = 90 }", "a DNG keeps every"),
         ];
         for (line, said) in bad {
             let bits = if line.contains("stack_bits") || line.contains("name") {

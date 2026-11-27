@@ -17,7 +17,7 @@ Adjust's Crop cuts a render to a rectangle and turns or mirrors it. Everything e
 - **The mapping between stored and output points is plain math in `deptheos_adjust`**, with no GPU: `to_stored` and `to_output` take continuous points (a pixel's center at its index plus a half), and `apply` agrees with them pixel for pixel. A pointer on the reframed picture finds its stored pixel through `to_stored`.
 - **A rectangle that reaches outside the picture is refused** (`OutsidePicture`), never clipped, since the picture's size is known when it is set.
 - **The command line names it `--reframe X,Y,W,H`**, with `--turn 90|180|270` and `--flip horizontal|vertical`, on `deptheos redraw` (ADR-103). The name keeps it apart from stacking's `--no-crop`. On screen the tool is Crop (`docs/terms-and-usage.md`).
-- **A DNG keeps the whole picture.** An export to DNG with a reframe is refused by the engine; the redraw command doesn't write DNG.
+- **A DNG keeps every pixel.** An export to DNG writes the reframe as tags a raw editor reads and can undo: the crop as its `DefaultUserCrop`, relative to the whole picture, and the flip and turn as its `Orientation` (`Reframe::orientation`), both read back by the SDK in `a_reframe_is_written_as_the_user_crop_and_orientation` (`crates/deptheos_dng/src/lib.rs`). The redraw command doesn't write DNG.
 - **An angle is a later field.** Straightening needs a resample; it would come before the rectangle, which is then measured on the straightened picture, and leave the flip and turn as they are.
 
 ### The slider numbers beside it
@@ -46,10 +46,11 @@ A typo in a flag would draw a different crop than asked for, silently.
 
 - An export of a reframed render draws the whole picture first; the window costs a copy of its pixels.
 - 8-bit exports are dithered by position in the output, so they are not compared with a window of the whole.
-- Thumbnails, the viewer and DNG's user crop are not reframed until renders store their reframe.
+- Thumbnails and the viewer are not reframed until renders store their reframe.
 
 ## Code
 
 - `crates/deptheos_adjust/src/reframe.rs`, `crates/deptheos_adjust/src/slider.rs`, `crates/deptheos_adjust/src/temperature.rs`.
 - `crates/deptheos_app/src/engine/look.rs`, `crates/deptheos_app/src/runs/session/stack.rs`, `crates/deptheos_app/tests/integration/reframe.rs`.
 - `crates/deptheos_cli/src/redraw.rs`.
+- `crates/deptheos_dng/src/lib.rs` (`DngTags::user_crop`, `DngTags::orientation`), `crates/deptheos_dng/native/dng_io.cpp`.

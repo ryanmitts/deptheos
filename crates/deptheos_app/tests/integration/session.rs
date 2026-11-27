@@ -478,6 +478,26 @@ fn a_linear_display_renders_on_request() {
     let prophoto = deptheos_render::OutputSpace::ProPhoto;
     assert!(export(prophoto, "prophoto.tif").is_ok());
     assert!(export(prophoto, "prophoto.jpg").is_err());
+
+    // A reframed DNG keeps every pixel, its crop and turn as tags.
+    use deptheos_app::reframe::{Flip, Rect, Reframe, Turn};
+    let crop = Rect { x: 6, y: 4, width: 50, height: 30 };
+    let reframe = Reframe { crop: Some(crop), flip: Flip::Horizontal, turn: Turn::Quarter };
+    let path = dir.path().join("framed.dng");
+    let look = Look::redrawn(&output.stack, &Adjustments::NEUTRAL, reframe, p3);
+    engine.save(look, &path, SaveOptions::default()).unwrap();
+    let file = std::io::BufReader::new(std::fs::File::open(&path).unwrap());
+    let exif = exif::Reader::new().read_from_container(&mut std::io::BufReader::new(file)).unwrap();
+    let orientation = exif.get_field(exif::Tag::Orientation, exif::In::PRIMARY).unwrap();
+    assert_eq!(orientation.value.get_uint(0), Some(u32::from(reframe.orientation())));
+    // The user crop is in the raw image's IFD, read by the SDK.
+    let frame = deptheos_dng::sdk_frame_of(&path).unwrap();
+    assert_eq!(frame.orientation, u32::from(reframe.orientation()));
+    let (wf, hf) = (f64::from(w), f64::from(h));
+    let fractions = [4.0 / hf, 6.0 / wf, 34.0 / hf, 56.0 / wf];
+    assert_eq!(frame.user_crop, fractions, "top, left, bottom, right");
+    let read = deptheos_dng::DngImage::read_metadata(&path).unwrap();
+    assert_eq!((read.width(), read.height()), (h, w), "every pixel, turned");
 }
 
 /// With the live map on, every method shows the stack so far after each

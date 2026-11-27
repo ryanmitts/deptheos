@@ -520,9 +520,33 @@ fn render_pixels(
             input?
         }
     };
-    let rendered = engine.color().render(ctx, &input, constants);
-    download_rgb(ctx, &rendered, Rect { x: 0, y: 0, width, height })
+    if !constants.has_local_tone() {
+        let rendered = engine.color().render(ctx, &input, constants);
+        return download_rgb(ctx, &rendered, Rect { x: 0, y: 0, width, height });
+    }
+    // The sliders that read neighbors hold their planes beside the draw:
+    // a band at a time, an iPhone draws them inside the memory an
+    // unadjusted whole draw takes (ADR-135).
+    let mut out = vec![0u16; pixels.len()];
+    let mut failed = None;
+    engine.color().render_bands(ctx, &input, constants, EXPORT_BAND, |region, texture| {
+        if failed.is_some() {
+            return;
+        }
+        let rect = Rect { x: 0, y: 0, width: region.width, height: region.height };
+        match download_rgb(ctx, texture, rect) {
+            Ok(rows) => {
+                let at = region.y as usize * width as usize * 3;
+                out[at..at + rows.len()].copy_from_slice(&rows);
+            }
+            Err(e) => failed = Some(e),
+        }
+    });
+    failed.map_or(Ok(out), Err)
 }
+
+/// Rows an export with the neighbor-reading sliders draws at a time.
+const EXPORT_BAND: u32 = 512;
 
 /// A's reference coordinates to B's and B's exposure to A's, through the
 /// first shared frame recorded the same way in both: `T_b(c)⁻¹ · T_a(c)`
@@ -610,5 +634,49 @@ mod frame_at_tests {
             ),
             Some(shifted)
         );
+    }
+}
+
+#[cfg(test)]
+mod render_pixels_tests {
+    use deptheos_render::{Adjustments, Color, OutputSpace, resolve_adjusted};
+
+    use super::*;
+
+    /// An export with Highlights and Shadows, drawn in bands, is the whole
+    /// draw bit for bit.
+    #[test]
+    fn bands_draw_as_the_whole_picture() {
+        let Some(engine) = crate::test_support::engine() else { return };
+        let (width, height) = (300u32, EXPORT_BAND * 2 + 37);
+        let pixels: Vec<u16> = (0..width * height * 3)
+            .map(|i| {
+                let (x, y) = (i / 3 % width, i / 3 / width);
+                let block = if (x / 70 + y / 90) % 2 == 0 { 3000 } else { 50_000 };
+                (block + (i.wrapping_mul(2_654_435_761) >> 21) % 3000) as u16
+            })
+            .collect();
+        let toned = Adjustments { highlights: -50.0, shadows: 60.0, ..Adjustments::NEUTRAL };
+        let constants = resolve_adjusted(Color::Standard(None), &toned, OutputSpace::Srgb);
+        assert!(constants.has_local_tone());
+        let banded = render_pixels(&engine, &pixels, width, height, &constants).unwrap();
+        let ctx = engine.gpu();
+        let input = constants.linearizer().map_or_else(
+            || {
+                let mut uploader = engine.common().uploader();
+                crate::engine::preview::upload_rgb16_texture(
+                    ctx,
+                    &mut uploader,
+                    &pixels,
+                    width,
+                    height,
+                )
+                .unwrap()
+            },
+            |l| l.upload(ctx, &pixels, width, height),
+        );
+        let whole = engine.color().render(ctx, &input, &constants);
+        let whole = download_rgb(ctx, &whole, Rect { x: 0, y: 0, width, height }).unwrap();
+        assert!(banded == whole);
     }
 }

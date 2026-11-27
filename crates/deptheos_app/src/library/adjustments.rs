@@ -388,6 +388,24 @@ mod tests {
     }
 
     #[test]
+    fn every_exposure_step_is_written_as_its_decimal() {
+        let dir = tempfile::tempdir().unwrap();
+        let spec = slider::EXPOSURE;
+        for n in 0..=1000 {
+            let exposure = spec.snap(spec.min + f64::from(n) * spec.step);
+            let value = RenderAdjustments {
+                adjustments: Adjustments { exposure, ..Adjustments::NEUTRAL },
+                ..RenderAdjustments::NONE
+            };
+            write(dir.path(), &value).unwrap();
+            let text = std::fs::read_to_string(dir.path().join(ADJUSTMENTS_FILE)).unwrap();
+            let written = format!("\"exposure\": {}", serde_json::to_string(&exposure).unwrap());
+            assert!(text.contains(&written), "{exposure}: {text}");
+            assert_eq!(read(dir.path(), PICTURE), Ok(value));
+        }
+    }
+
+    #[test]
     fn a_value_not_a_number_is_written_as_its_default() {
         let dir = tempfile::tempdir().unwrap();
         let mut value = every_slider_set();

@@ -79,10 +79,24 @@ impl SliderSpec {
         if v.is_finite() { v.clamp(self.min, self.max) } else { self.default }
     }
 
-    /// `v` on the nearest step, within the range.
+    /// `v` on the nearest step, within the range, rounded to the step's
+    /// decimal places so a step of 0.01 stores as 0.01.
     pub fn snap(&self, v: f64) -> f64 {
         let v = self.clamp(v);
-        self.clamp(self.min + ((v - self.min) / self.step).round() * self.step)
+        let on = self.min + ((v - self.min) / self.step).round() * self.step;
+        let scale = 10f64.powi(self.decimals());
+        // `+ 0.0` makes -0.0 plain 0.
+        self.clamp((on * scale).round() / scale + 0.0)
+    }
+
+    /// The decimal places of the step (and of the range's ends).
+    fn decimals(&self) -> i32 {
+        (0..=6)
+            .find(|&d| {
+                let scale = 10f64.powi(d);
+                [self.step, self.min].iter().all(|x| ((x * scale).round() - x * scale).abs() < 1e-6)
+            })
+            .unwrap_or(6)
     }
 
     /// Where `v` sits on the track, from 0 at the left end to 1 at the right.
@@ -155,6 +169,24 @@ mod tests {
             assert!(spec.min < spec.max && spec.step > 0.0, "{spec:?}");
             assert_eq!(spec.snap(spec.default), spec.default, "{spec:?}");
         }
+    }
+
+    #[test]
+    fn every_step_snaps_to_its_decimal_value() {
+        for spec in ALL {
+            let scale = 10f64.powi(spec.decimals());
+            let steps = ((spec.max - spec.min) / spec.step).round() as i64;
+            for n in 0..=steps {
+                let v = spec.snap(spec.min + n as f64 * spec.step);
+                let text = format!("{:.*}", spec.decimals() as usize, v);
+                assert_eq!(v, text.parse::<f64>().unwrap(), "{spec:?} step {n}");
+                assert_eq!(spec.snap(v), v, "{spec:?} step {n}");
+                assert_eq!((v * scale).round() / scale, v);
+            }
+        }
+        assert_eq!(EXPOSURE.snap(0.0 + EXPOSURE.step), 0.01);
+        assert!(EXPOSURE.snap(-0.001).is_sign_positive());
+        assert_eq!(EXPOSURE.snap(0.3 * 10.0 - 5.0 + 0.004), -2.0);
     }
 
     #[test]

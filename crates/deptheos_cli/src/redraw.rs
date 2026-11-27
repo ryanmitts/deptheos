@@ -25,8 +25,9 @@ pub(crate) struct RedrawArgs {
     #[arg(value_name = "RENDER")]
     render: PathBuf,
 
-    /// The file to write: .tif, .png or .jpg. It can't be in the render's
-    /// folder
+    /// The file to write: .tif, .png or .jpg, or .dng from a camera RAW
+    /// render, which keeps every pixel and takes the reframe and white
+    /// balance as tags. It can't be in the render's folder
     #[arg(short, long, value_name = "FILE", help_heading = "Output")]
     output: PathBuf,
 
@@ -318,6 +319,12 @@ impl RedrawArgs {
 
     /// Whether a slider's flag is given off its default.
     fn sets_a_slider(&self) -> bool {
+        self.draws_a_slider() || self.temperature.is_some() || self.tint.is_some()
+    }
+
+    /// Whether a slider but white balance is given off its default: one a
+    /// DNG, whose pixels stay as stored, can't take.
+    fn draws_a_slider(&self) -> bool {
         let off = |v: Option<f64>| v.is_some_and(|v| v != 0.0);
         off(self.exposure)
             || off(self.contrast)
@@ -331,8 +338,6 @@ impl RedrawArgs {
             || off(self.vibrance)
             || off(self.saturation)
             || off(self.vignette)
-            || self.temperature.is_some()
-            || self.tint.is_some()
     }
 
     /// The reframe the flags give.
@@ -370,6 +375,14 @@ impl RedrawArgs {
         }
         if self.vignette_midpoint.is_some() && !self.vignette.is_some_and(|v| v != 0.0) {
             c.refuse("--vignette-midpoint goes with --vignette");
+        }
+        if ExportFormat::of(&self.output) == Some(ExportFormat::Dng) {
+            if self.space.is_some() {
+                c.refuse("--space draws colors, and a DNG keeps its pixels as stored");
+            }
+            if self.draws_a_slider() {
+                c.refuse("a DNG keeps its pixels as stored: it takes --temperature, --tint and the reframe, no other slider");
+            }
         }
     }
 }
@@ -420,17 +433,17 @@ pub(crate) fn run(args: RedrawArgs, words: &Words) -> Result<()> {
 }
 
 /// Refuses a `render` that isn't a render's folder, and an `output` that
-/// isn't a TIFF, PNG or JPEG, whose folder is missing, or that is inside
-/// the render's folder.
+/// isn't a TIFF, PNG, JPEG or DNG, whose folder is missing, or that is
+/// inside the render's folder.
 fn check_paths(render: &Path, output: &Path) -> Result<()> {
     if !RenderFolder::is_render(render) {
         return Err(Refusal::NotARender(render.to_path_buf()).into());
     }
     if !matches!(
         ExportFormat::of(output),
-        Some(ExportFormat::Tiff | ExportFormat::Png | ExportFormat::Jpeg)
+        Some(ExportFormat::Tiff | ExportFormat::Png | ExportFormat::Jpeg | ExportFormat::Dng)
     ) {
-        let formats = ".tif, .png or .jpg";
+        let formats = ".tif, .png, .jpg or .dng";
         return Err(Refusal::FileType { path: output.to_path_buf(), formats }.into());
     }
     let parent = output.parent().filter(|p| !p.as_os_str().is_empty()).unwrap_or(Path::new("."));
@@ -466,7 +479,8 @@ mod tests {
 
         std::fs::write(render.join("render.json"), "{}").unwrap();
         assert!(check_paths(&render, &dir.path().join("a.tif")).is_ok());
-        assert!(refused(&dir.path().join("a.dng")).contains("use .tif, .png or .jpg"));
+        assert!(check_paths(&render, &dir.path().join("a.dng")).is_ok());
+        assert!(refused(&dir.path().join("a.webp")).contains("use .tif, .png, .jpg or .dng"));
         assert!(refused(&dir.path().join("none/a.png")).contains("doesn't exist"));
         assert!(refused(&render.join("a.jpg")).contains("inside the render"));
     }
@@ -545,6 +559,29 @@ mod tests {
         ];
         for bad in bad {
             assert!(parsed(bad).is_err(), "{bad:?}");
+        }
+    }
+
+    /// A DNG takes the reframe and white balance, and refuses what draws.
+    #[test]
+    fn a_dng_takes_only_what_it_keeps_as_tags() {
+        use clap::Parser;
+        let passes = |flags: &[&str]| {
+            let line = [&["deptheos", "redraw", "r", "-o", "a.dng"], flags].concat();
+            let Ok(crate::args::Command::Redraw(args)) =
+                crate::args::Cli::try_parse_from(line).map(|cli| cli.command)
+            else {
+                panic!("not redraw")
+            };
+            let mut checks = Checks::default();
+            args.check(&mut checks);
+            checks.is_empty()
+        };
+        assert!(passes(&[]));
+        assert!(passes(&["--reframe", "10,10,200,100", "--turn", "90", "--flip", "horizontal"]));
+        assert!(passes(&["--temperature", "6000", "--tint", "5", "--exposure", "0"]));
+        for bad in [&["--exposure", "1"][..], &["--vignette", "-20"], &["--space", "srgb"]] {
+            assert!(!passes(bad), "{bad:?}");
         }
     }
 

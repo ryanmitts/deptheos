@@ -1,6 +1,7 @@
-//! Highlights and Shadows read a base of the whole frame: a region, a band
-//! and the whole picture draw alike, across tiles, for both kinds; each
-//! slider moves its tones; and the gaps in dark lettering keep their tone.
+//! The sliders that read neighbors take planes of the whole frame: a
+//! region, a band and the whole picture draw alike, across tiles, for both
+//! kinds; each slider moves its tones; and the gaps in dark lettering keep
+//! their tone.
 
 use deptheos_dng::{DngImage, RenderParams};
 use deptheos_gpu::GpuContext;
@@ -84,7 +85,7 @@ fn regions_draw_as_the_whole(ctx: &GpuContext, constants: &Constants, plain: &Co
     let whole = Region::whole(FRAME[0], FRAME[1]);
     let prepare = |band: u32| {
         let prepared = PreparedRender::new(ctx, constants);
-        pipeline.with_base(ctx, prepared, Source::whole(&source), band)
+        pipeline.with_planes(ctx, prepared, Source::whole(&source), band)
     };
     let full = read(ctx, &draw(ctx, &pipeline, &prepare(FRAME[1]), &source, whole), whole, [0, 0]);
     let unadjusted = PreparedRender::new(ctx, plain);
@@ -136,6 +137,26 @@ fn a_region_with_highlights_and_shadows_draws_as_the_whole_picture() {
     );
 }
 
+/// Each slider that reads neighbors, alone and with the others.
+#[test]
+fn a_region_with_each_local_slider_draws_as_the_whole_picture() {
+    let Some(ctx) = GpuContext::new_or_skip() else { return };
+    let params = file_params();
+    let plain = adjusted(0.0, 0.0);
+    let cases = [
+        Adjustments { clarity: 45.0, ..plain.clone() },
+        Adjustments { clarity: -70.0, ..adjusted(-30.0, 40.0) },
+    ];
+    for a in &cases {
+        let linear =
+            |a: &Adjustments| *resolve_adjusted(Color::Linear(&params), a, OutputSpace::Srgb);
+        regions_draw_as_the_whole(&ctx, &linear(a), &linear(&plain));
+        let standard =
+            |a: &Adjustments| *resolve_adjusted(Color::Standard(None), a, OutputSpace::Srgb);
+        regions_draw_as_the_whole(&ctx, &standard(a), &standard(&plain));
+    }
+}
+
 /// The green channel of a standard stack's draw, in linear light.
 fn linear_green(ctx: &GpuContext, size: [u32; 2], pixels: &[u16], a: &Adjustments) -> Vec<f64> {
     let pipeline = DngRenderPipeline::new(ctx);
@@ -169,6 +190,42 @@ fn shadows_lift_dark_and_highlights_lower_bright() {
     let (dark, bright) = (200 * 600 + 100, 200 * 600 + 500);
     assert!(lifted[dark] > neutral[dark] * 1.2, "{} {}", lifted[dark], neutral[dark]);
     assert!(lowered[bright] < neutral[bright] * 0.9, "{} {}", lowered[bright], neutral[bright]);
+}
+
+/// Mean log2 of `drawn` over `neutral` within `x` of a row 400 wide.
+fn lift_over(drawn: &[f64], neutral: &[f64], x: std::ops::Range<usize>) -> f64 {
+    let n = (200..300).count() * x.len();
+    let sum: f64 = (200..300)
+        .flat_map(|y| x.clone().map(move |x| y * 400 + x))
+        .map(|i| (drawn[i] / neutral[i]).log2())
+        .sum();
+    sum / n as f64
+}
+
+/// A gray step, 400 by 400: dark on the left, light on the right.
+fn step() -> ([u32; 2], Vec<u16>) {
+    let size = [400, 400];
+    let pixels = (0..400 * 400).flat_map(|i| [if i % 400 < 200 { 9000 } else { 30_000 }; 3]);
+    (size, pixels.collect())
+}
+
+/// Clarity raised darkens the dark side of an edge and lightens the light
+/// side, more beside the edge than far from it; lowered, it softens both.
+#[test]
+fn clarity_raises_and_lowers_contrast_at_an_edge() {
+    let Some(ctx) = GpuContext::new_or_skip() else { return };
+    let (size, pixels) = step();
+    let neutral = linear_green(&ctx, size, &pixels, &Adjustments::NEUTRAL);
+    let at = |clarity| {
+        let a = Adjustments { clarity, ..Adjustments::NEUTRAL };
+        let drawn = linear_green(&ctx, size, &pixels, &a);
+        (lift_over(&drawn, &neutral, 185..195), lift_over(&drawn, &neutral, 205..215))
+    };
+    let (dark, light) = at(80.0);
+    eprintln!("clarity +80 at the edge: dark {dark:.3}, light {light:.3} stops");
+    assert!(dark < -0.02 && light > 0.02, "{dark} {light}");
+    let (dark, light) = at(-80.0);
+    assert!(dark > 0.02 && light < -0.02, "{dark} {light}");
 }
 
 /// Dark lettering on a bright panel: strokes 4 px wide with gaps of 3, in

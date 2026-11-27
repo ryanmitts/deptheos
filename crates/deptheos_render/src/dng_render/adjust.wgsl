@@ -6,6 +6,8 @@
 #import deptheos::render_constants::{PRO_TO_LMS, LMS_TO_PRO, LMS_TO_LAB, LAB_TO_LMS}
 #import deptheos::render_constants::{SKIN_HUE, SKIN_PROTECTION, SKIN_WIDTH, VIBRANCE_REACH, VIBRANCE_GAIN}
 #import deptheos::render_constants::{STRENGTH, SHADOW_LOW, SHADOW_HIGH, HIGHLIGHT_LOW, HIGHLIGHT_HIGH}
+#import deptheos::render_constants::{TONE_TERM, CLARITY_TERM}
+#import deptheos::render_constants::{CLARITY_STRENGTH, CLARITY_LIMIT, CLARITY_MIDTONES, CLARITY_FLOOR}
 
 // Identity up to `knee`, then the gap to white closes in stops, halving
 // each stop in the end and joined at slope 1: lightcraft's roll-off (MIT
@@ -19,8 +21,8 @@ fn shoulder(v: f32, knee: f32) -> f32 {
     return 1.0 - gap * gap / (gap + v - knee);
 }
 
-// The gain (`gain_knee.x`), then Highlights and Shadows' gain at the
-// pixel (`local`, 1 without them), then the shoulder (knee `gain_knee.y`)
+// The gain (`gain_knee.x`), then the local tone's gain at the pixel
+// (`local`, 1 without it), then the shoulder (knee `gain_knee.y`)
 // that brings what passes white back under it.
 fn exposure(prophoto: vec3f, gain_knee: vec4f, local: f32) -> vec3f {
     let v = prophoto * gain_knee.x * local;
@@ -33,16 +35,28 @@ fn rise(e0: f32, e1: f32, x: f32) -> f32 {
     return t * t * (3.0 - 2.0 * t);
 }
 
-// Highlights and Shadows' gain, as a factor, at a pixel whose base (log2
-// of brightness over middle gray, before exposure) is `base`; `amounts`
-// holds Highlights' and Shadows' strengths and exposure's stops:
-// lightcraft's law (MIT OR Apache-2.0, lightcraft 5bdb4e7a6
-// `crates/pipeline/src/finish.rs`, `local_tone_delta`).
-fn local_tone(base: f32, amounts: vec4f) -> f32 {
-    let at = base + amounts.z;
-    let shadow = 1.0 - rise(SHADOW_LOW, SHADOW_HIGH, at);
-    let highlight = rise(HIGHLIGHT_LOW, HIGHLIGHT_HIGH, at);
-    let stops = amounts.y * STRENGTH * shadow * sqrt(shadow) + amounts.x * STRENGTH * highlight;
+// The local tone's gain, as a factor, at a pixel whose planes are
+// `planes`: its base (log2 of brightness over middle gray, before
+// exposure), or its log brightness without Highlights and Shadows, then
+// its log brightness less Clarity's filter. `amounts` holds Highlights',
+// Shadows' and Clarity's strengths and exposure's stops in z; `terms` the
+// flag bits of the terms that run. lightcraft's law (MIT OR Apache-2.0,
+// lightcraft 5bdb4e7a6 `crates/pipeline/src/finish.rs`,
+// `local_tone_delta`).
+fn local_tone(planes: vec4f, amounts: vec4f, terms: u32) -> f32 {
+    let at = planes.x + amounts.z;
+    var stops = 0.0;
+    if ((terms & TONE_TERM) != 0u) {
+        let shadow = 1.0 - rise(SHADOW_LOW, SHADOW_HIGH, at);
+        let highlight = rise(HIGHLIGHT_LOW, HIGHLIGHT_HIGH, at);
+        stops += amounts.y * STRENGTH * shadow * sqrt(shadow) + amounts.x * STRENGTH * highlight;
+    }
+    if ((terms & CLARITY_TERM) != 0u) {
+        let detail = clamp(planes.y, -CLARITY_LIMIT, CLARITY_LIMIT);
+        let m = at / CLARITY_MIDTONES;
+        let midtone = exp(-(m * m));
+        stops += amounts.w * CLARITY_STRENGTH * detail * (CLARITY_FLOOR + (1.0 - CLARITY_FLOOR) * midtone);
+    }
     return exp2(stops);
 }
 

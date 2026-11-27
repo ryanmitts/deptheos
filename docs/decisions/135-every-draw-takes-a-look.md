@@ -41,7 +41,7 @@ A stack's stored pixels become colors on screen, in compares, Retouch, exports, 
 
 - **`DngRenderPipeline::draw` takes a `Source` and a `Region`** (`crates/deptheos_render/src/dng_render/draw.rs`). The source is a whole texture or a part of the frame, such as paint's rectangle; the region is in frame pixels. It draws in tiles of 2048 pixels, a dispatch and a submit each, so no GPU command runs long.
 - **`draw_with` adds a stage that reads neighbors.** The per-pixel pass draws the region grown by the stage's margin, kept within what the source covers. The stage then writes the region, reading a whole-frame input at frame coordinates. A 3×3 median test stage proves that a region drawn this way equals that region of the whole picture, bit for bit, across tile edges.
-- **Highlights and Shadows read a base of the whole frame** (ADR-137). `DngRenderPipeline::with_base` reads the frame's log brightness a band at a time (each shader's `log_brightness` entry) into planes far smaller than the frame (`local_tone::Base`); each draw then takes the base over its region from the log brightness around it, grown by the base's median radius, and binds it for the per-pixel pass. A region draws as that region of the whole picture, bit for bit. `render_bands` draws a whole picture a band at a time, for a device that can't hold it twice; an export with these sliders draws in bands of 512 rows on every device (`render_pixels`, `crates/deptheos_app/src/runs/session/stack.rs`), which on an iPhone at 45 MP peaks below an unadjusted whole draw.
+- **The sliders that read neighbors read planes of the whole frame** (ADR-137): Highlights and Shadows' base and Clarity's filter. `DngRenderPipeline::with_planes` reads the frame's log brightness a band at a time (each shader's `log_brightness` entry) into planes far smaller than the frame (`local_tone::Planes`); each draw then takes each pixel's values over its region from the log brightness around it (`Planes::around`) and binds them, one Rgba32Float texture, for the per-pixel pass. A region draws as that region of the whole picture, bit for bit. `render_bands` draws a whole picture a band at a time, for a device that can't hold it twice; an export with these sliders draws in bands of 512 rows on every device (`render_pixels`, `crates/deptheos_app/src/runs/session/stack.rs`), which on an iPhone at 45 MP peaks below an unadjusted whole draw.
 - **The shader's stages are functions**, run as one fused pass with f32 values between them.
 
 ### The draw sites
@@ -85,7 +85,7 @@ A long dispatch on a large picture risks the operating system's GPU watchdog, an
 
 - Unadjusted standard stacks keep the CPU display and the export pass-through.
 - The front ends pass neutral adjustments until renders store their own.
-- A stage that reads neighbors must keep its reach within its margin. A rectangle source's margin must lie inside the rectangle; so must Highlights and Shadows' around a region.
+- A stage that reads neighbors must keep its reach within its margin. A rectangle source's margin must lie inside the rectangle; so must the local tone's around a region.
 - `just handoff-check` compares every draw site's pixels with a capture written before the change, bit for bit.
 
 ## Code

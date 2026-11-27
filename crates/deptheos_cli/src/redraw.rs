@@ -90,6 +90,11 @@ pub(crate) struct RedrawArgs {
           value_parser = |s: &str| parse_slider(s, &slider::BLACKS), help_heading = "Adjust")]
     blacks: Option<f64>,
 
+    /// Clarity, -100 to 100
+    #[arg(long, value_name = "N", allow_hyphen_values = true,
+          value_parser = |s: &str| parse_slider(s, &slider::CLARITY), help_heading = "Adjust")]
+    clarity: Option<f64>,
+
     /// Vibrance, -100 to 100
     #[arg(long, value_name = "N", allow_hyphen_values = true,
           value_parser = |s: &str| parse_slider(s, &slider::VIBRANCE), help_heading = "Adjust")]
@@ -206,6 +211,7 @@ impl RedrawArgs {
             shadows: self.shadows.unwrap_or(neutral.shadows),
             whites: self.whites.unwrap_or(neutral.whites),
             blacks: self.blacks.unwrap_or(neutral.blacks),
+            clarity: self.clarity.unwrap_or(neutral.clarity),
             vibrance: self.vibrance.unwrap_or(neutral.vibrance),
             saturation: self.saturation.unwrap_or(neutral.saturation),
             ..neutral
@@ -268,6 +274,7 @@ impl RedrawArgs {
             || off(self.shadows)
             || off(self.whites)
             || off(self.blacks)
+            || off(self.clarity)
             || off(self.vibrance)
             || off(self.saturation)
             || self.temperature.is_some()
@@ -450,6 +457,8 @@ mod tests {
         assert_eq!(parsed(&flags), Ok((curve, true)));
         let tone = Adjustments { highlights: -40.0, shadows: 35.0, ..Adjustments::NEUTRAL };
         assert_eq!(parsed(&["--highlights", "-40", "--shadows", "35"]), Ok((tone, true)));
+        let local = Adjustments { clarity: 25.0, ..Adjustments::NEUTRAL };
+        assert_eq!(parsed(&["--clarity", "25"]), Ok((local, true)));
         assert_eq!(parsed(&["--process", "1"]).map(|(_, passes)| passes), Ok(false));
         let bad: [&[&str]; 5] = [
             &["--exposure", "6"],

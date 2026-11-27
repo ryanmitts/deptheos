@@ -22,8 +22,9 @@
 @group(0) @binding(2) var<uniform> params: StandardParams;
 @group(0) @binding(3) var<storage, read> decode: array<f32>;
 @group(0) @binding(4) var<uniform> place: Placement;
-// Highlights and Shadows' base over the region drawn, at output texels.
-@group(0) @binding(6) var local_base: texture_2d<f32>;
+// The local tone's planes over the region drawn, at output texels
+// (`local_tone::Planes::at`).
+@group(0) @binding(6) var local_planes: texture_2d<f32>;
 
 struct StandardParams {
     // Column-major: the input's linear RGB to linear ProPhoto.
@@ -35,8 +36,8 @@ struct StandardParams {
     from_prophoto_c1: vec4f,
     from_prophoto_c2: vec4f,
     // x = 1 when the input is already linear; y = 1 to encode through the
-    // profile's curves, 0 through sRGB's; z the exposure stage (1) and
-    // Highlights and Shadows in it (2); w the stages after the tone curve:
+    // profile's curves, 0 through sRGB's; z the exposure stage (1) and the
+    // local tone's terms in it (adjust.wgsl); w the stages after the tone curve:
     // 1, 2 and 4 the curve's (curve.wgsl), 8 chroma (adjust.wgsl).
     flags: vec4u,
     // Exposure's gain and the shoulder's knee (adjust.wgsl).
@@ -44,7 +45,8 @@ struct StandardParams {
     // The curve's operators' weights (curve.wgsl), then Vibrance and
     // Saturation (adjust.wgsl).
     late: vec4f,
-    // Highlights' and Shadows' strengths and exposure's stops (adjust.wgsl).
+    // Highlights', Shadows' and Clarity's strengths, exposure's stops in z
+    // (adjust.wgsl).
     local_tone: vec4f,
 }
 
@@ -109,8 +111,8 @@ fn standard_render(@builtin(global_invocation_id) gid: vec3u) {
     var prophoto = to_prophoto(decoded(stored));
     if (params.flags.z != 0u) {
         var local = 1.0;
-        if ((params.flags.z & 2u) != 0u) {
-            local = adjust::local_tone(textureLoad(local_base, at, 0).r, params.local_tone);
+        if (params.flags.z > 1u) {
+            local = adjust::local_tone(textureLoad(local_planes, at, 0), params.local_tone, params.flags.z);
         }
         prophoto = adjust::exposure(prophoto, params.exposure_gain_knee, local);
     }
@@ -140,7 +142,7 @@ fn standard_render(@builtin(global_invocation_id) gid: vec3u) {
 
 @group(0) @binding(7) var brightness_out: texture_storage_2d<r32float, write>;
 
-// What Highlights and Shadows' base is taken of: log2 of each pixel's
+// What the local tone's planes are taken of: log2 of each pixel's
 // brightness over middle gray before exposure (Rec. 2020's luminance), as
 // lightcraft's `log_lum`.
 @compute @workgroup_size(16, 16)

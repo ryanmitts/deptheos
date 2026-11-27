@@ -1,18 +1,19 @@
-//! Highlights and Shadows: each pixel's gain in stops is read from a base,
-//! an edge-aware filter of the picture's log brightness. The base and the
-//! law are lightcraft's as they stand (MIT OR Apache-2.0): the base is
-//! craft-libs b2d2a1e94 `crates/develop/src/local.rs` (`tone_base`,
-//! `detail_free`, `median_hv`, `guided_fast`) with its resampling and blur
+//! The local tone: the sliders that read neighbors, each a gain in stops
+//! read from planes of the picture's log brightness. Highlights and
+//! Shadows read a base, an edge-aware filter of it; Clarity its own guided
+//! filter. The planes and the laws are lightcraft's as they stand (MIT OR
+//! Apache-2.0): the planes are craft-libs b2d2a1e94
+//! `crates/develop/src/local.rs` (`tone_base`, `detail_free`, `median_hv`,
+//! `guided_fast`) with its resampling and blur
 //! (`crates/develop/src/raster/resample.rs`,
-//! `crates/develop/src/raster/blur.rs`); the law is
-//! lightcraft 5bdb4e7a6 `crates/pipeline/src/finish.rs`
-//! (`local_tone_delta`, `tone_slider`).
+//! `crates/develop/src/raster/blur.rs`); the laws are lightcraft 5bdb4e7a6
+//! `crates/pipeline/src/finish.rs` (`local_tone_delta`, `tone_slider`).
 //!
-//! The base is computed for a rectangle at a time from the log brightness
-//! around it and from planes of the whole frame far smaller than it
-//! ([`Base`]), each value from the same inputs in the same order as the
-//! whole plane's, so a region, a band and the whole picture agree bit for
-//! bit.
+//! The planes are computed for a rectangle at a time from the log
+//! brightness around it and from planes of the whole frame far smaller than
+//! it ([`Planes`]), each value from the same inputs in the same order as
+//! the whole plane's, so a region, a band and the whole picture agree bit
+//! for bit.
 
 use std::collections::HashMap;
 use std::ops::Range;
@@ -32,6 +33,17 @@ pub const BASE_EPS: f32 = 0.35;
 pub const BASE_COARSE_STEP: usize = 3;
 /// How much a full Shadows eases off: it acts at `1 / (1 + SHADOWS_EASE)`.
 pub const SHADOWS_EASE: f64 = 1.33;
+/// Clarity's reach, as a fraction of the long edge (at least 1 px), and
+/// its guided filter's epsilon, in stops squared.
+pub const CLARITY_SIGMA: f32 = 0.012;
+pub const CLARITY_EPS: f32 = 0.8;
+/// Clarity's law: its gain in stops per stop of detail, the detail's
+/// limit, and the width (stops from middle gray) of the midtones where it
+/// acts fully; outside them it keeps `CLARITY_FLOOR` of its strength.
+pub const CLARITY_STRENGTH: f32 = 0.85;
+pub const CLARITY_LIMIT: f32 = 2.5;
+pub const CLARITY_MIDTONES: f32 = 3.2;
+pub const CLARITY_FLOOR: f32 = 0.35;
 /// The law's numbers: each slider's gain in stops at full weight, and
 /// where Shadows' and Highlights' weights rise over the base (stops from
 /// middle gray). The shaders take them from here.
@@ -60,6 +72,16 @@ pub fn base_sizes(long: usize) -> (f32, usize) {
     let sigma = (BASE_SIGMA * long as f32).max(1.0);
     let detail = ((BASE_DETAIL * long as f64).round().max(0.0) as usize).min(BASE_DETAIL_MAX);
     (sigma, detail)
+}
+
+/// Clarity's reach on a picture whose long edge is `long` pixels.
+pub fn clarity_sigma(long: usize) -> f32 {
+    (CLARITY_SIGMA * long as f32).max(1.0)
+}
+
+/// Clarity (-100 to 100) as the strength the law takes: linear.
+pub fn clarity_strength(value: f64) -> f32 {
+    (value / 100.0) as f32
 }
 
 /// A plane of f32 values, row by row.
@@ -120,20 +142,60 @@ impl Patch {
     }
 }
 
+/// A fast guided filter of a whole frame's plane, as craft-libs'
+/// `guided_fast`: its blurred coefficients, at the frame's size or reduced.
+/// With them and the plane over a rectangle, [`Guided::apply`] gives the
+/// filtered values there.
+struct Guided {
+    frame: [usize; 2],
+    mean_a: Plane,
+    mean_b: Plane,
+}
+
+impl Guided {
+    /// The coefficients of a `frame`-sized plane at reach `sigma` and
+    /// `eps`, reading it a band of `band` rows at a time from `rows`, which
+    /// gives its values over a rectangle of the frame.
+    fn new(
+        frame: [usize; 2],
+        sigma: f32,
+        eps: f32,
+        band: usize,
+        rows: &mut dyn FnMut(Rect) -> Plane,
+    ) -> Self {
+        let [w, h] = frame;
+        let s = guided_fast_step(sigma);
+        let (lw, lh) = (w.div_ceil(s).max(1), h.div_ceil(s).max(1));
+        let small = shrink(frame, [lw, lh], band, &mut |r| {
+            rows(Rect { x: 0, y: r.start, width: w, height: r.len() })
+        });
+        let (mean_a, mean_b) = guided_coeffs(&small, sigma / s as f32, eps);
+        Self { frame, mean_a, mean_b }
+    }
+
+    /// The filtered values over `rect`, `p` the plane's values there.
+    fn apply(&self, p: &Plane, rect: Rect) -> Plane {
+        guided_apply(p, rect, self.frame, &self.mean_a, &self.mean_b)
+    }
+}
+
 /// The planes of a whole frame the base needs, far smaller than it: the
 /// coarse median and the guided filter's coefficients. With them and the
 /// log brightness around a rectangle, [`Base::base`] gives the base there.
 pub struct Base {
+    detail: DetailFree,
+    guided: Guided,
+}
+
+/// What takes a frame's detail out of its log brightness: the median's
+/// radius and the coarse median.
+struct DetailFree {
     frame: [usize; 2],
     detail: usize,
     /// The coarse median, its enlargement's weights to the frame
     /// (horizontal, then the vertical pass at its own height, then
     /// vertical to the frame).
     coarse: Option<Coarse>,
-    /// The guided filter's blurred coefficients, at the frame's size or
-    /// reduced.
-    mean_a: Plane,
-    mean_b: Plane,
 }
 
 struct Coarse {
@@ -172,40 +234,92 @@ impl Base {
                 }
             })
         });
-        let mut base = Self {
-            frame,
-            detail,
-            coarse: coarse.flatten(),
-            mean_a: Plane::new(0, 0),
-            mean_b: Plane::new(0, 0),
-        };
-        let s = guided_fast_step(sigma);
-        let (lw, lh) = (w.div_ceil(s).max(1), h.div_ceil(s).max(1));
-        let small = shrink(frame, [lw, lh], band, &mut |rows| {
-            let rect = Rect { x: 0, y: rows.start, width: w, height: rows.len() };
+        let free = DetailFree { frame, detail, coarse: coarse.flatten() };
+        let guided = Guided::new(frame, sigma, BASE_EPS, band, &mut |rect| {
             let around = rect.grown(detail, frame);
-            base.detail_free(&Patch { rect: around, plane: log_brightness(around) }, rect)
+            free.apply(&Patch { rect: around, plane: log_brightness(around) }, rect)
         });
-        (base.mean_a, base.mean_b) = guided_coeffs(&small, sigma / s as f32, BASE_EPS);
-        base
+        Self { detail: free, guided }
     }
 
     /// How far around a rectangle [`Self::base`] reads log brightness.
     pub fn margin(&self) -> usize {
-        self.detail
+        self.detail.detail
     }
 
     /// The base over `rect`, from the log brightness over `rect` grown by
     /// [`Self::margin`] within the frame.
     pub fn base(&self, around: &Patch, rect: Rect) -> Plane {
-        let p = self.detail_free(around, rect);
-        guided_apply(&p, rect, self.frame, &self.mean_a, &self.mean_b)
+        self.guided.apply(&self.detail.apply(around, rect), rect)
+    }
+}
+
+/// Which planes a draw's local tone reads: Highlights and Shadows' base,
+/// Clarity's guided filter.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub struct Needs {
+    pub base: bool,
+    pub clarity: bool,
+}
+
+/// The whole frame's planes a draw's local tone reads, far smaller than
+/// the frame. With them and the log brightness around a rectangle,
+/// [`Planes::at`] gives each pixel's values there.
+pub struct Planes {
+    frame: [usize; 2],
+    base: Option<Base>,
+    /// Clarity's guided filter of log brightness itself (craft-libs'
+    /// `guided_fast` at [`CLARITY_EPS`]).
+    clarity: Option<Guided>,
+}
+
+impl Planes {
+    /// The planes `needs` names, for a `frame`-sized picture whose log
+    /// brightness `log_brightness` gives over a rectangle, read `band` rows
+    /// at a time.
+    pub fn new(
+        frame: [usize; 2],
+        band: usize,
+        needs: Needs,
+        mut log_brightness: impl FnMut(Rect) -> Plane,
+    ) -> Self {
+        let band = band.max(1);
+        let base = needs.base.then(|| Base::new(frame, band, &mut log_brightness));
+        let clarity = needs.clarity.then(|| {
+            let sigma = clarity_sigma(frame[0].max(frame[1]));
+            Guided::new(frame, sigma, CLARITY_EPS, band, &mut log_brightness)
+        });
+        Self { frame, base, clarity }
     }
 
+    /// The rectangle around `rect` whose log brightness [`Self::at`] reads.
+    pub fn around(&self, rect: Rect) -> Rect {
+        rect.grown(self.base.as_ref().map_or(0, Base::margin), self.frame)
+    }
+
+    /// Each pixel of `rect`, row by row: its base, or its log brightness
+    /// without one; then its log brightness less Clarity's filter, 0
+    /// without it; then two zeros. `around` covers [`Self::around`].
+    pub fn at(&self, around: &Patch, rect: Rect) -> Vec<[f32; 4]> {
+        let own = crop(around, rect);
+        let base = self.base.as_ref().map(|b| b.base(around, rect));
+        let clarity = self.clarity.as_ref().map(|c| c.apply(&own, rect));
+        let mut out = vec![[0.0; 4]; rect.width * rect.height];
+        for (i, (o, l)) in out.iter_mut().zip(&own.data).enumerate() {
+            o[0] = base.as_ref().map_or(*l, |b| b.data[i]);
+            if let Some(c) = &clarity {
+                o[1] = l - c.data[i];
+            }
+        }
+        out
+    }
+}
+
+impl DetailFree {
     /// The log brightness over `rect` without detail finer than the median
     /// radius: each value clamped between its median and the coarse
     /// median's.
-    fn detail_free(&self, around: &Patch, rect: Rect) -> Plane {
+    fn apply(&self, around: &Patch, rect: Rect) -> Plane {
         let r = self.detail;
         if r == 0 {
             return crop(around, rect);
@@ -680,8 +794,8 @@ mod tests {
             let full = base_of(&p, &one, whole);
             for band in [1, 7, 64] {
                 let banded = Base::new([w, h], band, reader(&p));
-                assert_eq!(banded.mean_a, one.mean_a, "{w}x{h} band {band}");
-                assert_eq!(banded.mean_b, one.mean_b, "{w}x{h} band {band}");
+                assert_eq!(banded.guided.mean_a, one.guided.mean_a, "{w}x{h} band {band}");
+                assert_eq!(banded.guided.mean_b, one.guided.mean_b, "{w}x{h} band {band}");
             }
             for rect in [
                 Rect { x: 0, y: 0, width: w.min(33), height: h.min(17) },
@@ -694,6 +808,32 @@ mod tests {
                     assert_eq!(&part.data[i * rect.width..(i + 1) * rect.width], row, "{rect:?}");
                 }
             }
+        }
+    }
+
+    /// The planes at a region are the whole frame's there, whatever the
+    /// band, and Clarity's filter is the guided filter of log brightness.
+    #[test]
+    fn the_planes_at_a_region_are_the_whole_frames() {
+        let needs = Needs { base: true, clarity: true };
+        for (w, h) in [(1300, 700), (61, 40)] {
+            let p = scene(w, h);
+            let at = |planes: &Planes, rect: Rect| {
+                let around = planes.around(rect);
+                planes.at(&Patch { rect: around, plane: reader(&p)(around) }, rect)
+            };
+            let whole = Rect { x: 0, y: 0, width: w, height: h };
+            let one = Planes::new([w, h], h, needs, reader(&p));
+            let full = at(&one, whole);
+            let banded = Planes::new([w, h], 7, needs, reader(&p));
+            for rect in [Rect { x: w / 3, y: h / 4, width: w / 2, height: h / 3 }, whole] {
+                let part = at(&banded, rect);
+                for (i, y) in rect.rows().enumerate() {
+                    let row = &full[y * w + rect.x..y * w + rect.x + rect.width];
+                    assert_eq!(&part[i * rect.width..(i + 1) * rect.width], row, "{rect:?}");
+                }
+            }
+            assert!(full.iter().any(|v| v[1] != 0.0));
         }
     }
 

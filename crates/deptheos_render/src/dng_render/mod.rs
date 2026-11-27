@@ -78,7 +78,7 @@ struct Shader {
     /// Only the quantizing (16-bit) variant reads the threshold table.
     thresholds: Option<wgpu::BindGroup>,
     /// The pass that writes log brightness before exposure, which
-    /// Highlights and Shadows' base is taken of.
+    /// the local tone's planes are taken of.
     brightness: wgpu::ComputePipeline,
 }
 
@@ -133,7 +133,7 @@ impl DngRenderPipeline {
         let (width, height) = (input.width(), input.height());
         let output = Self::create_output(ctx, width, height);
         let source = Source::whole(input);
-        let prepared = self.with_base(ctx, PreparedRender::new(ctx, constants), source, height);
+        let prepared = self.with_planes(ctx, PreparedRender::new(ctx, constants), source, height);
         self.draw(ctx, &prepared, source, Region::whole(width, height), &output);
         output
     }
@@ -152,7 +152,7 @@ impl DngRenderPipeline {
         let (width, height) = (input.width(), input.height());
         let band = band.clamp(1, height);
         let source = Source::whole(input);
-        let prepared = self.with_base(ctx, PreparedRender::new(ctx, constants), source, band);
+        let prepared = self.with_planes(ctx, PreparedRender::new(ctx, constants), source, band);
         let output = Self::create_output(ctx, width, band);
         for y in (0..height).step_by(band as usize) {
             let region = Region { x: 0, y, width, height: band.min(height - y) };
@@ -218,7 +218,7 @@ impl Constants {
             uniform.exposure_gain_knee = exposure.gain_knee();
         }
         if let Some(local_tone) = stages.local_tone {
-            uniform.flags.z |= 2;
+            uniform.flags.z |= local_tone.terms();
             uniform.local_tone = local_tone.packed();
             uniform.base_exposure = pack_params(rp, rp.baseline_exposure, to_output).exposure;
         }
@@ -263,14 +263,20 @@ impl Constants {
         }
     }
 
-    /// Whether the draw has Highlights or Shadows, so it needs a base
-    /// ([`PreparedRender::with_base`]).
+    /// Whether the draw has a slider that reads neighbors, so it needs
+    /// planes of the whole frame ([`DngRenderPipeline::with_planes`]).
     pub fn has_local_tone(&self) -> bool {
+        self.local_needs().is_some()
+    }
+
+    /// The planes the draw's local tone reads, if it has any.
+    fn local_needs(&self) -> Option<crate::local_tone::Needs> {
         let z = match &self.0 {
             Kind::Linear { uniform, .. } => uniform.flags.z,
             Kind::Standard(standard) => standard.uniform.flags.z,
         };
-        z & 2 != 0
+        let needs = stages::needs(z);
+        (needs != crate::local_tone::Needs::default()).then_some(needs)
     }
 
     /// How the stored pixels go to the GPU for this draw: as they are
@@ -284,14 +290,21 @@ impl Constants {
 }
 
 /// One [`Constants`]' GPU buffers, built once and reused by every render
-/// with those constants, and Highlights and Shadows' base of the whole
-/// frame when they have them.
+/// with those constants, and the local tone's planes of the whole frame
+/// when they have it.
 pub struct PreparedRender {
     buffers: Prepared,
-    /// Whether the constants have Highlights or Shadows, which draw only
-    /// with a base.
-    local_tone: bool,
-    base: Option<crate::local_tone::Base>,
+    planes: Planes,
+}
+
+/// Lifecycle: the local tone's planes of the whole frame. `None` for a
+/// draw without local tone; `Needed` until
+/// [`DngRenderPipeline::with_planes`] makes them `Built`, which a draw with
+/// local tone requires.
+enum Planes {
+    None,
+    Needed(crate::local_tone::Needs),
+    Built(crate::local_tone::Planes),
 }
 
 enum Prepared {
@@ -312,7 +325,8 @@ enum Prepared {
 impl PreparedRender {
     pub fn new(ctx: &GpuContext, constants: &Constants) -> Self {
         let buffers = Self::buffers(ctx, constants);
-        Self { buffers, local_tone: constants.has_local_tone(), base: None }
+        let planes = constants.local_needs().map_or(Planes::None, Planes::Needed);
+        Self { buffers, planes }
     }
 
     fn buffers(ctx: &GpuContext, constants: &Constants) -> Prepared {

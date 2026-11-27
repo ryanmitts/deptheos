@@ -32,8 +32,9 @@
 @group(0) @binding(4) var<storage, read> hsm_lut: array<f32>;
 @group(0) @binding(5) var<storage, read> look_lut: array<f32>;
 @group(0) @binding(6) var<uniform> place: Placement;
-// Highlights and Shadows' base over the region drawn, at output texels.
-@group(0) @binding(8) var local_base: texture_2d<f32>;
+// The local tone's planes over the region drawn, at output texels
+// (`local_tone::Planes::at`).
+@group(0) @binding(8) var local_planes: texture_2d<f32>;
 
 struct Placement {
     // xy = the tile's first source texel, zw = its first output texel.
@@ -61,8 +62,8 @@ struct DngColorParams {
     // Max-normalized camera white (clip ceiling).
     camera_white: vec4f,
     // x = HueSatMap present, y = LookTable present, z = the exposure stage
-    // in place of the ramp's clamp (1) and Highlights and Shadows in it
-    // (2), w = the stages after the tone
+    // in place of the ramp's clamp (1) and the local tone's terms in it
+    // (adjust.wgsl), w = the stages after the tone
     // curve: 1, 2 and 4 the curve's (curve.wgsl), 8 chroma (adjust.wgsl).
     flags: vec4u,
     // Hue, sat and val divisions; w = 1 for an sRGB-encoded table.
@@ -73,7 +74,8 @@ struct DngColorParams {
     // The curve's operators' weights (curve.wgsl), then Vibrance and
     // Saturation (adjust.wgsl).
     late: vec4f,
-    // Highlights' and Shadows' strengths and exposure's stops (adjust.wgsl).
+    // Highlights', Shadows' and Clarity's strengths, exposure's stops in z
+    // (adjust.wgsl).
     local_tone: vec4f,
     // The ramp's constants at the baseline exposure, as `exposure`: what
     // the base is taken of.
@@ -299,14 +301,14 @@ fn ramp(prophoto: vec3f, e: vec4f, open: bool) -> vec3f {
     );
 }
 
-// The ramp, then the exposure stage with Highlights and Shadows' gain at
+// The ramp, then the exposure stage with the local tone's gain at
 // the output texel `at`.
 fn exposure(prophoto: vec3f, at: vec2i) -> vec3f {
     let ramped = ramp(prophoto, params.exposure, params.flags.z != 0u);
     if (params.flags.z != 0u) {
         var local = 1.0;
-        if ((params.flags.z & 2u) != 0u) {
-            local = adjust::local_tone(textureLoad(local_base, at, 0).r, params.local_tone);
+        if (params.flags.z > 1u) {
+            local = adjust::local_tone(textureLoad(local_planes, at, 0), params.local_tone, params.flags.z);
         }
         return adjust::exposure(ramped, params.exposure_gain_knee, local);
     }
@@ -373,7 +375,7 @@ fn dng_render(@builtin(global_invocation_id) gid: vec3u) {
 
 @group(0) @binding(9) var brightness_out: texture_storage_2d<r32float, write>;
 
-// What Highlights and Shadows' base is taken of: log2 of each pixel's
+// What the local tone's planes are taken of: log2 of each pixel's
 // brightness over middle gray before exposure (Rec. 2020's luminance, at
 // the baseline exposure, unclipped), as lightcraft's `log_lum`.
 @compute @workgroup_size(16, 16)

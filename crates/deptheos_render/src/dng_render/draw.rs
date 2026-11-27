@@ -7,8 +7,8 @@ use deptheos_gpu::gpu_utils::{
     WORKGROUP_SIZE, create_bind_group, dispatch_compute_with, download_texture_with, tex,
 };
 
-use super::{DngRenderPipeline, Prepared, PreparedRender, place};
-use crate::local_tone::{Base, Patch, Plane, Rect};
+use super::{DngRenderPipeline, Planes, Prepared, PreparedRender, place};
+use crate::local_tone::{self, Patch, Plane, Rect};
 
 /// The side of a tile, in pixels: one dispatch and one submit each, so no
 /// single GPU command runs long on a large picture.
@@ -183,8 +183,8 @@ impl DngRenderPipeline {
         self.draw_with_tiled(ctx, prepared, source, region, stage, frame_input, output, TILE);
     }
 
-    /// The log brightness Highlights and Shadows' base is taken of, over
-    /// frame `region` of `source`.
+    /// The log brightness the local tone's planes are taken of, over frame
+    /// `region` of `source`.
     fn log_brightness(
         &self,
         ctx: &GpuContext,
@@ -269,60 +269,59 @@ impl DngRenderPipeline {
         Plane { width: region.width as usize, height: region.height as usize, data }
     }
 
-    /// `prepared` with Highlights and Shadows' base of `source`'s whole
-    /// frame, read `band` rows at a time. Without them it is returned as
-    /// it is.
-    pub fn with_base(
+    /// `prepared` with the local tone's planes of `source`'s whole frame,
+    /// read `band` rows at a time. Without local tone it is returned as it
+    /// is.
+    pub fn with_planes(
         &self,
         ctx: &GpuContext,
         mut prepared: PreparedRender,
         source: Source<'_>,
         band: u32,
     ) -> PreparedRender {
-        if !prepared.local_tone {
-            return prepared;
-        }
+        let Planes::Needed(needs) = prepared.planes else { return prepared };
         let frame = [source.frame[0] as usize, source.frame[1] as usize];
-        let base = Base::new(frame, band as usize, |rect| {
+        let planes = local_tone::Planes::new(frame, band as usize, needs, |rect| {
             self.log_brightness(ctx, &prepared, source, Region::of(rect))
         });
-        prepared.base = Some(base);
+        tracing::debug!("local tone planes: {needs:?} built");
+        prepared.planes = Planes::Built(planes);
         prepared
     }
 
-    /// Highlights and Shadows' base over frame `region`, as a texture the
-    /// draw reads at output texels; a placeholder without them.
-    fn local_base(
+    /// The local tone's values over frame `region` ([`local_tone::Planes::at`]),
+    /// as a texture the draw reads at output texels; a placeholder without
+    /// local tone.
+    fn local_planes(
         &self,
         ctx: &GpuContext,
         prepared: &PreparedRender,
         source: Source<'_>,
         region: Region,
     ) -> wgpu::Texture {
-        let plane = match (&prepared.base, prepared.local_tone) {
-            (_, false) => Plane::new(1, 1),
-            (None, true) => panic!("Highlights and Shadows draw with a base (`with_base`)"),
-            (Some(base), true) => {
-                let frame = [source.frame[0] as usize, source.frame[1] as usize];
-                let around = region.rect().grown(base.margin(), frame);
+        let (width, height, values) = match &prepared.planes {
+            Planes::None => (1, 1, vec![[0.0f32; 4]]),
+            Planes::Needed(_) => panic!("local tone draws with its planes (`with_planes`)"),
+            Planes::Built(planes) => {
+                let around = planes.around(region.rect());
                 let plane = self.log_brightness(ctx, prepared, source, Region::of(around));
-                base.base(&Patch { rect: around, plane }, region.rect())
+                let values = planes.at(&Patch { rect: around, plane }, region.rect());
+                (region.width, region.height, values)
             }
         };
-        let (width, height) = (plane.width as u32, plane.height as u32);
         let texture = ctx.create_texture(
             width,
             height,
-            wgpu::TextureFormat::R32Float,
+            wgpu::TextureFormat::Rgba32Float,
             wgpu::TextureUsages::TEXTURE_BINDING | wgpu::TextureUsages::COPY_DST,
-            "local_base",
+            "local_planes",
         );
         ctx.queue.write_texture(
             texture.as_image_copy(),
-            bytemuck::cast_slice(&plane.data),
+            bytemuck::cast_slice(&values),
             wgpu::TexelCopyBufferLayout {
                 offset: 0,
-                bytes_per_row: Some(width * 4),
+                bytes_per_row: Some(width * 16),
                 rows_per_image: Some(height),
             },
             wgpu::Extent3d { width, height, depth_or_array_layers: 1 },
@@ -341,11 +340,11 @@ impl DngRenderPipeline {
     ) {
         assert!(source.covers.contains(region), "{region:?} outside {:?}", source.covers);
         assert!(region.width <= output.width() && region.height <= output.height());
-        let base = self.local_base(ctx, prepared, source, region);
-        let (in_view, out_view, base_view) = (
+        let planes = self.local_planes(ctx, prepared, source, region);
+        let (in_view, out_view, planes_view) = (
             source.texture.create_view(&Default::default()),
             output.create_view(&Default::default()),
-            base.create_view(&Default::default()),
+            planes.create_view(&Default::default()),
         );
         for tile in region.tiles(side) {
             let [sx, sy] = source.texel(tile.x, tile.y);
@@ -366,7 +365,7 @@ impl DngRenderPipeline {
                         look.as_entire_binding(),      // look_lut
                         placement.as_entire_binding(), // place
                         curve.as_entire_binding(),     // curve_luts
-                        tex(&base_view),               // local_base
+                        tex(&planes_view),             // local_planes
                     ],
                 ),
                 Prepared::Standard { params, decode, curve } => (
@@ -378,7 +377,7 @@ impl DngRenderPipeline {
                         decode.as_entire_binding(),    // decode
                         placement.as_entire_binding(), // place
                         curve.as_entire_binding(),     // curve_luts
-                        tex(&base_view),               // local_base
+                        tex(&planes_view),             // local_planes
                     ],
                 ),
             };

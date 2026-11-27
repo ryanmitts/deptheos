@@ -105,8 +105,7 @@ impl StandardConstants {
             flags: UVec4::new(
                 u32::from(decode.is_empty()),
                 u32::from(own_curves),
-                u32::from(stages.exposure.is_some())
-                    | (u32::from(stages.local_tone.is_some()) << 1),
+                u32::from(stages.exposure.is_some()) | stages.local_tone.map_or(0, |l| l.terms()),
                 late_stages,
             ),
             exposure_gain_knee: stages

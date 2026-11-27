@@ -643,7 +643,7 @@ mod render_pixels_tests {
 
     use super::*;
 
-    /// An export with Highlights and Shadows, drawn in bands, is the whole
+    /// An export with the local tone, drawn in bands, is the whole
     /// draw bit for bit.
     #[test]
     fn bands_draw_as_the_whole_picture() {

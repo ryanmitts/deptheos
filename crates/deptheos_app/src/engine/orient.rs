@@ -102,15 +102,16 @@ impl Orient {
         }
     }
 
-    /// `image` turned and flipped, its levels made again from its first.
+    /// `image` (of any size) turned and flipped, its levels made again
+    /// from its first.
     pub fn presented(&self, image: PresentedImage) -> PresentedImage {
         if self.is_none() {
             return image;
         }
         let Some(first) = image.levels.first() else { return image };
         let first = self.image(&first.assemble());
-        let shown = self.size();
-        PresentedImage::from_first(first, image.levels.len(), image.first_level, shown)
+        let whole = self.turned(Size { width: image.width(), height: image.height() });
+        PresentedImage::from_first(first, image.levels.len(), image.first_level, whole)
     }
 }
 

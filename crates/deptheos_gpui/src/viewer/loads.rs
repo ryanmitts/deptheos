@@ -284,13 +284,15 @@ impl Viewer {
         cx: &mut Context<Self>,
     ) {
         let loader = self.loader.clone();
+        // Turned and flipped as the render shown is (ADR-149).
+        let orient = self.orient();
         let generation = P::loads(self).request(label, |generation| {
             cx.spawn(async move |this, cx| {
                 let job = payload.clone();
-                let result =
-                    work::interactive(P::KIND, move || job.make(&loader)).await.unwrap_or_else(
-                        |e| Err(deptheos_app::Error::InvalidState(format!("load {e}"))),
-                    );
+                let make = move || job.make(&loader).map(|p| orient.presented(p));
+                let result = work::interactive(P::KIND, make).await.unwrap_or_else(|e| {
+                    Err(deptheos_app::Error::InvalidState(format!("load {e}")))
+                });
                 this.update(cx, |this, cx| {
                     // Shown only while it is the load held.
                     if P::loads(this).arrived(generation) {

@@ -47,7 +47,8 @@ impl Gesture {
 }
 
 impl Viewer {
-    /// The image pixel under window point `p`, through the pane it is in.
+    /// The shown picture's point under window point `p`, through the pane
+    /// it is in: the stored picture turned, uncropped (`framed.rs`).
     pub(super) fn image_point(&self, p: Point<Pixels>) -> Option<(f32, f32)> {
         let pane = self.pane_at(p)?;
         self.image_point_in(pane, p)
@@ -61,8 +62,7 @@ impl Viewer {
     /// or not (clamped later).
     fn image_point_in(&self, pane: usize, p: Point<Pixels>) -> Option<(f32, f32)> {
         let (_, rect) = self.panes.get(pane)?;
-        let image_w = self.view.image_w.max(1) as f32;
-        let scale = f32::from(rect.size.width) / image_w;
+        let scale = self.per_pixel(*rect);
         Some((f32::from(p.x - rect.origin.x) / scale, f32::from(p.y - rect.origin.y) / scale))
     }
 
@@ -122,11 +122,9 @@ impl Viewer {
         }
     }
 
-    /// The image pixel under `position`, if on the image.
+    /// The stored pixel under `position`, if on the picture.
     fn pixel_at(&self, position: Point<Pixels>) -> Option<(u32, u32)> {
-        let (width, height) = (self.view.image_w as f32, self.view.image_h as f32);
-        let (x, y) = self.image_point(position)?;
-        ((0.0..width).contains(&x) && (0.0..height).contains(&y)).then_some((x as u32, y as u32))
+        self.stored_pixel(self.image_point(position)?)
     }
 
     /// Over the map: the result's pixel under the pointer, or `None` off it.
@@ -148,7 +146,7 @@ impl Viewer {
     }
 
     fn dab(&self, pane: usize, position: Point<Pixels>) -> Option<Dab> {
-        let (x, y) = self.image_point_in(pane, position)?;
+        let (x, y) = self.to_stored(self.image_point_in(pane, position)?);
         Some(Dab { x, y, pressure: 1.0 })
     }
 

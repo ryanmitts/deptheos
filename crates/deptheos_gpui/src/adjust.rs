@@ -10,11 +10,12 @@ use deptheos_app::adjust::histogram::Histogram;
 use deptheos_app::adjust::machine::{Phase, Status};
 use deptheos_app::adjust::preview::{FlatPicture, Region, Shown};
 use deptheos_app::adjust::{AdjustSession, Observer, Panel, Slider, Update};
+use deptheos_app::engine::orient::Orient;
 use deptheos_app::library::history::History;
 use deptheos_app::paint::Flattened;
 use deptheos_app::view::Pane;
 use deptheos_app::view::framing::Framing;
-use deptheos_app::{Adjustments, CompletedStack, Engine, Look, RenderId, reframe};
+use deptheos_app::{Adjustments, CompletedStack, Engine, Look, PresentedImage, RenderId, reframe};
 use futures::StreamExt as _;
 use futures::channel::mpsc;
 use gpui::{
@@ -39,6 +40,13 @@ pub enum AdjustEvent {
     Closed {
         key: RenderId,
         redraw: bool,
+    },
+    /// Render `key` drawn under its saved value as Adjust left it: the
+    /// result shown, if it still is `key`'s.
+    Drawn {
+        key: RenderId,
+        /// Taken by the one that shows it.
+        picture: std::cell::Cell<Option<PresentedImage>>,
     },
     /// Render `key`'s thumbnail was drawn again: the strip reads it again.
     Rewritten(RenderId),
@@ -134,8 +142,13 @@ pub struct Adjust {
     typing: Option<Typing>,
     tool: AdjustTool,
     /// The stored picture with its paint, unadjusted, for Before; made as
-    /// Adjust opens.
+    /// Adjust opens, then turned as the value shown is.
     _before: Option<Task<()>>,
+    before: Option<Arc<PresentedImage>>,
+    /// The turn and flip Before was last handed to the viewer with.
+    before_orient: Option<Orient>,
+    /// Turns Before when the value's turn or flip changes.
+    _turning: Option<Task<()>>,
     _updates: Task<()>,
 }
 
@@ -172,6 +185,9 @@ impl Adjust {
             typing: None,
             tool: AdjustTool::Sliders,
             _before: None,
+            before: None,
+            before_orient: None,
+            _turning: None,
             _updates,
         }
     }
@@ -234,6 +250,7 @@ impl Adjust {
         self.set_tool(AdjustTool::Sliders, cx);
         self.controls = Some(controls(Panel::of(&stack), cx));
         self.viewer.update(cx, |v, cx| v.show_before(None, cx));
+        (self.before, self.before_orient, self._turning) = (None, None, None);
         self.session.open(key, stack.clone());
         self.sync_view(cx);
         self._before = Some(cx.spawn(async move |this, cx| {
@@ -247,16 +264,44 @@ impl Adjust {
             })
             .await;
             let before = match made {
-                Ok(Ok(before)) => TiledImage::from_presented(before),
+                Ok(Ok(before)) => Arc::new(before),
                 Ok(Err(e)) => return tracing::warn!("adjust: the picture before not drawn: {e}"),
                 Err(e) => return tracing::warn!("adjust: the picture before not drawn: {e}"),
             };
+            this.update(cx, |this, cx| {
+                this.before = Some(before);
+                this.turn_before(cx);
+            })
+            .ok();
+        }));
+        cx.notify();
+    }
+
+    /// Before, turned and flipped as the value shown is, to the viewer
+    /// (off the UI thread) when it isn't already.
+    fn turn_before(&mut self, cx: &mut Context<Self>) {
+        let (Some(before), Some(picture)) = (self.before.clone(), self.viewer.read(cx).picture())
+        else {
+            return;
+        };
+        let reframe = self.status.as_ref().map_or(reframe::Reframe::NONE, |s| s.value.reframe);
+        let orient = Orient::of(reframe, picture);
+        if self.before_orient == Some(orient) {
+            return;
+        }
+        self.before_orient = Some(orient);
+        self._turning = Some(cx.spawn(async move |this, cx| {
+            let turned = crate::work::interactive("adjust-before-turn", move || {
+                orient.presented((*before).clone())
+            })
+            .await;
+            let Ok(turned) = turned else { return };
+            let before = TiledImage::from_presented(turned);
             this.update(cx, |this, cx| {
                 this.viewer.update(cx, |v, cx| v.show_before(Some(before), cx))
             })
             .ok();
         }));
-        cx.notify();
     }
 
     /// Leave Adjust, a change in progress committed.
@@ -265,7 +310,7 @@ impl Adjust {
         self.typing = None;
         self.controls = None;
         self.set_tool(AdjustTool::Sliders, cx);
-        self._before = None;
+        (self._before, self.before, self.before_orient, self._turning) = (None, None, None, None);
         self.viewer.update(cx, |v, cx| {
             v.clear_flat(cx);
             v.show_before(None, cx);
@@ -377,9 +422,7 @@ impl Adjust {
     /// from there, mapped to the picture as shown under its reframe.
     pub fn eyedrop(&mut self, at: (f64, f64), cx: &mut Context<Self>) {
         let Some(status) = &self.status else { return };
-        let stack_size = self.viewer.read(cx).image_size();
-        let Some((width, height)) = stack_size else { return };
-        let picture = reframe::Size { width, height };
+        let Some(picture) = self.viewer.read(cx).picture() else { return };
         let framing = Framing::of(picture, status.value.reframe, Pane::Result);
         let shown = framing.to_shown(at);
         self.session.eyedrop(shown);
@@ -437,11 +480,17 @@ impl Adjust {
         match update {
             Update::Status(status) => {
                 self.sync_tracks(&status, window, cx);
+                let reframe = status.value.reframe;
+                self.viewer.update(cx, |v, cx| v.reframe_shown(reframe, cx));
                 self.status = Some(status);
+                self.turn_before(cx);
                 cx.notify();
             }
             Update::Settled { key, picture, histogram } => {
-                if self.status.as_ref().is_some_and(|s| s.key == key) {
+                if self.controls.is_none() {
+                    // Drawn as Adjust left: the result under its saved value.
+                    cx.emit(AdjustEvent::Drawn { key, picture: Some(picture).into() });
+                } else if self.status.as_ref().is_some_and(|s| s.key == key) {
                     self.histogram = Some(histogram);
                     self.viewer.update(cx, |v, cx| v.settle(picture, cx));
                 }

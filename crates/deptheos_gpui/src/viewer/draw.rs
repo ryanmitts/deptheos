@@ -53,6 +53,8 @@ pub(super) struct Frame {
     preview: Option<Preview>,
     /// Adjust's flat picture: its pane, where it lies, its image.
     flat: Option<(Bounds<Pixels>, Bounds<Pixels>, Arc<RenderImage>)>,
+    /// The crop marked over each pane that marks it: the pane, the crop.
+    marks: Vec<(Bounds<Pixels>, Bounds<Pixels>)>,
 }
 
 /// The paint source under the brush's inner circle, drawn over the canvas
@@ -109,10 +111,13 @@ impl Viewer {
             rings: Vec::new(),
             preview: None,
             flat: None,
+            marks: Vec::new(),
         };
 
         self.layout(bounds, window, &mut frame);
         self.panes = frame.draws.iter().map(|d| (d.clip, d.rect)).collect();
+        frame.marks =
+            self.panes.iter().filter_map(|&(c, r)| Some((c, self.crop_mark(r)?))).collect();
         if let Some(&(clip, rect)) = self.panes.last() {
             self.sync_adjust_view(clip, rect, cx);
             frame.flat = self.flat().map(|f| (clip, self.flat_rect(f, rect), f.image.clone()));
@@ -199,9 +204,24 @@ impl Viewer {
         let layout = drawn.map(|(layout, _)| layout);
         let swapped = drawn.is_some_and(|(_, swapped)| swapped) && self.tool != Tool::Paint;
         let before_held = self.holding_before() && self.before.is_some();
-        let Self { primary, map, lit_map, secondary, before, atlas, view, split, .. } = self;
         // The map can't be on without one ([`Viewer::toggle_map`]); the
         // result stands in while its picture is remade (`MapPicture::Off`).
+        let main_size = |image: Option<&TiledImage>| image.map(|i| (i.width, i.height));
+        let shown = match map_shown {
+            Some(true) if self.lit_map.is_some() => main_size(self.lit_map.as_ref()),
+            Some(_) if self.map.image().is_some() => main_size(self.map.image()),
+            Some(_) => main_size(self.primary.as_ref()),
+            None if before_held => main_size(self.before.as_ref()),
+            None if self.primary.is_some() => main_size(self.primary.as_ref()),
+            None => main_size(self.map.image()),
+        };
+        let Some(shown) = shown else { return };
+        // The framing, the crop's window and the view's image size; the
+        // view keeps its place when only the framing changed.
+        self.frame(shown);
+        let crop_window = self.framed.window;
+        let full = self.framed.shown;
+        let Self { primary, map, lit_map, secondary, before, atlas, view, split, .. } = self;
         let main = match map_shown {
             Some(true) if lit_map.is_some() => lit_map.as_mut(),
             Some(_) if map.image_mut().is_some() => map.image_mut(),
@@ -211,10 +231,6 @@ impl Viewer {
             None => map.image_mut(),
         };
         let Some(main) = main else { return };
-        // The tracked image may have changed size: re-fit first.
-        if (main.width, main.height) != (view.image_w, view.image_h) {
-            view.set_image_size(main.width, main.height);
-        }
         // A compare source is drawn into the result's rect, so another size
         // would stretch: draw the result alone.
         let compare = match layout {
@@ -236,6 +252,21 @@ impl Viewer {
             let rect = Bounds {
                 origin: point(pane.origin.x + px(ix), pane.origin.y + px(iy)),
                 size: size(px(iw), px(ih)),
+            };
+            // The result's crop is a window over the whole picture.
+            let (clip, rect) = match crop_window {
+                Some(w) => {
+                    let per = iw / w.width.max(1) as f32;
+                    let whole = Bounds {
+                        origin: point(
+                            rect.origin.x - px(w.x as f32 * per),
+                            rect.origin.y - px(w.y as f32 * per),
+                        ),
+                        size: size(px(full.0 as f32 * per), px(full.1 as f32 * per)),
+                    };
+                    (clip.intersect(&rect), whole)
+                }
+                None => (clip, rect),
             };
             Draw { clip, rect, tiles: image.draws(atlas, rect, clip, device_scale) }
         };
@@ -305,10 +336,9 @@ impl Viewer {
     /// The ring under the pointer, at the same image point in every pane.
     fn place_rings(&self, frame: &mut Frame) {
         let Some(at) = self.hover.and_then(|p| self.image_point(p)) else { return };
-        let image_w = self.view.image_w.max(1) as f32;
         for d in &frame.draws {
             // Logical pixels per image pixel in this pane.
-            let scale = f32::from(d.rect.size.width) / image_w;
+            let scale = self.per_pixel(d.rect);
             let center =
                 point(d.rect.origin.x + px(at.0 * scale), d.rect.origin.y + px(at.1 * scale));
             frame.rings.push((center, self.ring.radius * scale, self.ring.hardness, d.clip));
@@ -322,7 +352,7 @@ impl Viewer {
         let Some(canvas) = frame.draws.last() else { return };
         let (clip, rect) = (canvas.clip, canvas.rect);
         let device_scale = self.view.device_scale();
-        let image = (self.view.image_w, self.view.image_h);
+        let image = self.framed.shown;
         let Self { secondary, atlas, ring, .. } = self;
         let Some(source) = secondary.as_mut().filter(|s| (s.width, s.height) == image) else {
             return;
@@ -382,6 +412,9 @@ impl Viewer {
                         tracing::warn!("the adjust preview wasn't painted: {e}");
                     }
                 });
+            }
+            for &(clip, mark) in &frame.marks {
+                paint_crop_mark(window, clip, mark);
             }
             if let Some(p) = &frame.preview {
                 paint_preview(p, window);
@@ -613,4 +646,32 @@ fn paint_ring(window: &mut Window, center: Point<Pixels>, radius: f32, color: Hs
 /// unless `swapped`.
 fn sides<'a, T>(swapped: bool, main: &'a mut T, other: &'a mut T) -> (&'a mut T, &'a mut T) {
     if swapped { (main, other) } else { (other, main) }
+}
+
+/// The crop over a pane: the picture outside it dimmed, its edge drawn.
+fn paint_crop_mark(window: &mut Window, clip: Bounds<Pixels>, mark: Bounds<Pixels>) {
+    let shade: Hsla = gpui::opaque_grey(0.0, 0.55);
+    let edge: Hsla = gpui::opaque_grey(1.0, 0.85);
+    window.with_content_mask(Some(ContentMask { bounds: clip }), |window| {
+        let (l, t, r, b) = (mark.origin.x, mark.origin.y, mark.right(), mark.bottom());
+        let (cl, ct, cr, cb) = (clip.origin.x, clip.origin.y, clip.right(), clip.bottom());
+        for side in [
+            Bounds::from_corners(point(cl, ct), point(cr, t.max(ct))),
+            Bounds::from_corners(point(cl, b.min(cb)), point(cr, cb)),
+            Bounds::from_corners(point(cl, t), point(l.max(cl), b)),
+            Bounds::from_corners(point(r.min(cr), t), point(cr, b)),
+        ] {
+            if side.size.width > px(0.0) && side.size.height > px(0.0) {
+                window.paint_quad(fill(side, shade));
+            }
+        }
+        window.paint_quad(quad(
+            mark,
+            0.0,
+            transparent_black(),
+            px(1.0),
+            edge,
+            BorderStyle::default(),
+        ));
+    });
 }

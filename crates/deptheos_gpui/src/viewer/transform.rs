@@ -177,6 +177,28 @@ impl ViewTransformController {
         self.zoom_to_fit_immediate();
     }
 
+    /// A `w`×`h` image placed with image point `(x, y)` at the pane's top
+    /// left at the scale shown, kept within bounds: the same picture
+    /// framed another way (ADR-149).
+    pub fn place(&mut self, w: u32, h: u32, x: f32, y: f32) {
+        self.image_w = w;
+        self.image_h = h;
+        self.anim = None;
+        if self.transform.scale <= 0.0 {
+            return self.zoom_to_fit_immediate();
+        }
+        self.transform.x = x;
+        self.transform.y = y;
+        let (min, max) = self.scale_bounds();
+        self.transform.scale = self.transform.scale.clamp(min, max);
+        self.clamp_pan();
+    }
+
+    /// The center of one pane, in its logical pixels.
+    pub fn pane_center(&self) -> (f32, f32) {
+        (self.effective_w() / 2.0, self.effective_h() / 2.0)
+    }
+
     /// Update the viewport size (logical pixels).
     pub fn set_container_size(&mut self, w: f32, h: f32) {
         if (w - self.container_w).abs() < 0.5 && (h - self.container_h).abs() < 0.5 {

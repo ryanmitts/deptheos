@@ -285,7 +285,9 @@ impl AppView {
                 if let Some(images) = images {
                     thumbnail = images.thumbnail;
                     self.viewer.update(cx, |v, cx| {
-                        v.show_result(images.display, images.map, finished.as_ref(), cx)
+                        // A new render: not reframed.
+                        let none = deptheos_app::reframe::Reframe::NONE;
+                        v.show_result(images.display, images.map, finished.as_ref(), none, cx)
                     });
                 }
                 (finished, thumbnail)

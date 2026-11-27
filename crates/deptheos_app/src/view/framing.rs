@@ -68,6 +68,11 @@ impl Framing {
         self.pane
     }
 
+    /// The stored picture's size.
+    pub fn picture(&self) -> Size {
+        self.picture
+    }
+
     /// What is applied at the hand-off: the crop only for the result.
     pub fn drawn(&self) -> Reframe {
         if self.pane.cropped() { self.reframe } else { Reframe { crop: None, ..self.reframe } }

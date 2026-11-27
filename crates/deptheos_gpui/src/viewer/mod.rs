@@ -17,6 +17,7 @@ use std::time::Instant;
 
 mod adjusted;
 mod draw;
+mod framed;
 mod input;
 mod loads;
 mod transform;
@@ -170,6 +171,13 @@ impl MapPicture {
         !matches!(self, Self::None)
     }
 
+    fn image(&self) -> Option<&TiledImage> {
+        match self {
+            Self::Held(image, _) => Some(image),
+            Self::None | Self::Off(_) => None,
+        }
+    }
+
     fn image_mut(&mut self) -> Option<&mut TiledImage> {
         match self {
             Self::Held(image, _) => Some(image),
@@ -192,6 +200,12 @@ pub struct Viewer {
     state: view::View<PathBuf, RenderId>,
     /// The result shown, whose map is lit.
     stack: Option<Arc<CompletedStack>>,
+    /// The stored size of the render shown, and its reframe: the pictures
+    /// held are turned and flipped as it says (`framed.rs`).
+    picture: Option<deptheos_app::reframe::Size>,
+    reframe: deptheos_app::reframe::Reframe,
+    /// How the pictures held were last framed.
+    framed: framed::Framed,
     /// Compare divider, 0..1 of the viewport width.
     split: f32,
     /// The result or the preview.
@@ -269,6 +283,9 @@ impl Viewer {
             view: ViewTransformController::new(),
             state: view::View::new(),
             stack: None,
+            picture: None,
+            reframe: deptheos_app::reframe::Reframe::NONE,
+            framed: framed::Framed::default(),
             split: 0.5,
             primary: None,
             flat: None,
@@ -406,6 +423,12 @@ impl Viewer {
     #[cfg(test)]
     pub fn pane_clips(&self) -> Vec<Bounds<Pixels>> {
         self.panes.iter().map(|(clip, _)| *clip).collect()
+    }
+
+    /// Each pane's clip and where its whole picture lies, as last drawn.
+    #[cfg(test)]
+    pub fn pane_rects(&self) -> Vec<(Bounds<Pixels>, Bounds<Pixels>)> {
+        self.panes.clone()
     }
 
     /// The labels over the compare panes, when they are drawn.
@@ -669,9 +692,13 @@ impl Viewer {
         display: Option<PresentedImage>,
         map: Option<PresentedImage>,
         stack: Option<&Arc<CompletedStack>>,
+        reframe: deptheos_app::reframe::Reframe,
         cx: &mut Context<Self>,
     ) {
         self.cancel_loads(cx);
+        let picture =
+            stack.map(|s| deptheos_app::reframe::Size { width: s.width, height: s.height });
+        self.set_reframe(picture, reframe, cx);
         // The frame on screen, as part of this result.
         let on_screen = match self.shown.as_ref().map(|s| &s.source) {
             Some(Source::File(path) | Source::Compare { path, .. }) => Some(path),
@@ -803,6 +830,7 @@ mod tests {
     use gpui::{Entity, MouseButton, TestAppContext, point, px, size};
 
     use deptheos_app::CpuImage;
+    use deptheos_app::reframe::Reframe;
 
     use super::*;
     use crate::test_support::{open, wait_until};
@@ -896,7 +924,7 @@ mod tests {
         let at = |x: f32| point(px(x), px(50.0));
         f.viewer.update(cx, |v, cx| {
             v.set_tool(Tool::Paint, cx);
-            v.view.image_w = 100;
+            v.framed.shown = (100, 100);
             v.panes = vec![pane(0.0), pane(102.0)];
             v.mouse_down(at(104.0), MouseButton::Left, false, cx);
             v.mouse_move(at(98.0), true, cx);
@@ -923,7 +951,7 @@ mod tests {
         let at = |x: f32| point(px(x), px(50.0));
         f.viewer.update(cx, |v, cx| {
             v.set_tool(Tool::Paint, cx);
-            v.view.image_w = 100;
+            v.framed.shown = (100, 100);
             v.panes = vec![(b, b)];
             v.mouse_down(at(10.0), MouseButton::Left, false, cx);
             v.set_tool(Tool::Pan, cx);
@@ -985,6 +1013,45 @@ mod tests {
         });
     }
 
+    /// When only the framing changes (here the crop's window), a zoomed
+    /// view keeps the stored point at its center; a fitted one refits.
+    #[gpui::test]
+    fn a_new_framing_keeps_the_stored_point_in_view(cx: &mut TestAppContext) {
+        use deptheos_app::reframe::{Flip, Rect, Size, Turn};
+        let f = fixture(cx);
+        let picture = Size { width: 400, height: 300 };
+        let framed = |x: u32| Reframe {
+            crop: Some(Rect { x, y: 50, width: 200, height: 150 }),
+            flip: Flip::Horizontal,
+            turn: Turn::Quarter,
+        };
+        f.viewer.update(cx, |v, cx| {
+            v.view.set_container_size(100.0, 100.0);
+            let facts = Facts { map: false, lights: false };
+            v.on(ViewEvent::Shown { result: Some(facts), keep: false, supplied: false }, cx);
+            v.set_reframe(Some(picture), framed(100), cx);
+            assert_eq!(v.frame((300, 400)), (150, 200), "the crop's window, turned");
+            assert!(v.is_fitted());
+            v.view.zoom_at(50.0, 50.0, 1.0);
+            let center = v.view.pane_center();
+            let stored = |v: &Viewer| {
+                let (x, y) = v.view.screen_to_image(center.0, center.1);
+                let w = v.framed.window.unwrap();
+                v.to_stored((x + w.x as f32, y + w.y as f32))
+            };
+            let before = stored(v);
+            assert!(!v.view.is_fitted());
+            v.set_reframe(Some(picture), framed(120), cx);
+            v.frame((300, 400));
+            let after = stored(v);
+            assert!(
+                (before.0 - after.0).abs() < 0.5 && (before.1 - after.1).abs() < 0.5,
+                "{before:?} {after:?}"
+            );
+            assert_eq!(v.view.transform.scale, 1.0, "at the same zoom");
+        });
+    }
+
     /// ⌥-click picks only on the image: not in the pane around it.
     #[gpui::test]
     fn an_alt_click_beside_the_image_picks_nothing(cx: &mut TestAppContext) {
@@ -993,7 +1060,7 @@ mod tests {
         let clip = Bounds { origin: point(px(0.0), px(0.0)), size: size(px(200.0), px(200.0)) };
         let rect = Bounds { origin: point(px(0.0), px(0.0)), size: size(px(100.0), px(50.0)) };
         f.viewer.update(cx, |v, cx| {
-            (v.view.image_w, v.view.image_h) = (100, 50);
+            v.framed.shown = (100, 50);
             v.panes = vec![(clip, rect)];
             for (x, y) in [(150.0, 10.0), (10.0, 120.0), (100.0, 10.0), (10.0, 50.0), (10.0, 10.0)]
             {
@@ -1023,7 +1090,7 @@ mod tests {
 
     /// The result shown is `stack`'s, with its map.
     fn with_result(v: &mut Viewer, stack: &Arc<CompletedStack>, cx: &mut Context<Viewer>) {
-        v.show_result(Some(picture()), stack.present_map(None), Some(stack), cx);
+        v.show_result(Some(picture()), stack.present_map(None), Some(stack), Reframe::NONE, cx);
     }
 
     const MAP: ViewEvent = ViewEvent::ToggleMap { on_screen: None };
@@ -1107,8 +1174,8 @@ mod tests {
     fn drops_are_flushed_while_no_frame_is_drawn(cx: &mut TestAppContext) {
         let f = fixture(cx);
         f.viewer.update(cx, |v, cx| {
-            v.show_result(Some(picture()), Some(picture()), None, cx);
-            v.show_result(Some(picture()), None, None, cx);
+            v.show_result(Some(picture()), Some(picture()), None, Reframe::NONE, cx);
+            v.show_result(Some(picture()), None, None, Reframe::NONE, cx);
             assert!(v.atlas.has_drops(), "the first result's images wait");
         });
         cx.executor().advance_clock(crate::images::DROP_AFTER * 2);
@@ -1171,7 +1238,7 @@ mod tests {
         f.viewer.update(cx, |v, cx| {
             on(v, MAP, cx);
             on(v, light(&stack, 1), cx);
-            v.show_result(None, Some(picture()), None, cx);
+            v.show_result(None, Some(picture()), None, Reframe::NONE, cx);
             assert!(!v.mode().is_map(), "a new result: back from the map");
         });
         lighting_settled(&f, cx);
@@ -1183,9 +1250,9 @@ mod tests {
             on(v, ViewEvent::Retouch(Some(Default::default())), cx);
             on(v, MAP, cx);
             on(v, light(&stack, 1), cx);
-            v.show_result(None, Some(picture()), None, cx);
+            v.show_result(None, Some(picture()), None, Reframe::NONE, cx);
             assert_eq!(v.mode(), ViewMode::Map { back: view::Back::Result, light: Light::Whole });
-            v.show_result(None, None, None, cx);
+            v.show_result(None, None, None, Reframe::NONE, cx);
             assert_eq!(v.mode(), ViewMode::Result, "no map to show");
         });
     }

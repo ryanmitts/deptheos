@@ -263,7 +263,7 @@ impl AppView {
         window: &mut Window,
         cx: &mut Context<Self>,
     ) {
-        let PresentedStack { stack, display, map, .. } = presented;
+        let PresentedStack { stack, display, map, reframe } = presented;
         let stacked = render.stacked().cloned().collect();
         let stack = Arc::new(stack);
         // A frame compared with the result before it: compared with this one.
@@ -271,7 +271,7 @@ impl AppView {
         let frame = viewer.shown_file().filter(|_| viewer.mode().comparing().is_some());
         let shown = stack.clone();
         self.stacking.update(cx, |s, cx| s.restore(shown, render.id.clone(), stacked, cx));
-        self.viewer.update(cx, |v, cx| v.show_result(display, map, Some(&stack), cx));
+        self.viewer.update(cx, |v, cx| v.show_result(display, map, Some(&stack), reframe, cx));
         self.log_shown(cx);
         // Painting carries over to the render opened, and so does Adjust.
         if self.is_retouching() {

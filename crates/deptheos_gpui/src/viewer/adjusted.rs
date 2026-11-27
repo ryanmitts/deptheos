@@ -46,6 +46,13 @@ impl Viewer {
         self.on(ViewEvent::Settled, cx);
     }
 
+    /// The result drawn under its saved value as Adjust left, in place of
+    /// the one shown.
+    pub fn show_drawn(&mut self, picture: PresentedImage, cx: &mut Context<Self>) {
+        self.atlas.replace(&mut self.primary, Some(TiledImage::from_presented(picture)));
+        cx.notify();
+    }
+
     /// The render without its adjustments, drawn while Before is held;
     /// `None` drops it.
     pub fn show_before(&mut self, before: Option<TiledImage>, cx: &mut Context<Self>) {
@@ -87,20 +94,16 @@ impl Viewer {
         self.primary.as_ref().map(TiledImage::identity)
     }
 
-    /// The stored picture's size.
-    pub fn image_size(&self) -> Option<(u32, u32)> {
-        let (w, h) = (self.view.image_w, self.view.image_h);
-        (w > 0 && h > 0).then_some((w, h))
-    }
-
-    /// What the viewport last showed of the stored picture.
+    /// What the viewport last showed of the stored picture, in stored
+    /// pixels.
     pub fn shown_view(&self) -> Option<Shown> {
         self.adjust_view
     }
 
-    /// The flat picture's rect, `rect` being where the whole picture lies.
+    /// The flat picture's rect, `rect` being where the whole picture lies;
+    /// it covers the turned picture's pixels.
     pub(super) fn flat_rect(&self, flat: &Flat, rect: Bounds<Pixels>) -> Bounds<Pixels> {
-        let per = f32::from(rect.size.width) / self.view.image_w.max(1) as f32;
+        let per = self.per_pixel(rect);
         let Region { x, y, width, height } = flat.covers;
         Bounds {
             origin: point(rect.origin.x + px(x as f32 * per), rect.origin.y + px(y as f32 * per)),
@@ -116,8 +119,8 @@ impl Viewer {
         rect: Bounds<Pixels>,
         cx: &mut Context<Self>,
     ) {
-        let image = (self.view.image_w, self.view.image_h);
-        let shown = shown_of(clip, rect, image, self.view.device_scale());
+        let shown = shown_of(clip, rect, self.framed.shown, self.view.device_scale())
+            .map(|s| Shown { visible: self.stored_region(s.visible), ..s });
         if shown.is_none() || shown == self.adjust_view {
             return;
         }

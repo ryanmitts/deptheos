@@ -237,6 +237,16 @@ impl AppView {
             AdjustEvent::Notice(text) => {
                 self.post(Kind::Info, Subject::Alone, text.clone(), Vec::new(), window, cx)
             }
+            AdjustEvent::Drawn { key, picture } => {
+                let shown = self.result_doc(cx).is_some_and(|(_, k)| k == *key);
+                if shown
+                    && self.adjusting().is_none()
+                    && !self.is_retouching()
+                    && let Some(picture) = picture.take()
+                {
+                    self.viewer.update(cx, |v, cx| v.show_drawn(picture, cx));
+                }
+            }
             AdjustEvent::Closed { key, redraw } => {
                 // The session left the render on its own (a delete): so
                 // does the window.

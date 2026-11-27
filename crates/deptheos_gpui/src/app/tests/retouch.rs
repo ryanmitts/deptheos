@@ -817,3 +817,104 @@ fn retouch_and_adjust_are_one_mode(cx: &mut TestAppContext) {
     wait_until(cx, "Adjust left", |cx| seen(cx).3.is_none());
     assert_eq!(seen(cx), ("viewing", "viewer", false, None));
 }
+
+/// On a turned, flipped, cropped render, Retouch shows the stored picture
+/// turned and flipped with the crop marked, and a pointer maps back to the
+/// stored pixel under it: ⌥-click picks the frame sharpest there, and a
+/// dab lands there.
+#[gpui::test]
+fn a_turned_flipped_cropped_render_is_painted_where_the_pointer_is(cx: &mut TestAppContext) {
+    use deptheos_app::reframe::{Flip, Rect, Reframe, Size, Turn};
+    use deptheos_app::view::Pane;
+    use deptheos_app::view::framing::Framing;
+    use std::cell::RefCell;
+    use std::rc::Rc;
+
+    use gpui::{Modifiers, VisualTestContext, point, px};
+
+    use crate::viewer::{PaintInput, ViewerEvent};
+    let Some(Fixture { dir: _dir, window, app, .. }) = Fixture::launch(cx, 3) else {
+        return;
+    };
+    cx.update(|cx| cx.bind_keys(key_bindings()));
+    stack(cx, window, &app);
+    let (stack, _) = app.read_with(cx, |app, cx| app.result_doc(cx)).unwrap();
+    let picture = Size { width: stack.width, height: stack.height };
+    let crop = Rect {
+        x: stack.width / 4,
+        y: stack.height / 5,
+        width: stack.width / 2,
+        height: stack.height / 2,
+    };
+    let reframe = Reframe { crop: Some(crop), flip: Flip::Horizontal, turn: Turn::Quarter };
+
+    // Reframed in Adjust, then left.
+    cx.simulate_keystrokes(window, "a");
+    wait_until(cx, "Adjust ready", |cx| {
+        app.read_with(cx, |app, cx| app.adjust.read(cx).status().is_some())
+    });
+    app.update(cx, |app, cx| {
+        let adjust = app.adjust.read(cx);
+        adjust.session().set_reframe(reframe);
+        adjust.session().commit();
+    });
+    let viewer = app.read_with(cx, |app, _| app.viewer.clone());
+    wait_until(cx, "the reframe", |cx| {
+        viewer.read_with(cx, |v, _| v.reframe_of_shown() == reframe)
+    });
+    cx.simulate_keystrokes(window, "escape");
+    // Left at once: outside Adjust the result is drawn turned, shown
+    // through its crop's window.
+    wait_until(cx, "the result windowed", |cx| {
+        cx.update_window(window, |_, window, _| window.refresh()).unwrap();
+        cx.run_until_parked();
+        let window = viewer.read_with(cx, |v, _| v.crop_window());
+        window.map(|w| (w.width, w.height)) == Some((crop.height, crop.width))
+    });
+    cx.simulate_keystrokes(window, "p");
+    wait_until(cx, "the source", |cx| {
+        let state = paint_state(cx, &app);
+        state.open.is_some() && state.source_ready
+    });
+    let dabs = Rc::new(RefCell::new(Vec::new()));
+    let heard = dabs.clone();
+    let _listening = cx.update(|cx| {
+        cx.subscribe(&viewer, move |_, event: &ViewerEvent, _| {
+            if let ViewerEvent::Paint(PaintInput::Begin(dab)) = event {
+                heard.borrow_mut().push((dab.x, dab.y));
+            }
+        })
+    });
+    cx.update_window(window, |_, window, _| window.refresh()).unwrap();
+    cx.run_until_parked();
+    let mut vcx = VisualTestContext::from_window(window, cx);
+
+    // A stored pixel inside the crop, where it lies on screen.
+    let (sx, sy) = (crop.x + crop.width / 3, crop.y + crop.height / 4);
+    let framing = Framing::of(picture, reframe, Pane::Retouch);
+    let (clip, rect, size) = viewer.read_with(&vcx, |v, _| {
+        let (clip, rect) = *v.pane_rects().last().unwrap();
+        (clip, rect, v.image_shown())
+    });
+    assert_eq!(size, (stack.height, stack.width), "turned a quarter");
+    let per = f32::from(rect.size.width) / size.0 as f32;
+    let shown = framing.to_shown((f64::from(sx) + 0.5, f64::from(sy) + 0.5));
+    let at =
+        point(rect.origin.x + px(shown.0 as f32 * per), rect.origin.y + px(shown.1 as f32 * per));
+    assert!(clip.contains(&at), "on screen");
+    assert!(viewer.read_with(&vcx, |v, _| v.crop_marked()), "the crop is marked");
+
+    // ⌥-click: the frame sharpest at that stored pixel.
+    vcx.simulate_click(at, Modifiers::alt());
+    let want = stack.paths[stack.frame_at(sx, sy).expect("a frame map")].clone();
+    let picked = deptheos_app::paint::SourceKind::Frame { path: want };
+    wait_until(cx, "the picked frame", |cx| paint_state(cx, &app).source.as_ref() == Some(&picked));
+
+    // A dab: at that stored point.
+    let mut vcx = VisualTestContext::from_window(window, cx);
+    vcx.simulate_mouse_down(at, gpui::MouseButton::Left, Modifiers::none());
+    vcx.simulate_mouse_up(at, gpui::MouseButton::Left, Modifiers::none());
+    wait_until(cx, "the dab", |cx| paint_state(cx, &app).undo == 1);
+    let (x, y) = *dabs.borrow().first().expect("a dab");
+    assert!((x - (sx as f32 + 0.5)).abs() < 1.0 && (y - (sy as f32 + 0.5)).abs() < 1.0, "{x}, {y}");
+}

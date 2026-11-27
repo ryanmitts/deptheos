@@ -43,7 +43,7 @@ Adjust moves a render's sliders and its reframe (ADR-136, ADR-137) over the stor
 
 ### What the machine doesn't own
 
-Exclusivity with Retouch is each app's mode enum, which holds either session. The desktop's is `Mode` (`crates/deptheos_gpui/src/app/mode.rs`): viewing, Retouch with paint's `Painting`, or Adjust, changed only by `AppView::set_mode`, which closes the one open before opening the next and moves the viewer's place and both sessions with it. The reduced copy, the preview's tiers and its budgets are the session's and the renderer's (ADR-135); what the viewer shows is `View`'s (ADR-149).
+Exclusivity with Retouch is each app's mode enum, which holds either session. The desktop's is `Mode` (`crates/deptheos_gpui/src/app/mode.rs`): viewing, Retouch with paint's `Painting`, or Adjust, changed only by `AppView::set_mode`, which closes the one open before opening the next and moves the viewer's place and both sessions with it. The desktop's session lives in the `Adjust` entity (`crates/deptheos_gpui/src/adjust.rs`), one per window beside `Paint`, which outlives each open as the session does; `Mode::Adjust` holds the render open. The entity keeps what the session last said and one track per slider of the engine's `Panel`, each running 0 to 1 through `position` and `value_at` so the Kelvin track is the engine's. A drag sends a set per move and a commit on the track's release; an arrow key, a typed value, a reset and the eyedropper each send a set then a commit, or the session's own one-change call. The reduced copy, the preview's tiers and its budgets are the session's and the renderer's (ADR-135); what the viewer shows is `View`'s (ADR-149).
 
 ## Alternatives considered
 
@@ -70,3 +70,4 @@ A held arrow key commits many times a second; drawing the full picture at each w
 - `crates/deptheos_app/src/adjust/machine.rs`, `crates/deptheos_app/src/adjust/machine_tests.rs`.
 - `crates/deptheos_app/src/adjust/session.rs`, `crates/deptheos_app/src/adjust/session_tests.rs`, `crates/deptheos_app/src/adjust/eyedropper.rs`.
 - `crates/deptheos_app/src/library/adjustments.rs` (the writes it asks for).
+- Desktop: `crates/deptheos_gpui/src/adjust.rs`, `crates/deptheos_gpui/src/app/adjusting.rs`, `crates/deptheos_gpui/src/app/mode.rs`, `crates/deptheos_gpui/src/app/tests/adjust.rs`.

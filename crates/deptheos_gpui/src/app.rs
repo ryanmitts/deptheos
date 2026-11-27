@@ -23,6 +23,7 @@
 //! `command_line_tool`.
 
 pub mod actions;
+mod adjusting;
 pub(crate) mod away;
 mod batch_after;
 mod batch_run;
@@ -194,7 +195,7 @@ pub struct AppView {
     /// Viewing, Retouch or Adjust. Changed only by [`Self::set_mode`].
     mode: mode::Mode,
     /// The window's Adjust session.
-    adjust: mode::AdjustHandle,
+    pub(crate) adjust: Entity<crate::adjust::Adjust>,
     /// What is running, if anything: a stack, a sequence or a batch.
     running: Running,
     /// The stack on screen, which Stack adds its next render to.
@@ -296,7 +297,17 @@ impl AppView {
             cx.new(|cx| Renders::new(engine.clone(), store.clone(), stacking.clone(), window, cx));
         let library = cx.new(|cx| Library::new(renders.clone(), window, cx));
         let viewer = cx.new(|cx| Viewer::new(engine_loader(engine.clone()), cx));
-        let adjust = mode::AdjustHandle::new(engine.clone(), store.clone(), window, cx);
+        let adjust = cx.new(|cx| {
+            let home = focus_handle.clone();
+            crate::adjust::Adjust::new(
+                engine.clone(),
+                store.clone(),
+                viewer.clone(),
+                home,
+                window,
+                cx,
+            )
+        });
         let paint = cx.new(|cx| Paint::new(engine.clone(), viewer.clone(), store, cx));
         engine.set_camera_profile(prefs(cx).camera_profile);
         let zoom_input = cx.new(|cx| {
@@ -329,6 +340,9 @@ impl AppView {
                 }
             }),
             cx.subscribe_in(&paint, window, Self::on_paint_event),
+            cx.subscribe_in(&adjust, window, Self::on_adjust),
+            // The Adjust panel follows the session.
+            cx.observe(&adjust, |_, _, cx| cx.notify()),
             cx.subscribe_in(
                 &params,
                 window,
@@ -565,6 +579,7 @@ impl AppView {
                 self.post(Kind::Error, about.clone(), message.clone(), Vec::new(), window, cx)
             }
             RendersEvent::Retry(failure) => self.retry(failure, window, cx),
+            RendersEvent::Pasted(id) => self.adjustments_pasted(id, window, cx),
             RendersEvent::Revert(render) => self.revert_to(render, window, cx),
             RendersEvent::Relinked(moves) => self.relinked(moves, window, cx),
             RendersEvent::Located { folder, matched } => self.located(folder, *matched, window, cx),
@@ -632,6 +647,12 @@ impl AppView {
             ViewerEvent::PickAt { x, y } => self.pick_sharpest(*x, *y, window, cx),
             ViewerEvent::MapPointer(at) => self.point_at_map(*at, cx),
             ViewerEvent::MapClick { x, y } => self.click_map(*x, *y, window, cx),
+            ViewerEvent::Shown(shown) => self.adjust.read(cx).viewed(*shown),
+            ViewerEvent::Eyedrop { x, y } => {
+                let at = (*x, *y);
+                self.adjust.update(cx, |a, cx| a.eyedrop(at, cx));
+                self.set_adjust_tool(crate::adjust::AdjustTool::Sliders, cx);
+            }
         }
     }
 
@@ -659,6 +680,7 @@ impl AppView {
                 let current = self.result_doc(cx).is_some_and(|(_, k)| k == *key);
                 if current
                     && !self.is_retouching()
+                    && self.adjusting().is_none()
                     && !self.is_processing(cx)
                     && let Some(display) = display.take()
                 {
@@ -801,8 +823,13 @@ impl Render for AppView {
         };
         let toolbar = self.render_toolbar(parts, cx);
         let painting = self.is_retouching();
-        // Undo and Redo exist only while paint mode has a step to take.
-        let [can_undo, can_redo] = self.paint.read(cx).steps().map(|n| n > 0);
+        let adjusting = self.adjusting().is_some();
+        // Undo and Redo exist only while Retouch or Adjust has a step to take.
+        let steps = match adjusting {
+            true => self.adjust.read(cx).steps(),
+            false => self.paint.read(cx).steps(),
+        };
+        let [can_undo, can_redo] = steps.map(|n| n > 0);
         let root = div()
             .id("deptheos-root")
             .key_context(if library && self.can_cancel(cx) {
@@ -811,6 +838,8 @@ impl Render for AppView {
                 LIBRARY_KEY_CONTEXT
             } else if painting {
                 PAINT_KEY_CONTEXT
+            } else if adjusting {
+                ADJUST_KEY_CONTEXT
             } else if running {
                 STACKING_KEY_CONTEXT
             } else {
@@ -830,6 +859,7 @@ impl Render for AppView {
                 }
                 if event.keystroke.key == "\\" {
                     this.peek_source(false, cx);
+                    this.hold_before(false, cx);
                 }
             }));
         self.bind_actions(root, can_undo, can_redo, cx)
@@ -895,7 +925,7 @@ impl AppView {
         let bar_shown = welcome.is_none() && self.view_bar_shown(cx);
         self.viewer.update(cx, |v, _| v.set_fit_bottom_inset(if bar_shown { 58.0 } else { 0.0 }));
         let info_over_photo = self.render_info_over_photo(cx);
-        let inspector = self.render_inspector(now, cx);
+        let inspector = self.render_inspector(now, window, cx);
         div()
             .flex_1()
             .min_h_0()

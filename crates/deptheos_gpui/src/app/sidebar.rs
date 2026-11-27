@@ -59,16 +59,20 @@ impl AppView {
     pub(crate) fn render_inspector(
         &mut self,
         now: &Snapshot,
+        window: &mut Window,
         cx: &mut Context<Self>,
     ) -> impl IntoElement + use<> {
         let painting = self.is_retouching();
+        let adjusting = self.adjusting().is_some();
         let settings = if painting {
             self.render_paint_panel(cx).into_any_element()
+        } else if adjusting {
+            self.render_adjust_panel(window, cx).into_any_element()
         } else {
             self.params.clone().into_any_element()
         };
         let failure = if painting { self.render_unsaveable(cx) } else { self.render_failure(cx) };
-        let left_out = if painting { None } else { self.render_left_out(cx) };
+        let left_out = if painting || adjusting { None } else { self.render_left_out(cx) };
         panel(cx)
             .border_l_1()
             .child(
@@ -81,11 +85,12 @@ impl AppView {
                     .children(left_out.map(|l| div().pb_3().child(l)))
                     .child(settings),
             )
-            .when(!painting, |el| {
+            .when(!painting && !adjusting, |el| {
                 let stacked = self.stacked_line(now, cx);
                 el.child(self.render_stack_row(stacked, cx))
             })
             .when(painting, |el| el.child(self.render_paint_footer(cx)))
+            .when(adjusting, |el| el.child(self.render_adjust_footer(cx)))
     }
 
     /// In Retouch: why the render couldn't open (Try Again, Done), or why

@@ -27,7 +27,13 @@ impl Renders {
             let loaded = work::interactive("render-open", move || {
                 let stack = store.load_render(&render.id).map_err(deptheos_app::Error::Store)?;
                 work::current().check()?;
-                let presented = engine.present_stack(stack, &deptheos_app::Adjustments::NEUTRAL)?;
+                // Under what it was saved with, after its pending writes; as
+                // stored if that can't be read (an export of it fails).
+                let saved = store.adjustments_to_export(&render.id).unwrap_or_else(|err| {
+                    tracing::warn!("a render shown without its adjustments: {err}");
+                    deptheos_app::library::adjustments::RenderAdjustments::NONE
+                });
+                let presented = engine.present_saved(stack, &saved)?;
                 Ok::<_, deptheos_app::Error>(OpenedRender { render, presented })
             })
             .await;

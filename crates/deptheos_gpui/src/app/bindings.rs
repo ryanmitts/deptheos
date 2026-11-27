@@ -19,6 +19,26 @@ impl AppView {
     ) -> Stateful<Div> {
         root.on_action(cx.listener(|this, _: &TogglePaint, _, cx| this.toggle_paint(cx)))
             .on_action(cx.listener(|this, _: &ToggleAdjust, _, cx| this.toggle_adjust(cx)))
+            .on_action(cx.listener(|this, _: &LeaveAdjust, _, cx| this.leave_adjust(cx)))
+            .on_action(cx.listener(|this, _: &HoldBefore, _, cx| this.hold_before(true, cx)))
+            .on_action(cx.listener(|this, _: &Eyedropper, _, cx| this.toggle_eyedropper(cx)))
+            .on_action(cx.listener(|this, _: &CopyAdjustments, _, cx| this.copy_adjustments(cx)))
+            .on_action(cx.listener(|this, _: &PasteAdjustments, window, cx| {
+                this.paste_adjustments(window, cx)
+            }))
+            .on_action(cx.listener(|this, _: &ResetAdjustments, _, cx| {
+                this.with_adjust(cx, |a, _| a.reset_all())
+            }))
+            .on_action(cx.listener(|this, _: &NextSlider, _, cx| {
+                this.with_adjust(cx, |a, cx| a.select_next(true, cx))
+            }))
+            .on_action(cx.listener(|this, _: &PreviousSlider, _, cx| {
+                this.with_adjust(cx, |a, cx| a.select_next(false, cx))
+            }))
+            .on_action(cx.listener(|this, action: &NudgeSlider, _, cx| {
+                let steps = f64::from(action.0);
+                this.with_adjust(cx, |a, cx| a.nudge(steps, cx))
+            }))
             .on_action(cx.listener(|this, _: &AddFolder, window, cx| this.pick_folders(window, cx)))
             .on_action(cx.listener(|this, _: &OpenWindowMenu, window, cx| {
                 this.toggle_window_menu(window, cx)
@@ -74,14 +94,22 @@ impl AppView {
             .on_action(cx.listener(|this, _: &LeavePaint, _, cx| this.leave_paint(cx)))
             .on_action(cx.listener(|this, _: &PeekSource, _, cx| this.peek_source(true, cx)))
             .when(can_undo, |el| {
-                el.on_action(
-                    cx.listener(|this, _: &Undo, _, cx| this.with_paint(cx, |p, cx| p.undo(cx))),
-                )
+                el.on_action(cx.listener(|this, _: &Undo, _, cx| {
+                    if this.adjusting().is_some() {
+                        this.with_adjust(cx, |a, _| a.undo())
+                    } else {
+                        this.with_paint(cx, |p, cx| p.undo(cx))
+                    }
+                }))
             })
             .when(can_redo, |el| {
-                el.on_action(
-                    cx.listener(|this, _: &Redo, _, cx| this.with_paint(cx, |p, cx| p.redo(cx))),
-                )
+                el.on_action(cx.listener(|this, _: &Redo, _, cx| {
+                    if this.adjusting().is_some() {
+                        this.with_adjust(cx, |a, _| a.redo())
+                    } else {
+                        this.with_paint(cx, |p, cx| p.redo(cx))
+                    }
+                }))
             })
             .on_action(cx.listener(|this, _: &Eraser, _, cx| {
                 this.with_paint(cx, |p, cx| p.pick_original(cx))

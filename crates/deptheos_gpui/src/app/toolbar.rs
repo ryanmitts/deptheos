@@ -78,6 +78,11 @@ impl AppView {
                 self.render_retouch_title(cx).into_any_element(),
                 self.render_retouch_actions(cx).into_any_element(),
             )
+        } else if self.adjusting().is_some() {
+            (
+                self.render_adjust_title(cx).into_any_element(),
+                self.render_adjust_actions(cx).into_any_element(),
+            )
         } else {
             (
                 self.render_title(parts, cx).into_any_element(),
@@ -197,6 +202,9 @@ impl AppView {
         let can_stack = self.can_stack(cx);
         let retouch_tip = blocked.unwrap_or_else(|| say!(cx, "toolbar-retouch-tooltip"));
         let retouch = self.retouch_button(retouch_tip, ctx, cx);
+        let adjust_tip =
+            self.paint_blocked(cx).unwrap_or_else(|| say!(cx, "toolbar-adjust-tooltip"));
+        let adjust = self.adjust_button(adjust_tip, ctx, cx);
         let export_tip = match self.busy_reason(cx) {
             Some(busy) if !can_export && self.has_result(cx) => busy,
             _ => say!(cx, "toolbar-export-tooltip"),
@@ -213,6 +221,7 @@ impl AppView {
             .gap_1p5()
             .flex_shrink_0()
             .child(retouch)
+            .child(adjust)
             .child(export)
             .child(match self.render_run_status("cancel-stack", ctx, cx) {
                 Some(pill) => no_drag("stack-progress", pill),

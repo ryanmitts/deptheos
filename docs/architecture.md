@@ -104,6 +104,13 @@ sequenceDiagram
   `StoreJob::Commit` → `Writers::commit` on the store thread →
   `paint.sqlite` (ADR-148); tiles go back to the app through the session's
   `Observer`.
+- Adjust: a slider (desktop `Adjust::set` and `commit` in
+  `crates/deptheos_gpui/src/adjust.rs`, iOS through the bridge's
+  `AdjustSession`) → `AdjustSession::set_slider`, `commit` →
+  `adjust::Machine::on` → a preview on the pool, a settle, and the write
+  on the store thread (`adjustments.json`, ADR-152, ADR-153); each flat
+  preview and the settled picture go back through the session's
+  `Observer` to the viewer, which shows them as `View` says (ADR-149).
 
 ## The Library on disk
 

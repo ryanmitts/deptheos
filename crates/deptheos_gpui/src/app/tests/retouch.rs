@@ -789,7 +789,7 @@ fn retouch_and_adjust_are_one_mode(cx: &mut TestAppContext) {
                 _ => "mixed",
             };
             let painting = app.paint.read(cx).state().is_some();
-            let adjusting = app.adjust.session.adjusting();
+            let adjusting = app.adjust.read(cx).session().adjusting();
             (mode, place, painting, adjusting)
         })
     };

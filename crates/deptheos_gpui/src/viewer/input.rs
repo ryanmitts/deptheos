@@ -93,6 +93,12 @@ impl Viewer {
             Gesture::Pan(button)
         } else if on_divider {
             Gesture::Divider(button)
+        } else if self.tool == Tool::Eyedropper && !self.held_keys.space {
+            // The pixel's middle; beside the picture picks nothing.
+            if let Some((x, y)) = self.pixel_at(position) {
+                cx.emit(ViewerEvent::Eyedrop { x: f64::from(x) + 0.5, y: f64::from(y) + 0.5 });
+            }
+            Gesture::Spent(button)
         } else if self.tool == Tool::Paint && !self.held_keys.space && !self.state.now().is_map() {
             let Some(pane) = self.pane_at(position) else { return };
             let Some(dab) = self.dab(pane, position) else { return };

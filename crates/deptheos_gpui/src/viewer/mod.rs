@@ -15,6 +15,7 @@ use std::rc::Rc;
 use std::sync::Arc;
 use std::time::Instant;
 
+mod adjusted;
 mod draw;
 mod input;
 mod loads;
@@ -104,6 +105,10 @@ pub enum ViewerEvent {
     MapPointer(Option<(u32, u32)>),
     /// A click (no pan) on the depth map, in result pixels.
     MapClick { x: u32, y: u32 },
+    /// In Adjust: what the viewport shows of the stored picture changed.
+    Shown(deptheos_app::adjust::preview::Shown),
+    /// A click with the eyedropper, in stored pixels.
+    Eyedrop { x: f64, y: f64 },
 }
 
 /// A stroke as the pointer draws it.
@@ -119,6 +124,8 @@ pub enum PaintInput {
 pub enum Tool {
     Pan,
     Paint,
+    /// Adjust's white balance eyedropper: a click picks the spot.
+    Eyedropper,
 }
 
 /// The brush ring: radius in image pixels, and hardness.
@@ -189,6 +196,13 @@ pub struct Viewer {
     split: f32,
     /// The result or the preview.
     primary: Option<TiledImage>,
+    /// In Adjust: a drag's preview, or the view on screen settled first,
+    /// drawn over `primary` until the settled picture replaces it.
+    flat: Option<crate::adjust::Flat>,
+    /// In Adjust: the render without its adjustments, drawn while held.
+    before: Option<TiledImage>,
+    /// What the viewport last showed of the stored picture, for Adjust.
+    adjust_view: Option<deptheos_app::adjust::preview::Shown>,
     /// The whole depth map; changed only by [`Self::set_map`].
     map: MapPicture,
     /// The map lit for a frame, drawn while `view::Light::Lit`; the previous
@@ -257,6 +271,9 @@ impl Viewer {
             stack: None,
             split: 0.5,
             primary: None,
+            flat: None,
+            before: None,
+            adjust_view: None,
             map: MapPicture::None,
             lit_map: None,
             secondary: None,
@@ -427,6 +444,11 @@ impl Viewer {
     /// this thread, the current one kept until the new lands; a frame no
     /// longer shown is not loaded. Returns the app's actions.
     pub fn on(&mut self, event: ViewEvent, cx: &mut Context<Self>) -> Vec<ViewAction> {
+        // Adjust's pictures go as it closes.
+        if let ViewEvent::Adjust(false) = event {
+            self.clear_flat(cx);
+            self.atlas.replace(&mut self.before, None);
+        }
         let answer = self.state.on(event);
         let mut rest = Vec::new();
         for action in answer.actions {

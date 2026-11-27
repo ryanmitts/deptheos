@@ -278,6 +278,14 @@ menu-retouch
     Retouch
 menu-done-retouching
     Done Retouching
+menu-adjust
+    Adjust
+menu-done-adjusting
+    Done Adjusting
+menu-copy-adjustments
+    Copy Adjustments
+menu-paste-adjustments
+    Paste Adjustments
 menu-star-render
     Star Render
 menu-unstar-render
@@ -1252,6 +1260,10 @@ toolbar-retouch
     Retouch
 toolbar-retouch-tooltip
     Paint over the result from a frame or another render
+toolbar-adjust
+    Adjust
+toolbar-adjust-tooltip
+    Set the render's color, tone and sharpness
 toolbar-export
     Export
 toolbar-export-tooltip
@@ -2086,3 +2098,51 @@ paint-blocked-saving
     Retouch opens once the result is saved as a render
 paint-blocked-not-saved
     The result wasn't saved as a render, so it can't be retouched
+adjust-title-render
+    Adjusting #<number>
+adjust-title
+    Adjusting
+adjust-step
+    Adjustment
+adjust-leave-tooltip
+    Done Adjusting
+adjust-export-tooltip
+    Export the render as adjusted
+adjust-done
+    Done
+adjust-done-tooltip
+    Go back to Stacking
+adjust-opening
+    Opening the render…
+adjust-away
+    Adjust picks up where it was when you're back
+adjust-retry
+    Try Again
+adjust-eyedropper-tooltip
+    White balance eyedropper: click something neutral gray in the photo
+adjust-shadows-clipped
+    Shadows clipped: some pixels show at black
+adjust-highlights-clipped
+    Highlights clipped: some pixels show at white
+adjust-reset-hint
+    Double-click a slider's name to reset it; click its value to type one.
+adjust-key-slider
+    previous or next slider
+adjust-key-nudge
+    move the slider; with Shift, ten steps
+adjust-key-before
+    held, see Before
+adjust-key-eyedropper
+    white balance eyedropper
+adjust-key-done
+    Done Adjusting
+adjust-before
+    Before
+adjust-before-tooltip
+    Hold to see the render without its adjustments
+adjust-reset-all
+    Reset All
+adjust-reset-all-tooltip
+    Set every slider back to its start
+adjust-paste-failed
+    The adjustments weren't pasted.

@@ -103,6 +103,8 @@ impl AppView {
     fn menu_state_in(&self, now: &Snapshot, fullscreen: bool, cx: &App) -> MenuState {
         let paint = self.paint.read(cx);
         let painting = self.is_retouching();
+        let adjusting = self.adjusting().is_some();
+        let steps = if adjusting { self.adjust.read(cx).steps() } else { paint.steps() };
         let viewer = self.viewer.read(cx);
         let has_result = self.has_result(cx) && self.screen == Screen::Stacking;
         let renders = self.renders.read(cx);
@@ -133,10 +135,16 @@ impl AppView {
         let contribution =
             (has_result && self.has_contribution(cx)).then(|| self.contribution_on(cx));
         MenuState {
-            undo: paint.state().and_then(|s| s.undo_label.clone()),
-            redo: paint.state().and_then(|s| s.redo_label.clone()),
-            can_undo: paint.steps()[0] > 0,
-            can_redo: paint.steps()[1] > 0,
+            undo: match adjusting {
+                true => (steps[0] > 0).then(|| say!(cx, "adjust-step")),
+                false => paint.state().and_then(|s| s.undo_label.clone()),
+            },
+            redo: match adjusting {
+                true => (steps[1] > 0).then(|| say!(cx, "adjust-step")),
+                false => paint.state().and_then(|s| s.redo_label.clone()),
+            },
+            can_undo: steps[0] > 0,
+            can_redo: steps[1] > 0,
             has_result,
             has_image: stacking && viewer.has_content(),
             can_stack: stacking && self.can_stack(cx),
@@ -148,6 +156,11 @@ impl AppView {
             }),
             can_export: has_result && self.can_export(cx),
             can_retouch: has_result && (painting || self.can_paint(cx)),
+            adjusting,
+            can_copy_adjustments: has_result && self.can_copy_adjustments(cx),
+            can_paste_adjustments: has_result
+                && crate::adjust::copied(cx).is_some()
+                && self.can_copy_adjustments(cx),
             comparing,
             layout: layout.filter(|_| has_result),
             map: self.can_show_map(cx).then(|| viewer.mode().is_map()),

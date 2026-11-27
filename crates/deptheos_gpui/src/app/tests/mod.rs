@@ -19,6 +19,7 @@ use crate::test_support::{act, engine, open, wait_until, write_frames};
 use crate::viewer::{Look, ViewEvent, ViewMode};
 use deptheos_app::view::{Back, Compare, Layout, Light, Target};
 
+mod adjust;
 mod batch;
 mod compare;
 mod e2e;

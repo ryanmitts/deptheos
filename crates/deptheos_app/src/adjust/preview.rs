@@ -9,7 +9,7 @@ use std::time::Duration;
 use deptheos_core::io;
 use deptheos_gpu::gpu_utils::download_texture_rows;
 use deptheos_render::OutputSpace;
-use deptheos_render::dng_render::Region;
+pub use deptheos_render::dng_render::Region;
 use rayon::prelude::*;
 
 use crate::engine::present::{DISPLAY_FORMAT, display_pixel, source_rgb};

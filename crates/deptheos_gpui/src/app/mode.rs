@@ -5,13 +5,11 @@
 use std::sync::Arc;
 
 use deptheos_app::CompletedStack;
-use deptheos_app::adjust::session::{AdjustSession, Observer, Update};
 use deptheos_app::library::history::RenderId;
-use futures::StreamExt as _;
-use futures::channel::mpsc;
-use gpui::{Context, SharedString, Task, Window};
+use gpui::{Context, Entity, SharedString, Window};
 
 use super::AppView;
+use crate::adjust::{Adjust, AdjustEvent};
 use crate::notices::{Kind, Subject};
 use crate::paint::{Painting, SourcesTab};
 use crate::viewer::{Tool, ViewEvent};
@@ -47,43 +45,6 @@ impl Mode {
             Mode::Retouch(_) => "retouch",
             Mode::Adjust(_) => "adjust",
         }
-    }
-}
-
-/// The Adjust session's updates, in order, to the UI thread.
-struct ToUi(mpsc::UnboundedSender<Update>);
-
-impl Observer for ToUi {
-    fn update(&self, update: Update) {
-        let _ = self.0.unbounded_send(update);
-    }
-}
-
-/// The window's one Adjust session and the task hearing it.
-pub(crate) struct AdjustHandle {
-    pub(crate) session: AdjustSession,
-    _updates: Task<()>,
-}
-
-impl AdjustHandle {
-    pub(super) fn new(
-        engine: Arc<deptheos_app::Engine>,
-        history: Arc<deptheos_app::library::history::History>,
-        window: &mut Window,
-        cx: &mut Context<AppView>,
-    ) -> Self {
-        let (tx, mut rx) = mpsc::unbounded();
-        let session = AdjustSession::new(engine, history, Arc::new(ToUi(tx)));
-        let _updates = cx.spawn_in(window, async move |this, cx| {
-            while let Some(update) = rx.next().await {
-                let heard =
-                    this.update_in(cx, |this, window, cx| this.on_adjust(update, window, cx));
-                if heard.is_err() {
-                    return;
-                }
-            }
-        });
-        Self { session, _updates }
     }
 }
 
@@ -128,8 +89,12 @@ impl AppView {
             }
             Mode::Adjust(_) => {
                 if !switching {
-                    self.adjust.session.leave();
-                    self.viewer.update(cx, |v, cx| v.on(ViewEvent::Adjust(false), cx));
+                    self.adjust.update(cx, |a, cx| a.leave(cx));
+                    self.viewer.update(cx, |v, cx| {
+                        v.release_keys(cx);
+                        v.set_tool(Tool::Pan, cx);
+                        v.on(ViewEvent::Adjust(false), cx);
+                    });
                 }
             }
         }
@@ -151,8 +116,16 @@ impl AppView {
             }
             Mode::Adjust(adjusting) => {
                 self.renders.update(cx, |r, cx| r.clear_compare(cx));
-                self.viewer.update(cx, |v, cx| v.on(ViewEvent::Adjust(true), cx));
-                self.adjust.session.open(adjusting.render.clone(), adjusting.stack.clone());
+                self.viewer.update(cx, |v, cx| {
+                    v.cancel_loads(cx);
+                    v.set_tool(Tool::Pan, cx);
+                    v.on(ViewEvent::Adjust(true), cx);
+                });
+                let (render, stack) = (adjusting.render.clone(), adjusting.stack.clone());
+                // Before shows the render with its paint, as stored.
+                let flattened =
+                    self.paint.update(cx, |p, _| p.flatten(render.clone(), stack.clone()));
+                self.adjust.update(cx, |a, cx| a.open(render, stack, flattened, cx));
             }
         }
     }
@@ -231,9 +204,7 @@ impl AppView {
         self.viewer.update(cx, |v, cx| v.show_source(image, labels, cx));
     }
 
-    /// Adjust the saved render shown, or leave Adjust. Nothing in the
-    /// window opens it yet but [`super::actions::ToggleAdjust`], which no
-    /// key or menu holds.
+    /// Adjust the saved render shown, or leave Adjust.
     pub(super) fn toggle_adjust(&mut self, cx: &mut Context<Self>) {
         if self.adjusting().is_some() {
             self.set_mode(Mode::Viewing, cx);
@@ -251,28 +222,35 @@ impl AppView {
         self.set_mode(Mode::Adjust(Adjusting { render, stack }), cx);
     }
 
-    /// One of the Adjust session's updates.
-    fn on_adjust(&mut self, update: Update, window: &mut Window, cx: &mut Context<Self>) {
-        match update {
-            // The panel and its pictures are the Adjust screen's, which
-            // shows none yet.
-            Update::Preview { picture, .. } | Update::OnScreen { picture, .. } => {
-                self.adjust.session.give_back(picture)
+    /// What Adjust says besides its panel and pictures.
+    pub(super) fn on_adjust(
+        &mut self,
+        _: &Entity<Adjust>,
+        event: &AdjustEvent,
+        window: &mut Window,
+        cx: &mut Context<Self>,
+    ) {
+        match event {
+            AdjustEvent::Rewritten(id) => {
+                self.renders.update(cx, |r, cx| r.thumbnail_rewritten(id, cx))
             }
-            Update::Rewritten(id) => {
-                self.renders.update(cx, |r, cx| r.thumbnail_rewritten(&id, cx))
+            AdjustEvent::Notice(text) => {
+                self.post(Kind::Info, Subject::Alone, text.clone(), Vec::new(), window, cx)
             }
-            Update::Notice(text) => {
-                self.post(Kind::Info, Subject::Alone, text, Vec::new(), window, cx)
-            }
-            // The session left the render on its own (a delete): so does the
-            // window.
-            Update::Closed { key, .. } => {
-                if self.adjusting().is_some_and(|a| a.render == key) {
+            AdjustEvent::Closed { key, redraw } => {
+                // The session left the render on its own (a delete): so
+                // does the window.
+                if self.adjusting().is_some_and(|a| a.render == *key) {
                     self.set_mode(Mode::Viewing, cx);
                 }
+                // The screen doesn't show the value saved: open it again.
+                let shown = self.result_doc(cx).is_some_and(|(_, k)| k == *key);
+                if *redraw && shown && self.adjusting().is_none() {
+                    tracing::debug!("adjust: the render drawn again under its saved value");
+                    let key = key.clone();
+                    self.renders.update(cx, |r, cx| r.open(&key, window, cx));
+                }
             }
-            Update::Status(_) | Update::Settled { .. } => {}
         }
     }
 }

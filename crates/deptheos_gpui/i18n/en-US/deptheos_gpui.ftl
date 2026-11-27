@@ -260,6 +260,10 @@ menu-revert-to = Revert to #{ $number }
 menu-render-info = Render Info
 menu-retouch = Retouch
 menu-done-retouching = Done Retouching
+menu-adjust = Adjust
+menu-done-adjusting = Done Adjusting
+menu-copy-adjustments = Copy Adjustments
+menu-paste-adjustments = Paste Adjustments
 menu-star-render = Star Render
 menu-unstar-render = Unstar Render
 menu-exclude-selected-frames = Exclude Selected Frames
@@ -1121,6 +1125,8 @@ toolbar-library-tooltip = Go back to the Library, where every stack is
 toolbar-new-stack-title = New stack
 toolbar-retouch = Retouch
 toolbar-retouch-tooltip = Paint over the result from a frame or another render
+toolbar-adjust = Adjust
+toolbar-adjust-tooltip = Set the render's color, tone and sharpness
 toolbar-export = Export
 toolbar-export-tooltip = Export the result: format, name and folder
 toolbar-stack = Stack
@@ -1892,3 +1898,34 @@ paint-blocked-no-result = Stack first: there is no result to retouch yet
 paint-blocked-saving = Retouch opens once the result is saved as a render
 paint-blocked-not-saved = The result wasn't saved as a render, so it can't be retouched
 
+# Adjust's title. $number: the render's number.
+adjust-title-render = Adjusting #{ $number }
+adjust-title = Adjusting
+# What Undo and Redo take back or put back in Adjust ("Undo Adjustment").
+adjust-step = Adjustment
+# The Adjust button's tooltip while Adjust is open.
+adjust-leave-tooltip = Done Adjusting
+adjust-export-tooltip = Export the render as adjusted
+adjust-done = Done
+adjust-done-tooltip = Go back to Stacking
+# Over the sliders while the render opens in Adjust.
+adjust-opening = Opening the render…
+# Over the sliders while the window is away and Adjust has let go of the GPU.
+adjust-away = Adjust picks up where it was when you're back
+adjust-retry = Try Again
+adjust-eyedropper-tooltip = White balance eyedropper: click something neutral gray in the photo
+# The histogram's corner marks.
+adjust-shadows-clipped = Shadows clipped: some pixels show at black
+adjust-highlights-clipped = Highlights clipped: some pixels show at white
+adjust-reset-hint = Double-click a slider's name to reset it; click its value to type one.
+adjust-key-slider = previous or next slider
+adjust-key-nudge = move the slider; with Shift, ten steps
+adjust-key-before = held, see Before
+adjust-key-eyedropper = white balance eyedropper
+adjust-key-done = Done Adjusting
+adjust-before = Before
+adjust-before-tooltip = Hold to see the render without its adjustments
+adjust-reset-all = Reset All
+adjust-reset-all-tooltip = Set every slider back to its start
+# A notice's lead when Paste Adjustments fails outside Adjust.
+adjust-paste-failed = The adjustments weren't pasted.

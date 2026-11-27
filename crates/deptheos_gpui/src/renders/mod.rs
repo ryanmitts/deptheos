@@ -121,6 +121,8 @@ pub enum RendersEvent {
     Retry(Box<Failure>),
     /// Export Grow Sequence… from a render's menu.
     ExportGrow(RenderId),
+    /// Adjustments were pasted onto this render, which Adjust hadn't open.
+    Pasted(RenderId),
     /// Revert to #n, from a render's menu.
     Revert(RenderId),
     /// Folders were relinked ([`crate::app::AppView::relinked`]).
@@ -803,6 +805,54 @@ impl Renders {
             }
             Ok(deptheos_app::library::thumbnails::rewrite::Rewrote::Overtaken) => {}
             Err(e) => tracing::warn!("render {}'s thumbnail not drawn again: {e}", id.as_str()),
+        })
+        .detach();
+    }
+
+    /// Copy Adjustments from render `id`, which Adjust hasn't open: its
+    /// sliders read after its pending writes, off this thread.
+    pub fn copy_adjustments(&mut self, id: RenderId, cx: &mut Context<Self>) {
+        let store = self.store.clone();
+        cx.spawn(async move |_, cx| {
+            let read = work::background("adjust-copy", move || store.adjustments_to_export(&id));
+            match read.await {
+                Ok(Ok(saved)) => {
+                    cx.update(|cx| crate::adjust::copy(saved.adjustments, cx));
+                }
+                Ok(Err(e)) => tracing::warn!("adjustments not copied: {e}"),
+                Err(e) => tracing::warn!("adjustments not copied: {e}"),
+            }
+        })
+        .detach();
+    }
+
+    /// Paste Adjustments onto render `id` (of `stack`), which Adjust
+    /// hasn't open: its crop kept (ADR-153), written as a change quit waits
+    /// for, then its thumbnail drawn again. [`RendersEvent::Pasted`]
+    /// follows, for the window to show it again.
+    pub fn paste_adjustments(
+        &mut self,
+        id: RenderId,
+        stack: Arc<CompletedStack>,
+        copied: deptheos_app::Adjustments,
+        cx: &mut Context<Self>,
+    ) {
+        let store = self.store.clone();
+        let words = cx.wording().clone();
+        let failed = say!(cx, "adjust-paste-failed");
+        cx.spawn(async move |this, cx| {
+            let onto = id.clone();
+            let pasted =
+                work::write("adjust-paste", move || store.paste_adjustments(&onto, &copied)).await;
+            let pasted = crate::notices::worked(&words, &failed, pasted);
+            this.update(cx, |this, cx| match pasted {
+                Ok(_) => {
+                    this.rewrite_thumbnail(id.clone(), stack, None, cx);
+                    cx.emit(RendersEvent::Pasted(id));
+                }
+                Err(why) => this.fail(why, cx),
+            })
+            .ok();
         })
         .detach();
     }

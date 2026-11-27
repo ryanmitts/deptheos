@@ -14,6 +14,8 @@ pub const KEY_CONTEXT: &str = "Deptheos";
 /// The key context in paint mode; it keeps `Deptheos`, so view keys apply
 /// where no paint binding overrides them.
 pub const PAINT_KEY_CONTEXT: &str = "Deptheos paint";
+/// The key context in Adjust; it keeps `Deptheos`, as paint's does.
+pub const ADJUST_KEY_CONTEXT: &str = "Deptheos adjust";
 /// The Library's key context: none of Stacking's keys apply.
 pub const LIBRARY_KEY_CONTEXT: &str = "Library";
 /// The root's key context while a stack runs: ⌘. cancels it.
@@ -63,6 +65,14 @@ gpui::actions!(
         Quit,
         TogglePaint,
         ToggleAdjust,
+        LeaveAdjust,
+        HoldBefore,
+        Eyedropper,
+        CopyAdjustments,
+        PasteAdjustments,
+        ResetAdjustments,
+        NextSlider,
+        PreviousSlider,
         TogglePick,
         LeavePaint,
         Undo,
@@ -173,6 +183,11 @@ pub struct TrySample(pub Option<super::sample::SampleStack>);
 #[action(namespace = deptheos, no_json)]
 pub struct SetOpacity(pub u8);
 
+/// Adjust: the slider picked, `0` steps of its own along (⇧: ten).
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Action)]
+#[action(namespace = deptheos, no_json)]
+pub struct NudgeSlider(pub i32);
+
 /// Retouch's layouts, from the view bar and menu bar, bound to no key: in
 /// Retouch 1–0 set opacity and \\ shows the source.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Action)]
@@ -193,7 +208,10 @@ pub struct LibraryMove {
 /// Size, ⌥⌘1/⌥⌘2 Stacking/Library, ⌘↩ stack; X excludes or includes. In the
 /// viewer: 1–4 Result, Split, Side by Side, Top/Bottom; \\ flickers; S swaps;
 /// Esc stops comparing; M map; +/− zoom, 0 and F fit; space fit/100%; C
-/// Contribution (outside Retouch); P paint; K star. Paint mode overrides
+/// Contribution (outside Retouch); P paint; A Adjust; K star; ⇧⌘C and ⇧⌘V
+/// copy and paste adjustments. Adjust overrides some: ↑/↓ the slider, ←/→
+/// nudge it (⇧: ten steps), \\ held shows Before, W the eyedropper, ⌘Z
+/// undo, ⌘⇧Z redo, Esc leaves. Paint mode overrides
 /// some: 1–0 opacity, [ ] size, Shift-[ ] hardness, E/B/X source, ←/→ (or
 /// PgUp/PgDn) frames, \\ held shows the source, ⌘Z undo, ⌘⇧Z (or Ctrl-Y)
 /// redo, Esc leaves.
@@ -204,6 +222,8 @@ pub fn key_bindings() -> Vec<KeyBinding> {
     const KEYS: Option<&str> = Some("Deptheos && !Input");
     const PAINT: Option<&str> = Some("paint && !Input");
     const PAINT_CMD: Option<&str> = Some("paint");
+    const ADJUST: Option<&str> = Some("adjust && !Input");
+    const ADJUST_CMD: Option<&str> = Some("adjust");
     let mut bindings = vec![
         KeyBinding::new("secondary-n", NewStack, CTX),
         KeyBinding::new("secondary-n", NewStack, Some(LIBRARY_KEY_CONTEXT)),
@@ -267,6 +287,9 @@ pub fn key_bindings() -> Vec<KeyBinding> {
         KeyBinding::new("m", ToggleMap, KEYS),
         KeyBinding::new("c", ToggleContribution, KEYS),
         KeyBinding::new("p", TogglePaint, KEYS),
+        KeyBinding::new("a", ToggleAdjust, KEYS),
+        KeyBinding::new("secondary-shift-c", CopyAdjustments, CTX),
+        KeyBinding::new("secondary-shift-v", PasteAdjustments, CTX),
         KeyBinding::new("k", TogglePick, KEYS),
         // Not in the menu: for checking color management by eye.
         KeyBinding::new("secondary-alt-shift-c", ToggleColorManagement, CTX),
@@ -301,6 +324,18 @@ pub fn key_bindings() -> Vec<KeyBinding> {
         KeyBinding::new("shift-]", BrushHarder, PAINT),
         KeyBinding::new("{", BrushSofter, PAINT),
         KeyBinding::new("}", BrushHarder, PAINT),
+        // Adjust, overriding the view keys as paint's do.
+        KeyBinding::new("escape", LeaveAdjust, ADJUST),
+        KeyBinding::new("\\", HoldBefore, ADJUST),
+        KeyBinding::new("w", Eyedropper, ADJUST),
+        KeyBinding::new("secondary-z", Undo, ADJUST_CMD),
+        KeyBinding::new("secondary-shift-z", Redo, ADJUST_CMD),
+        KeyBinding::new("down", NextSlider, ADJUST),
+        KeyBinding::new("up", PreviousSlider, ADJUST),
+        KeyBinding::new("right", NudgeSlider(1), ADJUST),
+        KeyBinding::new("left", NudgeSlider(-1), ADJUST),
+        KeyBinding::new("shift-right", NudgeSlider(10), ADJUST),
+        KeyBinding::new("shift-left", NudgeSlider(-10), ADJUST),
     ];
     // Ctrl-Y is redo on Windows and Linux; ⌘Y is something else on macOS.
     if cfg!(target_os = "macos") {
@@ -313,6 +348,7 @@ pub fn key_bindings() -> Vec<KeyBinding> {
     } else {
         bindings.extend([
             KeyBinding::new("ctrl-y", Redo, PAINT_CMD),
+            KeyBinding::new("ctrl-y", Redo, ADJUST_CMD),
             // F10 opens the ≡ menu, as it does a menu bar.
             KeyBinding::new("f10", OpenWindowMenu, None),
         ]);
@@ -390,6 +426,12 @@ pub struct MenuState {
     pub can_export: bool,
     /// Retouch would open paint mode, or paint mode is open to close.
     pub can_retouch: bool,
+    /// Adjust is open.
+    pub adjusting: bool,
+    /// Copy Adjustments has a render to copy from.
+    pub can_copy_adjustments: bool,
+    /// Paste Adjustments has something copied and a render to paste onto.
+    pub can_paste_adjustments: bool,
     /// A result is beside a frame or render, so there are sides to swap.
     pub comparing: bool,
     /// The layout: 0 Result, 1 Split, 2 Side by Side, 3 Top and Bottom,
@@ -540,6 +582,11 @@ pub(crate) fn bar_menus(state: &MenuState, words: &DesktopWords) -> Vec<(BarMenu
                 MenuItem::action(say!(w, "menu-select-all-frames"), SelectAllFrames)
                     .disabled(!s.frames),
                 MenuItem::separator(),
+                MenuItem::action(say!(w, "menu-copy-adjustments"), CopyAdjustments)
+                    .disabled(!s.can_copy_adjustments),
+                MenuItem::action(say!(w, "menu-paste-adjustments"), PasteAdjustments)
+                    .disabled(!s.can_paste_adjustments),
+                MenuItem::separator(),
                 MenuItem::action(say!(w, "menu-rename-stack"), RenameStack).disabled(!s.stacked),
                 MenuItem::action(say!(w, "menu-rename-render"), RenameRender)
                     .disabled(s.picked.is_none()),
@@ -641,6 +688,15 @@ pub(crate) fn bar_menus(state: &MenuState, words: &DesktopWords) -> Vec<(BarMenu
                         say!(w, "menu-retouch")
                     },
                     TogglePaint,
+                )
+                .disabled(!s.can_retouch),
+                MenuItem::action(
+                    if s.adjusting {
+                        say!(w, "menu-done-adjusting")
+                    } else {
+                        say!(w, "menu-adjust")
+                    },
+                    ToggleAdjust,
                 )
                 .disabled(!s.can_retouch),
                 MenuItem::action(

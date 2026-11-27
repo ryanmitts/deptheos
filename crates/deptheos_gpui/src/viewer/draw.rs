@@ -2,13 +2,14 @@
 
 use std::cell::Cell;
 use std::rc::Rc;
+use std::sync::Arc;
 use std::time::Instant;
 
 use gpui::{
     BorderStyle, Bounds, ContentMask, Context, Corners, CursorStyle, DispatchPhase, Entity, Hitbox,
     HitboxBehavior, Hsla, MouseButton, MouseDownEvent, MouseExitEvent, MouseMoveEvent,
-    MouseUpEvent, PinchEvent, Pixels, Point, ScrollWheelEvent, Window, fill, point, px, quad, size,
-    transparent_black,
+    MouseUpEvent, PinchEvent, Pixels, Point, RenderImage, ScrollWheelEvent, Window, fill, point,
+    px, quad, size, transparent_black,
 };
 
 use super::input::Gesture;
@@ -50,6 +51,8 @@ pub(super) struct Frame {
     /// hardness, clip.
     rings: Vec<(Point<Pixels>, f32, f32, Bounds<Pixels>)>,
     preview: Option<Preview>,
+    /// Adjust's flat picture: its pane, where it lies, its image.
+    flat: Option<(Bounds<Pixels>, Bounds<Pixels>, Arc<RenderImage>)>,
 }
 
 /// The paint source under the brush's inner circle, drawn over the canvas
@@ -99,26 +102,37 @@ impl Viewer {
             hitbox,
             divider_hitbox: None,
             dragging: matches!(self.gesture, Gesture::Pan(_)),
-            crosshair: self.tool == Tool::Paint,
+            crosshair: matches!(self.tool, Tool::Paint | Tool::Eyedropper),
             held: self.held.clone(),
             tracking: self.tracking.clone(),
             pointer: self.pointer.clone(),
             rings: Vec::new(),
             preview: None,
+            flat: None,
         };
 
         self.layout(bounds, window, &mut frame);
         self.panes = frame.draws.iter().map(|d| (d.clip, d.rect)).collect();
+        if let Some(&(clip, rect)) = self.panes.last() {
+            self.sync_adjust_view(clip, rect, cx);
+            frame.flat = self.flat().map(|f| (clip, self.flat_rect(f, rect), f.image.clone()));
+        }
         // No brush over the depth map.
         if self.tool == Tool::Paint && !self.state.now().is_map() {
             self.place_rings(&mut frame);
             self.place_preview(&mut frame);
         }
-        let Self { primary, map, lit_map, secondary, atlas, .. } = self;
+        let Self { primary, map, lit_map, secondary, before, atlas, .. } = self;
         atlas.evict(
-            [primary.as_mut(), map.image_mut(), lit_map.as_mut(), secondary.as_mut()]
-                .into_iter()
-                .flatten(),
+            [
+                primary.as_mut(),
+                map.image_mut(),
+                lit_map.as_mut(),
+                secondary.as_mut(),
+                before.as_mut(),
+            ]
+            .into_iter()
+            .flatten(),
         );
         self.make_crisp(cx);
         frame
@@ -147,12 +161,17 @@ impl Viewer {
                     }
                 };
                 let taken = this.update(cx, |this, cx| {
-                    let Self { primary, map, lit_map, secondary, .. } = this;
-                    let taken =
-                        [primary.as_mut(), map.image_mut(), lit_map.as_mut(), secondary.as_mut()]
-                            .into_iter()
-                            .flatten()
-                            .any(|image| image.take_crisp(&job, made.clone()));
+                    let Self { primary, map, lit_map, secondary, before, .. } = this;
+                    let taken = [
+                        primary.as_mut(),
+                        map.image_mut(),
+                        lit_map.as_mut(),
+                        secondary.as_mut(),
+                        before.as_mut(),
+                    ]
+                    .into_iter()
+                    .flatten()
+                    .any(|image| image.take_crisp(&job, made.clone()));
                     if taken {
                         cx.notify();
                     }
@@ -179,13 +198,15 @@ impl Viewer {
         let drawn = self.drawn_comparing(true);
         let layout = drawn.map(|(layout, _)| layout);
         let swapped = drawn.is_some_and(|(_, swapped)| swapped) && self.tool != Tool::Paint;
-        let Self { primary, map, lit_map, secondary, atlas, view, split, .. } = self;
+        let before_held = self.holding_before() && self.before.is_some();
+        let Self { primary, map, lit_map, secondary, before, atlas, view, split, .. } = self;
         // The map can't be on without one ([`Viewer::toggle_map`]); the
         // result stands in while its picture is remade (`MapPicture::Off`).
         let main = match map_shown {
             Some(true) if lit_map.is_some() => lit_map.as_mut(),
             Some(_) if map.image_mut().is_some() => map.image_mut(),
             Some(_) => primary.as_mut(),
+            None if before_held => before.as_mut(),
             None if primary.is_some() => primary.as_mut(),
             None => map.image_mut(),
         };
@@ -345,6 +366,21 @@ impl Viewer {
                             paint_tile(tile, window);
                         }
                     })
+                });
+            }
+            if let Some((clip, rect, image)) = &frame.flat {
+                window.with_content_mask(Some(ContentMask { bounds: *clip }), |window| {
+                    let painted = window.paint_image(
+                        *rect,
+                        *rect,
+                        Corners::default(),
+                        image.clone(),
+                        0,
+                        false,
+                    );
+                    if let Err(e) = painted {
+                        tracing::warn!("the adjust preview wasn't painted: {e}");
+                    }
                 });
             }
             if let Some(p) = &frame.preview {

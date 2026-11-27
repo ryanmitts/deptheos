@@ -226,6 +226,12 @@ impl TiledImage {
         }
     }
 
+    /// Which picture it is: its pixels' address (tests).
+    #[cfg(test)]
+    pub fn identity(&self) -> usize {
+        Arc::as_ptr(&self.pixels) as usize
+    }
+
     /// Every tile's pixels, full size level first (tests).
     #[cfg(test)]
     pub fn pixels(&self) -> Vec<u8> {
@@ -424,6 +430,13 @@ impl Atlas {
     fn queue(&mut self, image: Arc<RenderImage>) {
         self.drops.push((self.frame, self.dropped, image));
         self.dropped += 1;
+    }
+
+    /// Drop a whole image painted outside the tiles (Adjust's flat
+    /// picture) once it is safe to.
+    pub fn let_go(&mut self, image: Arc<RenderImage>) {
+        self.let_go = true;
+        self.queue(image);
     }
 
     /// `tile` is painted this frame.

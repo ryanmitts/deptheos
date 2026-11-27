@@ -38,7 +38,8 @@ struct StandardParams {
     // x = 1 when the input is already linear; y = 1 to encode through the
     // profile's curves, 0 through sRGB's; z the exposure stage (1) and the
     // local tone's terms in it (adjust.wgsl); w the stages after the tone curve:
-    // 1, 2 and 4 the curve's (curve.wgsl), 8 chroma (adjust.wgsl).
+    // 1, 2 and 4 the curve's (curve.wgsl), 8 chroma and 16 the vignette
+    // (adjust.wgsl).
     flags: vec4u,
     // Exposure's gain and the shoulder's knee (adjust.wgsl).
     exposure_gain_knee: vec4f,
@@ -51,11 +52,16 @@ struct StandardParams {
     // The fine terms' numbers: Texture's strength, then Sharpening's
     // strength, limit and Masking (adjust.wgsl).
     local_detail: vec4f,
+    // The vignette's numbers and the rectangle it is centered on
+    // (adjust.wgsl), as dng_render.wgsl's.
+    vignette: vec4f,
+    vignette_window: vec4f,
 }
 
 struct Placement {
     origins: vec4u,
     size: vec4u,
+    frame: vec4u,
 }
 
 fn decoded(v: vec3f) -> vec3f {
@@ -125,6 +131,11 @@ fn standard_render(@builtin(global_invocation_id) gid: vec3u) {
     }
     if ((params.flags.w & 8u) != 0u) {
         prophoto = adjust::chroma(prophoto, params.late.z, params.late.w);
+    }
+    if ((params.flags.w & 16u) != 0u) {
+        let window = adjust::vignette_window(params.vignette_window, place.frame);
+        let pixel = vec2f(gid.xy + place.frame.xy);
+        prophoto = adjust::vignette(prophoto, params.vignette, window, pixel);
     }
     let out = from_prophoto(prophoto);
     if (params.flags.y != 0u) {

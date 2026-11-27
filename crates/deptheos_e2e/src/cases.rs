@@ -6,7 +6,9 @@ use std::path::{Path, PathBuf};
 use serde::{Deserialize, Serialize};
 
 use deptheos_adjust::reframe::Rect;
-use deptheos_adjust::{Adjustments, Flip, Reframe, Sharpening, Turn, WhiteBalance, slider};
+use deptheos_adjust::{
+    Adjustments, Flip, Reframe, Sharpening, Turn, Vignette, WhiteBalance, slider,
+};
 use deptheos_app::library::export::ExportFormat;
 
 use crate::Expect;
@@ -153,6 +155,8 @@ pub struct Adjust {
     pub sharpen_masking: Option<f64>,
     pub vibrance: Option<f64>,
     pub saturation: Option<f64>,
+    pub vignette: Option<f64>,
+    pub vignette_midpoint: Option<f64>,
 }
 
 impl Adjust {
@@ -183,6 +187,10 @@ impl Adjust {
             },
             vibrance: self.vibrance.unwrap_or(n.vibrance),
             saturation: self.saturation.unwrap_or(n.saturation),
+            vignette: Vignette {
+                amount: self.vignette.unwrap_or(n.vignette.amount),
+                midpoint: self.vignette_midpoint.unwrap_or(n.vignette.midpoint),
+            },
             ..n
         }
     }
@@ -218,6 +226,8 @@ impl Adjust {
             ("sharpen_masking", self.sharpen_masking, slider::SHARPEN_MASKING),
             ("vibrance", self.vibrance, slider::VIBRANCE),
             ("saturation", self.saturation, slider::SATURATION),
+            ("vignette", self.vignette, slider::VIGNETTE),
+            ("vignette_midpoint", self.vignette_midpoint, slider::VIGNETTE_MIDPOINT),
         ];
         let part = self.sharpen_radius.or(self.sharpen_detail).or(self.sharpen_masking);
         if part.is_some() && !self.sharpening.is_some_and(|v| v != 0.0) {
@@ -225,6 +235,9 @@ impl Adjust {
                 "adjust: sharpen_radius, sharpen_detail and sharpen_masking go with sharpening"
                     .into(),
             );
+        }
+        if self.vignette_midpoint.is_some() && !self.vignette.is_some_and(|v| v != 0.0) {
+            return Err("adjust: vignette_midpoint goes with vignette".into());
         }
         for (name, value, spec) in sliders {
             let Some(value) = value else { continue };
@@ -629,6 +642,8 @@ mod tests {
             ("stack_bits = 16\nadjust = { kelvin = 5000, temperature = 1 }", "not both"),
             ("adjust = { tint = 5 }", "tint goes with kelvin or temperature"),
             ("adjust = { saturation = -101 }", "saturation -101 is outside"),
+            ("adjust = { vignette = -101 }", "vignette -101 is outside"),
+            ("adjust = { vignette_midpoint = 30 }", "vignette_midpoint goes with vignette"),
             (
                 "stack_bits = 16\nexports = [\"dng\"]\nadjust = { temperature = 10 }",
                 "a camera RAW one takes kelvin",
@@ -661,7 +676,7 @@ mod tests {
         let config = parse(
             "sets = \"s\"\n[[case]]\nname = \"a\"\nset = \"a\"\nstack_bits = 16\n\
              adjust = { exposure = 0.5, kelvin = 4300, tint = 12, vibrance = 20, clarity = 15, \
-             sharpening = 40, sharpen_radius = 0.8 }\n\
+             sharpening = 40, sharpen_radius = 0.8, vignette = -25, vignette_midpoint = 60 }\n\
              space = \"display-p3\"\n\
              reframe = { crop = [10, 20, 300, 200], flip = \"vertical\", turn = 90 }\n\
              [[case]]\nname = \"b\"\nset = \"b\"\nstack_bits = 8\n\
@@ -679,6 +694,7 @@ mod tests {
                 vibrance: 20.0,
                 clarity: 15.0,
                 sharpening: Sharpening { amount: 40.0, radius: 0.8, ..Sharpening::NONE },
+                vignette: Vignette { amount: -25.0, midpoint: 60.0 },
                 ..Adjustments::NEUTRAL
             }
         );

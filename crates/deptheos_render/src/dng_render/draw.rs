@@ -219,6 +219,7 @@ impl DngRenderPipeline {
             let placement = place::Placement {
                 origins: glam::UVec4::new(sx, sy, tile.x - region.x, tile.y - region.y),
                 size: glam::UVec4::new(tile.width, tile.height, 0, 0),
+                frame: glam::UVec4::new(tile.x, tile.y, source.frame[0], source.frame[1]),
             };
             let placement = ctx.create_uniform_buffer(&placement, "log_brightness_place");
             let (shader, entries): (_, Vec<wgpu::BindingResource>) = match &prepared.buffers {
@@ -369,6 +370,7 @@ impl DngRenderPipeline {
                         tile.x - strip.x,
                         tile.y - strip.y,
                     ),
+                    frame: glam::UVec4::new(tile.x, tile.y, source.frame[0], source.frame[1]),
                 };
                 let placement = ctx.create_uniform_buffer(&placement, "dng_render_place");
                 let (shader, entries): (_, Vec<wgpu::BindingResource>) = match &prepared.buffers {

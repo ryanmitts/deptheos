@@ -8,3 +8,4 @@ mod dng_render;
 mod local_tone;
 mod regions;
 mod standard;
+mod vignette;

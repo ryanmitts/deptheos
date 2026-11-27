@@ -11,8 +11,8 @@ use deptheos_app::library::render_folder::RenderFolder;
 use deptheos_app::reframe::{Flip, Rect, Reframe, Size, Turn};
 use deptheos_app::slider::{self, SliderSpec};
 use deptheos_app::{
-    Adjustments, Engine, Look, OutputSpace, ProcessVersion, Sharpening, Temperature, WhiteBalance,
-    Words,
+    Adjustments, Engine, Look, OutputSpace, ProcessVersion, Sharpening, Temperature, Vignette,
+    WhiteBalance, Words,
 };
 
 use crate::args::{Checks, SaveArgs};
@@ -133,6 +133,18 @@ pub(crate) struct RedrawArgs {
           value_parser = |s: &str| parse_slider(s, &slider::SATURATION), help_heading = "Adjust")]
     saturation: Option<f64>,
 
+    /// Vignette, -100 to 100: negative darkens the edges, positive
+    /// lightens them; centered on --reframe
+    #[arg(long, value_name = "N", allow_hyphen_values = true,
+          value_parser = |s: &str| parse_slider(s, &slider::VIGNETTE), help_heading = "Adjust")]
+    vignette: Option<f64>,
+
+    /// Where the vignette starts, 0 to 100: higher starts it further from
+    /// the center [default: 50]
+    #[arg(long, value_name = "N",
+          value_parser = |s: &str| parse_slider(s, &slider::VIGNETTE_MIDPOINT), help_heading = "Adjust")]
+    vignette_midpoint: Option<f64>,
+
     /// The process version the adjustments are read in [default: the
     /// latest]
     #[arg(long, value_name = "N", value_parser = parse_process, help_heading = "Adjust")]
@@ -249,6 +261,10 @@ impl RedrawArgs {
             },
             vibrance: self.vibrance.unwrap_or(neutral.vibrance),
             saturation: self.saturation.unwrap_or(neutral.saturation),
+            vignette: Vignette {
+                amount: self.vignette.unwrap_or(neutral.vignette.amount),
+                midpoint: self.vignette_midpoint.unwrap_or(neutral.vignette.midpoint),
+            },
             ..neutral
         };
         Ok(adjustments.in_process(self.process.unwrap_or(ProcessVersion::LATEST)))
@@ -314,6 +330,7 @@ impl RedrawArgs {
             || off(self.sharpening)
             || off(self.vibrance)
             || off(self.saturation)
+            || off(self.vignette)
             || self.temperature.is_some()
             || self.tint.is_some()
     }
@@ -350,6 +367,9 @@ impl RedrawArgs {
             c.refuse(
                 "--sharpen-radius, --sharpen-detail and --sharpen-masking go with --sharpening",
             );
+        }
+        if self.vignette_midpoint.is_some() && !self.vignette.is_some_and(|v| v != 0.0) {
+            c.refuse("--vignette-midpoint goes with --vignette");
         }
     }
 }
@@ -508,7 +528,14 @@ mod tests {
         assert_eq!(parsed(&flags), Ok((sharpened, true)));
         assert_eq!(parsed(&["--sharpen-radius", "2"]).map(|(_, passes)| passes), Ok(false));
         assert_eq!(parsed(&["--process", "1"]).map(|(_, passes)| passes), Ok(false));
-        let bad: [&[&str]; 6] = [
+        let vignette = Vignette { amount: -30.0, midpoint: 70.0 };
+        let vignetted = Adjustments { vignette, ..Adjustments::NEUTRAL };
+        let flags = ["--vignette", "-30", "--vignette-midpoint", "70", "--process", "1"];
+        assert_eq!(parsed(&flags), Ok((vignetted, true)));
+        assert_eq!(parsed(&["--vignette-midpoint", "70"]).map(|(_, passes)| passes), Ok(false));
+        let bad: [&[&str]; 8] = [
+            &["--vignette", "-101"],
+            &["--vignette-midpoint", "-1"],
             &["--exposure", "6"],
             &["--exposure", "nan"],
             &["--process", "0"],

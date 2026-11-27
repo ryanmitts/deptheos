@@ -164,6 +164,28 @@ fn a_region_with_each_local_slider_draws_as_the_whole_picture() {
     }
 }
 
+/// A vignette, alone and with the sliders that read neighbors, centered on
+/// the whole frame and on a reframe's rectangle across a tile's edge.
+#[test]
+fn a_region_with_a_vignette_draws_as_the_whole_picture() {
+    let Some(ctx) = GpuContext::new_or_skip() else { return };
+    let params = file_params();
+    let plain = adjusted(0.0, 0.0);
+    let vignette = deptheos_render::Vignette { amount: -60.0, midpoint: 20.0 };
+    let crop = deptheos_render::reframe::Rect { x: TILE - 300, y: 20, width: 340, height: 250 };
+    let cases = [
+        Adjustments { vignette, ..plain.clone() },
+        Adjustments { vignette, clarity: 40.0, ..adjusted(-30.0, 40.0) },
+    ];
+    for a in &cases {
+        for color in [Color::Linear(&params), Color::Standard(None)] {
+            let constants = |a: &Adjustments| *resolve_adjusted(color, a, OutputSpace::Srgb);
+            regions_draw_as_the_whole(&ctx, &constants(a), &constants(&plain));
+            regions_draw_as_the_whole(&ctx, &constants(a).framed(crop), &constants(&plain));
+        }
+    }
+}
+
 /// The green channel of a standard stack's draw, in linear light.
 fn linear_green(ctx: &GpuContext, size: [u32; 2], pixels: &[u16], a: &Adjustments) -> Vec<f64> {
     let pipeline = DngRenderPipeline::new(ctx);

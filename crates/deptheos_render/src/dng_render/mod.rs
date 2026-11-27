@@ -31,6 +31,8 @@ mod place {
     pub(super) struct Placement {
         pub(super) origins: UVec4,
         pub(super) size: UVec4,
+        /// xy = the tile's first frame pixel, zw = the frame's size.
+        pub(super) frame: UVec4,
     }
 }
 
@@ -61,6 +63,10 @@ mod params {
         pub(super) local_tone: Vec4,
         pub(super) base_exposure: Vec4,
         pub(super) local_detail: Vec4,
+        pub(super) vignette: Vec4,
+        /// The reframe's rectangle the vignette is centered on: left,
+        /// top, width and height; a width of 0 is the whole frame.
+        pub(super) vignette_window: Vec4,
     }
 }
 
@@ -232,6 +238,7 @@ impl Constants {
             uniform.base_exposure = pack_params(rp, rp.baseline_exposure, to_output).exposure;
         }
         (uniform.flags.w, uniform.late) = stages.late();
+        uniform.vignette = stages.vignette();
         let local = stages.local_tone.map(|l| l.needs());
         let kind = Kind::Linear {
             output,
@@ -253,6 +260,18 @@ impl Constants {
     ) -> Self {
         let kind = Kind::Standard(standard::StandardConstants::new(profile, output, stages));
         Self { kind, local: stages.local_tone.map(|l| l.needs()) }
+    }
+
+    /// These constants with the vignette centered on `crop`, the
+    /// reframe's rectangle of the stored picture, in place of the whole
+    /// frame: the render function takes the reframe for it.
+    pub fn framed(mut self, crop: crate::reframe::Rect) -> Self {
+        let window = glam::UVec4::new(crop.x, crop.y, crop.width, crop.height).as_vec4();
+        match &mut self.kind {
+            Kind::Linear { uniform, .. } => uniform.vignette_window = window,
+            Kind::Standard(standard) => standard.uniform.vignette_window = window,
+        }
+        self
     }
 
     /// These constants with exposure's shoulder a clamp at white, as the
@@ -406,6 +425,8 @@ fn pack_params(rp: &RenderParams, ramp: f64, to_output: (Mat3, f32)) -> params::
         local_tone: Vec4::ZERO,
         base_exposure: Vec4::ZERO,
         local_detail: Vec4::ZERO,
+        vignette: Vec4::ZERO,
+        vignette_window: Vec4::ZERO,
     }
 }
 

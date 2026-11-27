@@ -36,6 +36,8 @@ pub(super) mod params {
         pub(crate) late: Vec4,
         pub(crate) local_tone: Vec4,
         pub(crate) local_detail: Vec4,
+        pub(crate) vignette: Vec4,
+        pub(crate) vignette_window: Vec4,
     }
 }
 
@@ -115,6 +117,8 @@ impl StandardConstants {
             late,
             local_tone: stages.local_tone.map_or(Vec4::ZERO, |l| l.packed()),
             local_detail: stages.local_tone.map_or(Vec4::ZERO, |l| l.detail()),
+            vignette: stages.vignette(),
+            vignette_window: Vec4::ZERO,
         };
         let linearizer = match input {
             Input::Linearized(linearizer) => Some(linearizer),

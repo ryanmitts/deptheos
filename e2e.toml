@@ -49,7 +49,9 @@
 #                 highlights, shadows, whites, blacks, clarity, texture,
 #                 vibrance, saturation (each -100–100), sharpening (0–150)
 #                 with sharpen_radius (0.5–3 px), sharpen_detail and
-#                 sharpen_masking (each 0–100), and the white balance: kelvin (2000–50000) and tint
+#                 sharpen_masking (each 0–100), vignette (-100–100) with
+#                 vignette_midpoint (0–100), centered on the reframe, and
+#                 the white balance: kelvin (2000–50000) and tint
 #                 (-150–150) for a camera RAW stack, or temperature and
 #                 tint (each -100–100, relative) for a standard one. E.g.
 #                 adjust = { exposure = 0.5, kelvin = 5200, tint = 8 }.

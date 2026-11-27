@@ -42,6 +42,8 @@ struct Placement {
     // xy = the tile's width and height, zw = its first texel of the local
     // tone's planes.
     size: vec4u,
+    // xy = the tile's first frame pixel, zw = the frame's size.
+    frame: vec4u,
 }
 
 struct DngColorParams {
@@ -65,7 +67,8 @@ struct DngColorParams {
     // x = HueSatMap present, y = LookTable present, z = the exposure stage
     // in place of the ramp's clamp (1) and the local tone's terms in it
     // (adjust.wgsl), w = the stages after the tone
-    // curve: 1, 2 and 4 the curve's (curve.wgsl), 8 chroma (adjust.wgsl).
+    // curve: 1, 2 and 4 the curve's (curve.wgsl), 8 chroma and 16 the
+    // vignette (adjust.wgsl).
     flags: vec4u,
     // Hue, sat and val divisions; w = 1 for an sRGB-encoded table.
     hsm_dims: vec4u,
@@ -84,6 +87,11 @@ struct DngColorParams {
     // The fine terms' numbers: Texture's strength, then Sharpening's
     // strength, limit and Masking (adjust.wgsl).
     local_detail: vec4f,
+    // The vignette's amount, start, width and aspect mix, and the
+    // reframe's rectangle it is centered on, a width of 0 the whole frame
+    // (adjust.wgsl).
+    vignette: vec4f,
+    vignette_window: vec4f,
 }
 
 // Clamped at white unless `open`, when the exposure stage takes what
@@ -368,6 +376,11 @@ fn dng_render(@builtin(global_invocation_id) gid: vec3u) {
     }
     if ((params.flags.w & 8u) != 0u) {
         prophoto = adjust::chroma(prophoto, params.late.z, params.late.w);
+    }
+    if ((params.flags.w & 16u) != 0u) {
+        let window = adjust::vignette_window(params.vignette_window, place.frame);
+        let pixel = vec2f(gid.xy + place.frame.xy);
+        prophoto = adjust::vignette(prophoto, params.vignette, window, pixel);
     }
     let srgb = encode_output(prophoto_to_output(prophoto));
 

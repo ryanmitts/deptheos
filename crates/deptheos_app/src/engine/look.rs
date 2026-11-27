@@ -111,8 +111,19 @@ impl<'a> Look<'a> {
         }
     }
 
-    /// How this look draws the stack's pixels.
+    /// How this look draws the stack's pixels, a vignette centered on the
+    /// reframe's rectangle.
     pub(crate) fn resolve(&self) -> Draw<'a> {
+        match (self.drawn(), self.reframe.crop) {
+            (Draw::Rendered(constants), Some(crop)) => {
+                Draw::Rendered(Box::new(constants.framed(crop)))
+            }
+            (draw, _) => draw,
+        }
+    }
+
+    /// [`Self::resolve`] on the whole picture.
+    fn drawn(&self) -> Draw<'a> {
         let (color, output) = (self.color(), self.output());
         let adjustments = match self.adjusted {
             Adjusted::Stored => return resolve(color, None, output),

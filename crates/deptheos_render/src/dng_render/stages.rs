@@ -10,6 +10,7 @@ use super::standard;
 use crate::chroma::{self, Chroma};
 use crate::curve::{self, Curve};
 use crate::local_tone;
+use crate::vignette::{self, Vig};
 use crate::white;
 
 /// What the resolve step works out from the sliders for the shaders
@@ -26,17 +27,24 @@ pub(crate) struct Stages {
     pub(crate) curve: Option<Curve>,
     /// Vibrance and Saturation.
     pub(crate) chroma: Option<Chroma>,
+    pub(crate) vignette: Option<Vig>,
 }
 
 impl Stages {
     /// Which stages after the tone curve run (1, 2 and 4 the curve's, 8
-    /// chroma) and their numbers: the curve's operators' weights, then
-    /// Vibrance and Saturation.
+    /// chroma, 16 the vignette) and their numbers: the curve's operators'
+    /// weights, then Vibrance and Saturation.
     pub(super) fn late(&self) -> (u32, Vec4) {
         let (_, curve, weights) = pack_curve(self.curve.as_ref());
-        let flag = u32::from(self.chroma.is_some()) << 3;
+        let flag = u32::from(self.chroma.is_some()) << 3 | u32::from(self.vignette.is_some()) << 4;
         let (vibrance, saturation) = self.chroma.map_or((0.0, 0.0), |c| (c.vibrance, c.saturation));
         (curve | flag, Vec4::new(weights.x, weights.y, vibrance, saturation))
+    }
+
+    /// The vignette's numbers: its amount, start, width and how far it
+    /// takes the frame's shape (`adjust.wgsl`).
+    pub(super) fn vignette(&self) -> Vec4 {
+        self.vignette.map_or(Vec4::ZERO, |v| Vec4::new(v.amount, v.start, v.width, v.aspect_mix))
     }
 }
 
@@ -147,6 +155,8 @@ pub(super) fn constants_module() -> String {
         ("SHARPEN_GAIN", local_tone::SHARPEN_GAIN),
         ("SHARPEN_MASK_SCALE", local_tone::SHARPEN_MASK_SCALE),
         ("SHARPEN_MASK_WIDTH", local_tone::SHARPEN_MASK_WIDTH),
+        ("VIGNETTE_POWER", vignette::POWER),
+        ("VIGNETTE_LIGHTEN", vignette::LIGHTEN),
         ("GREY", curve::GREY),
         ("TONE_MIN_EV", curve::TONE_MIN_EV),
         ("TONE_MAX_EV", curve::TONE_MAX_EV),

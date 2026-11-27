@@ -10,6 +10,7 @@
 #import deptheos::render_constants::{SHARPEN_GAIN, SHARPEN_MASK_SCALE, SHARPEN_MASK_WIDTH}
 #import deptheos::render_constants::{TEXTURE_STRENGTH, TEXTURE_LIMIT, TEXTURE_TAME, TEXTURE_TAME_LOW, TEXTURE_TAME_HIGH}
 #import deptheos::render_constants::{CLARITY_STRENGTH, CLARITY_LIMIT, CLARITY_MIDTONES, CLARITY_FLOOR}
+#import deptheos::render_constants::{VIGNETTE_POWER, VIGNETTE_LIGHTEN}
 
 // Identity up to `knee`, then the gap to white closes in stops, halving
 // each stop in the end and joined at slope 1: lightcraft's roll-off (MIT
@@ -114,4 +115,38 @@ fn chroma(prophoto: vec3f, vibrance: f32, saturation: f32) -> vec3f {
     let scaled = vec3f(lab.x, lab.yz * (c / c0));
     let lms = LAB_TO_LMS * scaled;
     return LMS_TO_PRO * (lms * lms * lms);
+}
+
+// The rectangle the vignette is centered on: `window` (left, top, width,
+// height), or with a width of 0 the whole of a frame of `frame.zw`.
+fn vignette_window(window: vec4f, frame: vec4u) -> vec4f {
+    if (window.z > 0.0) {
+        return window;
+    }
+    return vec4f(0.0, 0.0, vec2f(frame.zw));
+}
+
+// The vignette at frame pixel `pixel` (its index): `v` holds its amount
+// (-1 to 1), start, width and aspect mix, `window` the rectangle it is
+// centered on. An ellipse halfway to the window's shape, darkening by a
+// gain or lightening toward white: lightcraft's post-crop vignette (MIT OR
+// Apache-2.0, lightcraft 5bdb4e7a6 `crates/pipeline/src/finish.rs`,
+// `finish_with`; `crates/deptheos_render/src/vignette.rs`).
+fn vignette(prophoto: vec3f, v: vec4f, window: vec4f, pixel: vec2f) -> vec3f {
+    let aspect = window.z / window.w;
+    let u = (pixel.x - window.x + 0.5) / window.z * 2.0 - 1.0;
+    let vv = (pixel.y - window.y + 0.5) / window.w * 2.0 - 1.0;
+    let sx = 1.0 + (aspect - 1.0) * v.w;
+    let sy = 1.0 + (1.0 / aspect - 1.0) * v.w;
+    let ax = abs(u * max(sx, 1.0) / max(sx, sy));
+    let ay = abs(vv * max(sy, 1.0) / max(sx, sy));
+    let dist = pow(pow(ax, VIGNETTE_POWER) + pow(ay, VIGNETTE_POWER), 1.0 / VIGNETTE_POWER);
+    let t = rise(v.y, v.y + v.z, dist);
+    if (t <= 0.0) {
+        return prophoto;
+    }
+    if (v.x < 0.0) {
+        return prophoto * (1.0 + v.x * t);
+    }
+    return prophoto + (1.0 - prophoto) * v.x * t * VIGNETTE_LIGHTEN;
 }

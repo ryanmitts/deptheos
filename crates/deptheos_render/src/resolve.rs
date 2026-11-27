@@ -124,6 +124,10 @@ pub fn resolve_adjusted(
         slider::VIBRANCE.clamp(adjustments.vibrance),
         slider::SATURATION.clamp(adjustments.saturation),
     );
+    let vignette = crate::vignette::Vig::new(
+        slider::VIGNETTE.clamp(adjustments.vignette.amount),
+        slider::VIGNETTE_MIDPOINT.clamp(adjustments.vignette.midpoint),
+    );
     Box::new(match color {
         Color::Linear(params) => {
             // A camera RAW stack's white is in `params` (the SDK's white point).
@@ -134,7 +138,8 @@ pub fn resolve_adjusted(
                 knee: 1.0,
             }));
             let curve = Curve::raw(contrast, whites, blacks);
-            let stages = Stages { white_balance: None, exposure, local_tone, curve, chroma };
+            let stages =
+                Stages { white_balance: None, exposure, local_tone, curve, chroma, vignette };
             Constants::linear(params, &stages, output)
         }
         Color::Standard(profile) => {
@@ -145,7 +150,7 @@ pub fn resolve_adjusted(
                 gain: 1.0,
                 knee: 1.0,
             }));
-            let stages = Stages { white_balance, exposure, local_tone, curve, chroma };
+            let stages = Stages { white_balance, exposure, local_tone, curve, chroma, vignette };
             Constants::standard(profile, output, &stages)
         }
     })
@@ -258,6 +263,10 @@ mod tests {
             for output in outputs {
                 let neutral = resolve(color, Some(&Adjustments::NEUTRAL), output);
                 assert_eq!(neutral, resolve(color, None, output));
+                // Vignette's Midpoint alone changes nothing.
+                let vignette = deptheos_adjust::Vignette { amount: 0.0, midpoint: 85.0 };
+                let midpoint = Adjustments { vignette, ..Adjustments::NEUTRAL };
+                assert_eq!(resolve(color, Some(&midpoint), output), resolve(color, None, output));
             }
         }
     }

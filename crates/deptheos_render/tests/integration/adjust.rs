@@ -5,7 +5,7 @@ use deptheos_adjust::slider::{self, SliderSpec};
 use deptheos_dng::RenderParams;
 use deptheos_gpu::GpuContext;
 use deptheos_render::dng_render::{Constants, DngRenderPipeline};
-use deptheos_render::{Adjustments, Color, OutputSpace, WhiteBalance, resolve_adjusted};
+use deptheos_render::{Adjustments, Color, OutputSpace, Vignette, WhiteBalance, resolve_adjusted};
 use image::{DynamicImage, ImageBuffer, Rgb};
 
 use crate::common::{download_rgba, upload};
@@ -95,6 +95,7 @@ fn set(name: &str, v: f64) -> Adjustments {
         "blacks" => Adjustments { blacks: v, ..neutral },
         "vibrance" => Adjustments { vibrance: v, ..neutral },
         "saturation" => Adjustments { saturation: v, ..neutral },
+        "vignette" => Adjustments { vignette: Vignette { amount: v, ..Vignette::NONE }, ..neutral },
         "temperature" => {
             let white_balance = WhiteBalance::Relative { temperature: v, tint: 0.0 };
             Adjustments { white_balance, ..neutral }
@@ -109,7 +110,8 @@ fn set(name: &str, v: f64) -> Adjustments {
 
 /// The sliders the resolve step draws, and whether a linear stack takes
 /// them there: its white balance is the SDK's, in its params.
-const SLIDERS: [(&str, SliderSpec, bool); 8] = [
+const SLIDERS: [(&str, SliderSpec, bool); 9] = [
+    ("vignette", slider::VIGNETTE, true),
     ("vibrance", slider::VIBRANCE, true),
     ("saturation", slider::SATURATION, true),
     ("exposure", slider::EXPOSURE, true),

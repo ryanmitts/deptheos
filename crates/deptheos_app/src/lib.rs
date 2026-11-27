@@ -22,8 +22,8 @@ pub mod words;
 
 pub use deptheos_dng::Temperature;
 pub use deptheos_render::{
-    Adjustments, OutputSpace, ProcessVersion, Reframe, Sharpening, WhiteBalance, reframe, slider,
-    temperature,
+    Adjustments, OutputSpace, ProcessVersion, Reframe, Sharpening, Vignette, WhiteBalance, reframe,
+    slider, temperature,
 };
 pub use engine::look::Look;
 pub use engine::present::{

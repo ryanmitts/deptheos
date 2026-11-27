@@ -16,8 +16,14 @@ fn times(columns: [Vec4; 3], v: [f64; 3]) -> [f64; 3] {
     std::array::from_fn(|row| (0..3).map(|c| f64::from(columns[c][row]) * v[c]).sum())
 }
 
-/// One stored pixel through `constants`, as unorm values of the output.
-pub(super) fn standard(constants: &StandardConstants, stored: [u16; 3]) -> [f64; 3] {
+/// One stored pixel, at `at` of a `frame`-sized picture, through
+/// `constants`, as unorm values of the output.
+pub(super) fn standard(
+    constants: &StandardConstants,
+    stored: [u16; 3],
+    at: [u32; 2],
+    frame: [u32; 2],
+) -> [f64; 3] {
     let u = &constants.uniform;
     let linear: [f64; 3] =
         std::array::from_fn(|c| f64::from(constants.decode[c * CODES + usize::from(stored[c])]));
@@ -31,6 +37,7 @@ pub(super) fn standard(constants: &StandardConstants, stored: [u16; 3]) -> [f64;
         prophoto = curve.apply(prophoto);
     }
     prophoto = chroma(u.flags.w, u.late, prophoto);
+    prophoto = vignette(u.flags.w, [u.vignette, u.vignette_window], at, frame, prophoto);
     let out = times(from, prophoto).map(|v| v.clamp(0.0, 1.0));
     if u.flags.y != 0 {
         // The nearest code through the profile's own curves, which never
@@ -47,13 +54,16 @@ pub(super) fn standard(constants: &StandardConstants, stored: [u16; 3]) -> [f64;
     }
 }
 
-/// One camera pixel (unorm) of a linear stack with no HSV tables through
-/// its uniform and composed tone curve, as sRGB unorm values.
+/// One camera pixel (unorm), at `at` of a `frame`-sized picture, of a
+/// linear stack with no HSV tables through its uniform and composed tone
+/// curve, as sRGB unorm values.
 pub(super) fn linear(
     u: &DngColorParams,
     tone: &[f32],
     curve: Option<&Curve>,
     camera: [f64; 3],
+    at: [u32; 2],
+    frame: [u32; 2],
 ) -> [f64; 3] {
     assert_eq!(u.flags.x + u.flags.y, 0, "the reference has no HSV tables");
     let black = f64::from(u.range_inv.w);
@@ -83,6 +93,7 @@ pub(super) fn linear(
         toned = curve.apply(toned);
     }
     toned = chroma(u.flags.w, u.late, toned);
+    toned = vignette(u.flags.w, [u.vignette, u.vignette_window], at, frame, toned);
     let pro_to_output = [u.pro_to_output_c0, u.pro_to_output_c1, u.pro_to_output_c2];
     let power = f64::from(u.pro_to_output_c0.w);
     times(pro_to_output, toned).map(|v| match power {
@@ -97,6 +108,34 @@ fn chroma(stages: u32, late: Vec4, prophoto: [f64; 3]) -> [f64; 3] {
         0 => prophoto,
         _ => Chroma { vibrance: late.z, saturation: late.w }.apply(prophoto),
     }
+}
+
+/// The vignette when the late stages hold it, through its port in f32
+/// (`crate::vignette`): its numbers and its window (`[vignette,
+/// vignette_window]`), at pixel `at` of a `frame`-sized picture.
+fn vignette(
+    stages: u32,
+    [v, window]: [Vec4; 2],
+    at: [u32; 2],
+    frame: [u32; 2],
+    prophoto: [f64; 3],
+) -> [f64; 3] {
+    if stages & 16 == 0 {
+        return prophoto;
+    }
+    let vig = crate::vignette::Vig {
+        amount: v.x,
+        start: v.y,
+        width: v.z,
+        aspect_mix: v.w,
+        power: crate::vignette::POWER,
+    };
+    let window = match window.z {
+        0.0 => [0.0, 0.0, frame[0] as f32, frame[1] as f32],
+        _ => window.to_array(),
+    };
+    let t = vig.reach(window, (at[0] as f32, at[1] as f32));
+    vig.apply(prophoto.map(|c| c as f32), t).map(f64::from)
 }
 
 /// The composed tone curve at `v`, lerped between its samples.
@@ -145,7 +184,7 @@ mod tests {
     use deptheos_gpu::GpuContext;
     use deptheos_gpu::gpu_utils::download_texture_with;
 
-    use super::super::{DngRenderPipeline, Kind, PreparedRender, Region, Source};
+    use super::super::{Constants, DngRenderPipeline, Kind, PreparedRender, Region, Source};
     use crate::{Adjustments, Color, OutputSpace, resolve_adjusted};
 
     const SIZE: [u32; 2] = [256, 96];
@@ -229,11 +268,20 @@ mod tests {
     /// black.
     const CHROMA_PROPHOTO_BOUND: f64 = 8.0;
 
+    /// With a vignette, into a pure power (Adobe RGB's): the darkest
+    /// values it takes darker sit where the power is steepest, in a
+    /// standard stack's own profile and in an export.
+    const VIGNETTE_OWN_BOUND: f64 = 24.0;
+    const VIGNETTE_POWER_BOUND: f64 = 6.0;
+
     /// `bound` for `adjustments`, wider through the tone map (a standard
-    /// stack's curve, a camera RAW stack's Whites) and through OkLab.
-    fn bound(bound: f64, chroma_bound: f64, adjustments: &Adjustments, standard: bool) -> f64 {
+    /// stack's curve, a camera RAW stack's Whites), through OkLab, and
+    /// `[chroma_bound, vignette_bound]` through those stages.
+    fn bound(bound: f64, wider: [f64; 2], adjustments: &Adjustments, standard: bool) -> f64 {
+        let [chroma_bound, vignette_bound] = wider;
         let chroma = adjustments.vibrance != 0.0 || adjustments.saturation != 0.0;
         let bound = if chroma { bound.max(chroma_bound) } else { bound };
+        let bound = if adjustments.vignette.is_none() { bound } else { bound.max(vignette_bound) };
         let curve = adjustments.contrast != 0.0 || adjustments.blacks != 0.0;
         let tone_map = adjustments.whites != 0.0 || (standard && curve);
         if tone_map { bound.max(TONE_MAP_BOUND) } else { bound }
@@ -258,20 +306,48 @@ mod tests {
             });
         let chroma = [(60.0, 0.0), (-80.0, 0.0), (0.0, 50.0), (0.0, -100.0), (40.0, 30.0)]
             .map(|(vibrance, saturation)| Adjustments { vibrance, saturation, ..neutral.clone() });
+        let vignette = [(-100.0, 0.0), (-40.0, 50.0), (70.0, 80.0), (100.0, 100.0)].map(
+            |(amount, midpoint)| Adjustments {
+                vignette: crate::Vignette { amount, midpoint },
+                exposure: 0.3,
+                ..neutral.clone()
+            },
+        );
         let all = std::iter::once(neutral).chain(exposure).chain(white).chain(curve);
-        all.chain(chroma).collect()
+        all.chain(chroma).chain(vignette).collect()
+    }
+
+    /// A reframe's rectangle off the picture's center, which a vignette
+    /// is centered on.
+    const CROP: crate::reframe::Rect =
+        crate::reframe::Rect { x: 40, y: 10, width: 150, height: 70 };
+
+    /// `constants` as drawn, then centered on [`CROP`] when it has a
+    /// vignette.
+    fn framings(constants: Box<Constants>, adjustments: &Adjustments) -> Vec<Constants> {
+        match adjustments.vignette.is_none() {
+            true => vec![*constants],
+            false => vec![(*constants).clone(), constants.framed(CROP)],
+        }
     }
 
     /// The largest gap between the shader's output and `reference`'s, in
     /// 16-bit codes.
-    fn worst(pixels: &[u16], gpu: &[f64], reference: impl Fn([u16; 3]) -> [f64; 3]) -> f64 {
+    /// `reference` takes each stored pixel and where it is.
+    fn worst(
+        pixels: &[u16],
+        gpu: &[f64],
+        reference: impl Fn([u16; 3], [u32; 2]) -> [f64; 3],
+    ) -> f64 {
         pixels
             .as_chunks::<3>()
             .0
             .iter()
             .zip(gpu.as_chunks::<3>().0)
-            .flat_map(|(&stored, gpu)| {
-                let reference = reference(stored);
+            .enumerate()
+            .flat_map(|(i, (&stored, gpu))| {
+                let at = [i as u32 % SIZE[0], i as u32 / SIZE[0]];
+                let reference = reference(stored, at);
                 (0..3).map(move |c| (gpu[c] - reference[c]).abs() * 65535.0)
             })
             .fold(0.0, f64::max)
@@ -288,21 +364,25 @@ mod tests {
             Some(IccProfile::adobe_rgb_compatible()),
         ];
         for icc in &profiles {
-            for (output, bound, chroma_bound) in [
-                (OutputSpace::Srgb, SRGB_BOUND, CHROMA_BOUND),
-                (OutputSpace::StackProfile, OWN_BOUND, CHROMA_OWN_BOUND),
+            for (output, bound, wider) in [
+                (OutputSpace::Srgb, SRGB_BOUND, [CHROMA_BOUND, SRGB_BOUND]),
+                (OutputSpace::StackProfile, OWN_BOUND, [CHROMA_OWN_BOUND, VIGNETTE_OWN_BOUND]),
             ] {
                 for adjustments in adjustments() {
                     let color = Color::Standard(icc.as_ref());
-                    let constants = resolve_adjusted(color, &adjustments, output);
-                    let Kind::Standard(standard) = &constants.kind else { unreachable!() };
-                    let gpu = drawn(&ctx, &constants, &pixels);
-                    let worst = worst(&pixels, &gpu, |stored| super::standard(standard, stored));
-                    let name = icc.as_ref().and_then(IccProfile::name);
-                    assert!(
-                        worst <= self::bound(bound, chroma_bound, &adjustments, true),
-                        "{name:?} into {output:?} under {adjustments:?}: {worst:.2} codes off"
-                    );
+                    let resolved = resolve_adjusted(color, &adjustments, output);
+                    for constants in framings(resolved, &adjustments) {
+                        let Kind::Standard(standard) = &constants.kind else { unreachable!() };
+                        let gpu = drawn(&ctx, &constants, &pixels);
+                        let worst = worst(&pixels, &gpu, |stored, at| {
+                            super::standard(standard, stored, at, SIZE)
+                        });
+                        let name = icc.as_ref().and_then(IccProfile::name);
+                        assert!(
+                            worst <= self::bound(bound, wider, &adjustments, true),
+                            "{name:?} into {output:?} under {adjustments:?}: {worst:.2} codes off"
+                        );
+                    }
                 }
             }
         }
@@ -331,31 +411,30 @@ mod tests {
         let Some(ctx) = GpuContext::new_or_skip() else { return };
         let pixels = scenes();
         let outputs = [
-            (OutputSpace::Srgb, LINEAR_BOUND, CHROMA_BOUND),
-            (OutputSpace::DisplayP3, LINEAR_BOUND, CHROMA_BOUND),
-            (OutputSpace::AdobeRgb, POWER_BOUND, CHROMA_BOUND),
-            (OutputSpace::ProPhoto, POWER_BOUND, CHROMA_PROPHOTO_BOUND),
+            (OutputSpace::Srgb, LINEAR_BOUND, [CHROMA_BOUND, LINEAR_BOUND]),
+            (OutputSpace::DisplayP3, LINEAR_BOUND, [CHROMA_BOUND, LINEAR_BOUND]),
+            (OutputSpace::AdobeRgb, POWER_BOUND, [CHROMA_BOUND, VIGNETTE_POWER_BOUND]),
+            (OutputSpace::ProPhoto, POWER_BOUND, [CHROMA_PROPHOTO_BOUND, VIGNETTE_POWER_BOUND]),
         ];
-        for ((baseline, adjustments), (output, linear_bound, chroma_bound)) in [0.35, -0.5]
+        for ((baseline, adjustments), (output, linear_bound, wider)) in [0.35, -0.5]
             .into_iter()
             .flat_map(|b| adjustments().into_iter().map(move |a| (b, a)))
             .flat_map(|ba| outputs.map(move |o| (ba.clone(), o)))
         {
             let params = linear_params(baseline);
-            {
-                let color = Color::Linear(&params);
-                let constants = resolve_adjusted(color, &adjustments, output);
+            let resolved = resolve_adjusted(Color::Linear(&params), &adjustments, output);
+            for constants in framings(resolved, &adjustments) {
                 assert_eq!(constants.output(), output);
                 let Kind::Linear { uniform, tone, curve, .. } = &constants.kind else {
                     unreachable!()
                 };
                 let gpu = drawn(&ctx, &constants, &pixels);
-                let worst = worst(&pixels, &gpu, |stored| {
+                let worst = worst(&pixels, &gpu, |stored, at| {
                     let camera = stored.map(|v| f64::from(v) / 65535.0);
-                    super::linear(uniform, tone, curve.as_ref(), camera)
+                    super::linear(uniform, tone, curve.as_ref(), camera, at, SIZE)
                 });
                 assert!(
-                    worst <= bound(linear_bound, chroma_bound, &adjustments, false),
+                    worst <= bound(linear_bound, wider, &adjustments, false),
                     "baseline {baseline} into {output:?} under {adjustments:?}: {worst:.2} codes off"
                 );
             }

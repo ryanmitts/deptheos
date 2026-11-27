@@ -67,6 +67,7 @@ of a record, cites only records in this folder.
 - [150](150-shared-preference-definitions.md) Preferences both apps offer are defined in `deptheos_app`; each front end keeps its own storage
 - [151](151-the-apps-carry-a-sample-stack.md) Both apps carry two sample stacks, each copied into the user's storage and opened as a new stack that waits for Stack
 - [152](152-a-renders-adjustments-are-a-file-of-their-own.md) A render's adjustments are a file of their own beside it, naming their process version; Library format 3
+- [153](153-the-adjust-session.md) Adjust is one pure state machine both apps share: a change is a set then a commit, one preview in flight, undo of whole values for the launch
 
 ## Website, iOS, logs, localization and tools
 

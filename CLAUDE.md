@@ -91,6 +91,8 @@ names its states and what changes it, followed by its transitions.
   `crates/deptheos_core/src/wavelet/mod.rs`.
 - Paint, both apps: `Machine` in `crates/deptheos_app/src/paint/machine.rs`,
   driven by `PaintSession` (`paint/session.rs`).
+- Adjust, both apps: `Machine` in `crates/deptheos_app/src/adjust/machine.rs`,
+  events in, actions out, no I/O (ADR-153).
 - The viewer's view, both apps: `View` in `crates/deptheos_app/src/view.rs`,
   a pure reducer whose table tests are the behavior (ADR-149).
 - Desktop: `Screen` and `Running` in `crates/deptheos_gpui/src/app.rs`,

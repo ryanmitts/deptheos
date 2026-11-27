@@ -7,6 +7,7 @@
 //! Library ([`library::history`]) starts. Front ends drive it through
 //! [`Engine`], which converts and caches RAW frames and returns CPU images.
 
+pub mod adjust;
 pub mod engine;
 mod error;
 pub mod frames;

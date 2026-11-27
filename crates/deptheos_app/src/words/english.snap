@@ -1150,3 +1150,91 @@ pref-exposure-compensation
     Exposure compensation
 pref-exposure-compensation-help
     Scale each frame to the first frame's brightness. For stacks shot at varying exposure only: on a normal rail stack it measures vignetting, not exposure, and darkens the result.
+adjust-group-white-balance
+    White Balance
+adjust-group-tone
+    Tone
+adjust-group-presence
+    Presence
+adjust-group-sharpening
+    Sharpening
+adjust-group-vignette
+    Vignette
+adjust-temperature
+    Temperature
+adjust-tint
+    Tint
+adjust-exposure
+    Exposure
+adjust-contrast
+    Contrast
+adjust-highlights
+    Highlights
+adjust-shadows
+    Shadows
+adjust-whites
+    Whites
+adjust-blacks
+    Blacks
+adjust-clarity
+    Clarity
+adjust-texture
+    Texture
+adjust-vibrance
+    Vibrance
+adjust-saturation
+    Saturation
+adjust-sharpening-amount
+    Amount
+adjust-sharpening-radius
+    Radius
+adjust-sharpening-detail
+    Detail
+adjust-sharpening-masking
+    Masking
+adjust-vignette-amount
+    Amount
+adjust-vignette-midpoint
+    Midpoint
+adjust-temperature-help
+    Higher warms the picture toward yellow; lower cools it toward blue.
+adjust-tint-help
+    Higher shifts the picture toward magenta; lower shifts it toward green.
+adjust-exposure-help
+    Higher brightens the whole picture, in stops; bright areas roll off into white rather than clip.
+adjust-contrast-help
+    Higher darkens the dark tones and brightens the bright ones; lower brings both toward the middle.
+adjust-highlights-help
+    Lower brings back detail in bright areas; higher brightens them.
+adjust-shadows-help
+    Higher opens up dark areas; lower deepens them.
+adjust-whites-help
+    Higher makes the brightest tones brighter; lower pulls them down from white.
+adjust-blacks-help
+    Lower makes the darkest tones darker; higher lifts them from black.
+adjust-clarity-help
+    Higher strengthens contrast across broad areas so shapes stand out; lower softens it.
+adjust-texture-help
+    Higher brings out fine surface detail; lower smooths it, leaving larger edges as they are.
+adjust-vibrance-help
+    Higher strengthens muted colors more than strong ones; lower mutes them.
+adjust-saturation-help
+    Higher strengthens every color alike; lower takes color out, to gray at the far left.
+adjust-sharpening-amount-help
+    Higher sharpens edges more; a stacked result is already sharp, so a little goes a long way.
+adjust-sharpening-radius-help
+    Higher sharpens a wider band around each edge; lower keeps it to the finest detail.
+adjust-sharpening-detail-help
+    Higher sharpens the finest detail more; lower holds back halos along large edges.
+adjust-sharpening-masking-help
+    Higher sharpens only the stronger edges, leaving smooth areas such as a plain background alone.
+adjust-vignette-amount-help
+    Lower darkens the edges of the picture; higher lightens them.
+adjust-vignette-midpoint-help
+    Lower starts the vignette nearer the center; higher keeps it to the corners.
+adjust-value-stops
+    <value> EV
+adjust-value-kelvin
+    <value> K
+adjust-value-pixels
+    <value> px

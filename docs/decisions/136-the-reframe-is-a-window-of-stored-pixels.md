@@ -24,6 +24,8 @@ Adjust's Crop cuts a render to a rectangle and turns or mirrors it. Everything e
 
 `deptheos_adjust` also holds each adjustment slider's numbers (`slider.rs`: range, step, default and track) and the relative temperature scale of standard stacks (`temperature.rs`), so both apps and the command line read one definition. A value that isn't a finite number reads as the slider's default. The Kelvin track is even from 2000 to 7000 K on its left half and logarithmic above; the relative scale runs from -100 to 100 around 6500 K in equal mireds, 0.8 a step. Both, and the ranges, are lightcraft's (MIT OR Apache-2.0: `crates/develop/src/controls.rs` and `crates/ui-egui/src/panels/edit/sliders.rs`). What a value does to the picture is the process version's, not these numbers'.
 
+The panel both apps draw is `deptheos_app::adjust::sliders`: each slider (`Slider`) with its numbers, how it reads and sets an `Adjustments` value, how its value is written ("+0.35 EV", "5200 K", "1.0 px", "+25") and read back when typed, and its name and help, messages in `deptheos_app.ftl` (`adjust-*`, ADR-161), in five groups in order: White Balance (Temperature, Tint), Tone (Exposure, Contrast, Highlights, Shadows, Whites, Blacks), Presence (Clarity, Texture, Vibrance, Saturation), Sharpening (Amount, Radius, Detail, Masking) and Vignette (Amount, Midpoint). `Panel::of` a stack says which show: a stack with no color (`CompletedStack::has_color`) has no white balance, Vibrance or Saturation. A camera RAW stack's white balance sliders rest at its as-shot white, and its white balance is as shot again once both are back there; a slider set or reset leaves the process version alone (ADR-152).
+
 ## Alternatives considered
 
 ### Crop by resampling into a new picture
@@ -51,6 +53,7 @@ A typo in a flag would draw a different crop than asked for, silently.
 ## Code
 
 - `crates/deptheos_adjust/src/reframe.rs`, `crates/deptheos_adjust/src/slider.rs`, `crates/deptheos_adjust/src/temperature.rs`.
+- `crates/deptheos_app/src/adjust/sliders.rs`, `crates/deptheos_app/i18n/en-US/deptheos_app.ftl`.
 - `crates/deptheos_app/src/engine/look.rs`, `crates/deptheos_app/src/runs/session/stack.rs`, `crates/deptheos_app/tests/integration/reframe.rs`.
 - `crates/deptheos_cli/src/redraw.rs`.
 - `crates/deptheos_dng/src/lib.rs` (`DngTags::user_crop`, `DngTags::orientation`), `crates/deptheos_dng/native/dng_io.cpp`.

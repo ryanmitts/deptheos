@@ -72,25 +72,26 @@ fn mean(pixels: &[f32]) -> f64 {
     rgb.map(|&v| f64::from(v)).sum::<f64>() / (pixels.len() / 4 * 3) as f64
 }
 
-/// Each slider's field, by its spec, set to `v`.
-fn set(spec: &SliderSpec, v: f64) -> Adjustments {
+/// The slider named `name` set to `v`. By name, since several sliders
+/// share one spec.
+fn set(name: &str, v: f64) -> Adjustments {
     let neutral = Adjustments::NEUTRAL;
-    match spec {
-        s if s == &slider::EXPOSURE => Adjustments { exposure: v, ..neutral },
-        s if s == &slider::CONTRAST => Adjustments { contrast: v, ..neutral },
-        s if s == &slider::WHITES => Adjustments { whites: v, ..neutral },
-        s if s == &slider::BLACKS => Adjustments { blacks: v, ..neutral },
-        s if s == &slider::VIBRANCE => Adjustments { vibrance: v, ..neutral },
-        s if s == &slider::SATURATION => Adjustments { saturation: v, ..neutral },
-        s if s == &slider::TEMPERATURE_RELATIVE => {
+    match name {
+        "exposure" => Adjustments { exposure: v, ..neutral },
+        "contrast" => Adjustments { contrast: v, ..neutral },
+        "whites" => Adjustments { whites: v, ..neutral },
+        "blacks" => Adjustments { blacks: v, ..neutral },
+        "vibrance" => Adjustments { vibrance: v, ..neutral },
+        "saturation" => Adjustments { saturation: v, ..neutral },
+        "temperature" => {
             let white_balance = WhiteBalance::Relative { temperature: v, tint: 0.0 };
             Adjustments { white_balance, ..neutral }
         }
-        s if s == &slider::TINT_RELATIVE => {
+        "tint" => {
             let white_balance = WhiteBalance::Relative { temperature: 0.0, tint: v };
             Adjustments { white_balance, ..neutral }
         }
-        _ => unreachable!("{spec:?} has no field"),
+        _ => unreachable!("{name} has no field"),
     }
 }
 
@@ -123,8 +124,8 @@ fn each_sliders_first_step_from_neutral_is_small() {
         let neutral = at(&Adjustments::NEUTRAL);
         for (name, spec, _) in SLIDERS.into_iter().filter(|s| kind == "standard" || s.2) {
             for step in [spec.step, -spec.step] {
-                let first = at(&set(&spec, spec.default + step));
-                let second = at(&set(&spec, spec.default + 2.0 * step));
+                let first = at(&set(name, spec.default + step));
+                let second = at(&set(name, spec.default + 2.0 * step));
                 let (gap, next) = (largest(&neutral, &first), largest(&first, &second));
                 assert!(gap > 0.0, "{kind} {name} {step:+}: no change");
                 assert!(

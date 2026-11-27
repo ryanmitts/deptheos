@@ -113,6 +113,10 @@ name = "tuning_renders"
 required-features = ["examples"]
 
 [[example]]
+name = "adjust_bench"
+required-features = ["examples"]
+
+[[example]]
 name = "dab_bench"
 required-features = ["examples"]
 

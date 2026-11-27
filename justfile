@@ -117,6 +117,11 @@ test-words:
     cargo test -p deptheos_app --lib words
     cargo test -p deptheos_gpui --bin deptheos-gui words
 
+# Adjust at 45 MP against its frame budgets (ADR-138): synthetic, or a RAW given
+[group('test')]
+adjust-bench *raw:
+    cargo run --release -p deptheos_app --features examples --example adjust_bench -- {{raw}}
+
 # The benches, probes and iOS smoke run still build
 [group('test')]
 test-examples:

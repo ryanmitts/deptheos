@@ -6,6 +6,7 @@
 
 use deptheos_core::io;
 use deptheos_dng::{RenderParams, Temperature, WhiteXy};
+use deptheos_render::dng_render::Constants;
 use deptheos_render::{Adjustments, Color, Draw, OutputSpace, Reframe, WhiteBalance, resolve};
 use deptheos_render::{resolve_adjusted, slider};
 
@@ -102,6 +103,15 @@ impl<'a> Look<'a> {
         reframe: Reframe,
     ) -> Self {
         Self { stack, adjusted: Adjusted::Redrawn(adjustments), reframe, target: Target::Display }
+    }
+
+    /// The shader's constants it draws with, when it draws on the GPU (an
+    /// Adjust look always does): for benches and probes.
+    pub fn constants(&self) -> Option<Constants> {
+        match self.resolve() {
+            Draw::Rendered(constants) => Some(*constants),
+            Draw::Stored { .. } => None,
+        }
     }
 
     /// Whether a slider is off its default: such an export can take 16

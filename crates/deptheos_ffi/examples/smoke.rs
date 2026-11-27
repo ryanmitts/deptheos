@@ -158,7 +158,12 @@ fn main() {
                     size as f64 / 1e6
                 );
             }
-            let saving = engine.clone().save_render(frames.clone(), result, stack.clone(), None);
+            let saving = engine.clone().save_render(
+                frames.clone(),
+                result,
+                stack.clone(),
+                deptheos_ffi::RenderMade::Stacked { base: None },
+            );
             let render = block_on(saving).unwrap();
             let back = block_on(engine.clone().load_render(Request::new(), render.id.clone()));
             assert_eq!(back.unwrap().frames(), frames);

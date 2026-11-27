@@ -9,7 +9,7 @@
 
 use std::path::{Path, PathBuf};
 
-use deptheos_app::library::history::{History, StackId};
+use deptheos_app::library::history::{History, Made, StackId};
 use deptheos_app::{
     Adjustments, Cancel, Engine, Platform, PyramidConfig, SessionOptions, StackerConfig, Words,
 };
@@ -49,7 +49,13 @@ fn main() {
         let presented = engine.present_stack(stack, &Adjustments::NEUTRAL).expect("shown");
         let thumbnail = presented.thumbnail().expect("a thumbnail");
         let render = history
-            .save_render(&paths, &presented.stack, &thumbnail, &StackId::new(), None)
+            .save_render(
+                &paths,
+                &presented.stack,
+                &thumbnail,
+                &StackId::new(),
+                &Made::Stacked { base: None },
+            )
             .expect("saved");
         println!("{}\t{}", history.render_path(&render.id).display(), folder.display());
     }

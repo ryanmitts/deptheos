@@ -47,7 +47,8 @@ struct StandardParams {
     late: vec4f,
     // Highlights', Shadows' and Clarity's strengths, exposure's stops in z
     // (adjust.wgsl).
-    local_tone: vec4f,
+    local_tone: vec4f,    // The fine terms' numbers: Texture's strength (adjust.wgsl).
+    local_detail: vec4f,
 }
 
 struct Placement {
@@ -112,7 +113,7 @@ fn standard_render(@builtin(global_invocation_id) gid: vec3u) {
     if (params.flags.z != 0u) {
         var local = 1.0;
         if (params.flags.z > 1u) {
-            local = adjust::local_tone(textureLoad(local_planes, at, 0), params.local_tone, params.flags.z);
+            local = adjust::local_tone(textureLoad(local_planes, at, 0), params.local_tone, params.local_detail, params.flags.z);
         }
         prophoto = adjust::exposure(prophoto, params.exposure_gain_knee, local);
     }

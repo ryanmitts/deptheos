@@ -67,16 +67,23 @@ pub(crate) struct LocalTone {
     pub(crate) shadows: f32,
     pub(crate) ev: f32,
     pub(crate) clarity: f32,
+    pub(crate) texture: f32,
 }
 
 /// The flag bits of the local tone's terms, beside exposure's 1 in the
-/// uniform's `flags.z`: Highlights and Shadows, Clarity.
+/// uniform's `flags.z`: Highlights and Shadows, Clarity, Texture.
 pub(super) const TONE_TERM: u32 = 2;
 pub(super) const CLARITY_TERM: u32 = 4;
+pub(super) const TEXTURE_TERM: u32 = 8;
 
 impl LocalTone {
     pub(super) fn packed(self) -> Vec4 {
         Vec4::new(self.highlights, self.shadows, self.ev, self.clarity)
+    }
+
+    /// The fine terms' numbers: Texture's strength.
+    pub(super) fn detail(self) -> Vec4 {
+        Vec4::new(self.texture, 0.0, 0.0, 0.0)
     }
 
     /// Which terms run, as flag bits.
@@ -84,12 +91,17 @@ impl LocalTone {
         let on = |v: f32, bit: u32| if v != 0.0 { bit } else { 0 };
         (on(self.highlights, TONE_TERM) | on(self.shadows, TONE_TERM))
             | on(self.clarity, CLARITY_TERM)
+            | on(self.texture, TEXTURE_TERM)
     }
 }
 
 /// The planes the terms `flags_z` names read.
 pub(super) fn needs(flags_z: u32) -> local_tone::Needs {
-    local_tone::Needs { base: flags_z & TONE_TERM != 0, clarity: flags_z & CLARITY_TERM != 0 }
+    local_tone::Needs {
+        base: flags_z & TONE_TERM != 0,
+        clarity: flags_z & CLARITY_TERM != 0,
+        texture: flags_z & TEXTURE_TERM != 0,
+    }
 }
 
 /// The import path of [`constants_module`].
@@ -107,6 +119,7 @@ pub(super) fn constants_module() -> String {
     u32_const("OP_N", curve::OP_N);
     u32_const("TONE_TERM", TONE_TERM as usize);
     u32_const("CLARITY_TERM", CLARITY_TERM as usize);
+    u32_const("TEXTURE_TERM", TEXTURE_TERM as usize);
     for (name, value) in [
         ("STRENGTH", local_tone::STRENGTH),
         ("SHADOW_LOW", local_tone::SHADOW_EDGES[0]),
@@ -117,6 +130,11 @@ pub(super) fn constants_module() -> String {
         ("CLARITY_LIMIT", local_tone::CLARITY_LIMIT),
         ("CLARITY_MIDTONES", local_tone::CLARITY_MIDTONES),
         ("CLARITY_FLOOR", local_tone::CLARITY_FLOOR),
+        ("TEXTURE_STRENGTH", local_tone::TEXTURE_STRENGTH),
+        ("TEXTURE_LIMIT", local_tone::TEXTURE_LIMIT),
+        ("TEXTURE_TAME", local_tone::TEXTURE_TAME),
+        ("TEXTURE_TAME_LOW", local_tone::TEXTURE_TAME_EDGES[0]),
+        ("TEXTURE_TAME_HIGH", local_tone::TEXTURE_TAME_EDGES[1]),
         ("GREY", curve::GREY),
         ("TONE_MIN_EV", curve::TONE_MIN_EV),
         ("TONE_MAX_EV", curve::TONE_MAX_EV),

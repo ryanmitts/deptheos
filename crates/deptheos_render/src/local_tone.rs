@@ -1,10 +1,10 @@
 //! The local tone: the sliders that read neighbors, each a gain in stops
 //! read from planes of the picture's log brightness. Highlights and
 //! Shadows read a base, an edge-aware filter of it; Clarity its own guided
-//! filter. The planes and the laws are lightcraft's as they stand (MIT OR
+//! filter; Texture a blur. The planes and the laws are lightcraft's as they stand (MIT OR
 //! Apache-2.0): the planes are craft-libs b2d2a1e94
 //! `crates/develop/src/local.rs` (`tone_base`, `detail_free`, `median_hv`,
-//! `guided_fast`) with its resampling and blur
+//! `guided_fast`, `texture_sigma`) with its resampling and blur
 //! (`crates/develop/src/raster/resample.rs`,
 //! `crates/develop/src/raster/blur.rs`); the laws are lightcraft 5bdb4e7a6
 //! `crates/pipeline/src/finish.rs` (`local_tone_delta`, `tone_slider`).
@@ -44,6 +44,18 @@ pub const CLARITY_STRENGTH: f32 = 0.85;
 pub const CLARITY_LIMIT: f32 = 2.5;
 pub const CLARITY_MIDTONES: f32 = 3.2;
 pub const CLARITY_FLOOR: f32 = 0.35;
+/// Texture's reach, as a fraction of the long edge, and its least, in
+/// pixels.
+pub const TEXTURE_SIGMA: f32 = 0.0018;
+pub const TEXTURE_SIGMA_MIN: f32 = 0.6;
+/// How much of its strength a negative Texture keeps.
+pub const NEGATIVE_TEXTURE: f64 = 0.67;
+/// Texture's law: its gain in stops per stop of detail, the detail's
+/// limit, and how far it is tamed between the edges (stops of detail).
+pub const TEXTURE_STRENGTH: f32 = 1.1;
+pub const TEXTURE_LIMIT: f32 = 1.0;
+pub const TEXTURE_TAME: f32 = 0.6;
+pub const TEXTURE_TAME_EDGES: [f32; 2] = [0.4, 1.6];
 /// The law's numbers: each slider's gain in stops at full weight, and
 /// where Shadows' and Highlights' weights rise over the base (stops from
 /// middle gray). The shaders take them from here.
@@ -84,6 +96,18 @@ pub fn clarity_strength(value: f64) -> f32 {
     (value / 100.0) as f32
 }
 
+/// Texture's reach on a picture whose long edge is `long` pixels.
+pub fn texture_sigma(long: usize) -> f32 {
+    (TEXTURE_SIGMA * long as f32).max(TEXTURE_SIGMA_MIN)
+}
+
+/// Texture (-100 to 100) as the strength the law takes: linear, a negative
+/// amount at [`NEGATIVE_TEXTURE`] of it.
+pub fn texture_strength(value: f64) -> f32 {
+    let t = value / 100.0;
+    if t < 0.0 { (t * NEGATIVE_TEXTURE) as f32 } else { t as f32 }
+}
+
 /// A plane of f32 values, row by row.
 #[derive(Clone, Debug, PartialEq)]
 pub struct Plane {
@@ -118,6 +142,15 @@ impl Rect {
 
     pub fn columns(self) -> Range<usize> {
         self.x..self.x + self.width
+    }
+
+    /// The smallest rectangle holding both.
+    pub fn union(self, other: Self) -> Self {
+        let x = self.x.min(other.x);
+        let y = self.y.min(other.y);
+        let x1 = (self.x + self.width).max(other.x + other.width);
+        let y1 = (self.y + self.height).max(other.y + other.height);
+        Self { x, y, width: x1 - x, height: y1 - y }
     }
 
     /// Grown by `margin` on every side, within a `frame`.
@@ -255,11 +288,12 @@ impl Base {
 }
 
 /// Which planes a draw's local tone reads: Highlights and Shadows' base,
-/// Clarity's guided filter.
+/// Clarity's guided filter, Texture's blur.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 pub struct Needs {
     pub base: bool,
     pub clarity: bool,
+    pub texture: bool,
 }
 
 /// The whole frame's planes a draw's local tone reads, far smaller than
@@ -271,6 +305,8 @@ pub struct Planes {
     /// Clarity's guided filter of log brightness itself (craft-libs'
     /// `guided_fast` at [`CLARITY_EPS`]).
     clarity: Option<Guided>,
+    /// Texture's blur of log brightness (craft-libs' `gaussian`).
+    texture: Option<BoxBlur>,
 }
 
 impl Planes {
@@ -289,30 +325,154 @@ impl Planes {
             let sigma = clarity_sigma(frame[0].max(frame[1]));
             Guided::new(frame, sigma, CLARITY_EPS, band, &mut log_brightness)
         });
-        Self { frame, base, clarity }
+        let texture =
+            needs.texture.then(|| BoxBlur::new(frame, texture_sigma(frame[0].max(frame[1]))));
+        Self { frame, base, clarity, texture }
     }
 
     /// The rectangle around `rect` whose log brightness [`Self::at`] reads.
     pub fn around(&self, rect: Rect) -> Rect {
-        rect.grown(self.base.as_ref().map_or(0, Base::margin), self.frame)
+        let base = rect.grown(self.base.as_ref().map_or(0, Base::margin), self.frame);
+        self.texture.as_ref().map_or(base, |t| base.union(t.around(rect)))
     }
 
     /// Each pixel of `rect`, row by row: its base, or its log brightness
-    /// without one; then its log brightness less Clarity's filter, 0
-    /// without it; then two zeros. `around` covers [`Self::around`].
+    /// without one; then its log brightness less Clarity's filter and less
+    /// Texture's blur, each 0 without it; then a zero. `around` covers
+    /// [`Self::around`].
     pub fn at(&self, around: &Patch, rect: Rect) -> Vec<[f32; 4]> {
         let own = crop(around, rect);
         let base = self.base.as_ref().map(|b| b.base(around, rect));
         let clarity = self.clarity.as_ref().map(|c| c.apply(&own, rect));
+        let texture = self.texture.as_ref().map(|t| t.apply(around, rect));
         let mut out = vec![[0.0; 4]; rect.width * rect.height];
         for (i, (o, l)) in out.iter_mut().zip(&own.data).enumerate() {
             o[0] = base.as_ref().map_or(*l, |b| b.data[i]);
             if let Some(c) = &clarity {
                 o[1] = l - c.data[i];
             }
+            if let Some(t) = &texture {
+                o[2] = l - t.data[i];
+            }
         }
         out
     }
+}
+
+/// craft-libs' three-box blur of a whole frame's plane (`gaussian`), over
+/// a rectangle at a time: each row's running sums span the frame's width
+/// and each column's restart every [`BOX_BAND`] rows from the top, so a
+/// rectangle reads whole rows from the start of a band of rows.
+struct BoxBlur {
+    frame: [usize; 2],
+    /// `None`: no blur, as for a reach of 0.3 px or less.
+    radii: Option<[usize; 3]>,
+}
+
+/// Rows of a frame-wide plane, from `first`.
+struct Rows {
+    first: usize,
+    width: usize,
+    data: Vec<f32>,
+}
+
+impl Rows {
+    fn row(&self, y: usize) -> &[f32] {
+        let i = y - self.first;
+        &self.data[i * self.width..(i + 1) * self.width]
+    }
+}
+
+impl BoxBlur {
+    fn new(frame: [usize; 2], sigma: f32) -> Self {
+        let [w, h] = frame;
+        let radii = (!(sigma.is_nan() || sigma <= 0.3 || w == 0 || h == 0)).then(|| {
+            let cap = (w.max(h) as f32 * 2.0).max(1.0);
+            box_radii(sigma.min(cap))
+        });
+        Self { frame, radii }
+    }
+
+    /// The vertical passes' radii, with the rows each computes for `rect`
+    /// and the rows the first reads.
+    fn passes(&self, rect: Rect) -> (Vec<(usize, Range<usize>)>, Range<usize>) {
+        let h = self.frame[1];
+        let radii: Vec<usize> = self.radii.into_iter().flatten().filter(|&r| r > 0).collect();
+        let mut passes = Vec::with_capacity(radii.len());
+        let mut need = rect.rows();
+        for &r in radii.iter().rev() {
+            let start = need.start / BOX_BAND * BOX_BAND;
+            passes.push((r, start..need.end));
+            need = start.saturating_sub(r)..(need.end + r + 1).min(h);
+        }
+        passes.reverse();
+        (passes, need)
+    }
+
+    /// The rectangle around `rect` whose values [`Self::apply`] reads:
+    /// whole rows.
+    fn around(&self, rect: Rect) -> Rect {
+        let rows = self.passes(rect).1;
+        Rect { x: 0, y: rows.start, width: self.frame[0], height: rows.len() }
+    }
+
+    /// The blur over `rect`, from the plane over [`Self::around`].
+    fn apply(&self, around: &Patch, rect: Rect) -> Plane {
+        let Some(radii) = self.radii else { return crop(around, rect) };
+        let [w, h] = self.frame;
+        let (passes, rows) = self.passes(rect);
+        let mut data = vec![0.0f32; w * rows.len()];
+        data.par_chunks_mut(w).zip(rows.clone()).for_each(|(row, y)| {
+            for (o, x) in row.iter_mut().zip(0..w) {
+                *o = around.at(x, y);
+            }
+            let mut tmp = Vec::with_capacity(w);
+            for r in radii {
+                box_row(row, &mut tmp, r);
+            }
+        });
+        let mut src = Rows { first: rows.start, width: w, data };
+        for (r, out) in passes {
+            src = box_v_rows(&src, out, r, h);
+        }
+        let mut out = Plane::new(rect.width, rect.height);
+        for (i, y) in rect.rows().enumerate() {
+            out.data[i * rect.width..(i + 1) * rect.width]
+                .copy_from_slice(&src.row(y)[rect.columns()]);
+        }
+        out
+    }
+}
+
+/// One box pass down the columns of a frame `h` rows high, over `out`'s
+/// rows, as [`box_v`] makes them: each band of [`BOX_BAND`] rows starts its
+/// running sums afresh. `out` starts at a band's first row.
+fn box_v_rows(src: &Rows, out: Range<usize>, r: usize, h: usize) -> Rows {
+    let w = src.width;
+    let inv = 1.0 / (2 * r + 1) as f32;
+    let last = h - 1;
+    let mut data = vec![0.0f32; w * out.len()];
+    data.par_chunks_mut(w * BOX_BAND).enumerate().for_each(|(band, rows)| {
+        let y0 = out.start + band * BOX_BAND;
+        let mut acc = vec![0.0f32; w];
+        for i in 0..=2 * r {
+            let yy = (y0 + i).saturating_sub(r).min(last);
+            for (a, v) in acc.iter_mut().zip(src.row(yy)) {
+                *a += *v * 1.0;
+            }
+        }
+        for (k, o) in rows.chunks_mut(w).enumerate() {
+            let y = y0 + k;
+            for (d, a) in o.iter_mut().zip(&acc) {
+                *d = 0.0 + *a * inv;
+            }
+            let (add, sub) = (src.row((y + r + 1).min(last)), src.row(y.saturating_sub(r)));
+            for ((a, p), m) in acc.iter_mut().zip(add).zip(sub) {
+                *a = *a + *p * 1.0 + *m * -1.0;
+            }
+        }
+    });
+    Rows { first: out.start, width: w, data }
 }
 
 impl DetailFree {
@@ -815,7 +975,7 @@ mod tests {
     /// band, and Clarity's filter is the guided filter of log brightness.
     #[test]
     fn the_planes_at_a_region_are_the_whole_frames() {
-        let needs = Needs { base: true, clarity: true };
+        let needs = Needs { base: true, clarity: true, texture: true };
         for (w, h) in [(1300, 700), (61, 40)] {
             let p = scene(w, h);
             let at = |planes: &Planes, rect: Rect| {
@@ -833,7 +993,10 @@ mod tests {
                     assert_eq!(&part[i * rect.width..(i + 1) * rect.width], row, "{rect:?}");
                 }
             }
-            assert!(full.iter().any(|v| v[1] != 0.0));
+            assert!(full.iter().any(|v| v[1] != 0.0) && full.iter().any(|v| v[2] != 0.0));
+            let blur = gaussian(&p, texture_sigma(w.max(h)));
+            let detail: Vec<f32> = p.data.iter().zip(&blur.data).map(|(l, b)| l - b).collect();
+            assert!(full.iter().map(|v| v[2]).eq(detail), "{w}x{h}: Texture's blur");
         }
     }
 

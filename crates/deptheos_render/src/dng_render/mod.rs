@@ -60,6 +60,7 @@ mod params {
         pub(super) late: Vec4,
         pub(super) local_tone: Vec4,
         pub(super) base_exposure: Vec4,
+        pub(super) local_detail: Vec4,
     }
 }
 
@@ -220,6 +221,7 @@ impl Constants {
         if let Some(local_tone) = stages.local_tone {
             uniform.flags.z |= local_tone.terms();
             uniform.local_tone = local_tone.packed();
+            uniform.local_detail = local_tone.detail();
             uniform.base_exposure = pack_params(rp, rp.baseline_exposure, to_output).exposure;
         }
         (uniform.flags.w, uniform.late) = stages.late();
@@ -403,6 +405,7 @@ fn pack_params(rp: &RenderParams, ramp: f64, to_output: (Mat3, f32)) -> params::
         late: Vec4::ZERO,
         local_tone: Vec4::ZERO,
         base_exposure: Vec4::ZERO,
+        local_detail: Vec4::ZERO,
     }
 }
 

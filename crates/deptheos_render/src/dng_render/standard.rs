@@ -35,6 +35,7 @@ pub(super) mod params {
         pub(crate) exposure_gain_knee: Vec4,
         pub(crate) late: Vec4,
         pub(crate) local_tone: Vec4,
+        pub(crate) local_detail: Vec4,
     }
 }
 
@@ -113,6 +114,7 @@ impl StandardConstants {
                 .map_or(Vec4::new(1.0, 1.0, 0.0, 0.0), |exposure| exposure.gain_knee()),
             late,
             local_tone: stages.local_tone.map_or(Vec4::ZERO, |l| l.packed()),
+            local_detail: stages.local_tone.map_or(Vec4::ZERO, |l| l.detail()),
         };
         let linearizer = match input {
             Input::Linearized(linearizer) => Some(linearizer),

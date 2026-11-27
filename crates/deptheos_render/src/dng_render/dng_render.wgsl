@@ -79,7 +79,8 @@ struct DngColorParams {
     local_tone: vec4f,
     // The ramp's constants at the baseline exposure, as `exposure`: what
     // the base is taken of.
-    base_exposure: vec4f,
+    base_exposure: vec4f,    // The fine terms' numbers: Texture's strength (adjust.wgsl).
+    local_detail: vec4f,
 }
 
 // Clamped at white unless `open`, when the exposure stage takes what
@@ -308,7 +309,7 @@ fn exposure(prophoto: vec3f, at: vec2i) -> vec3f {
     if (params.flags.z != 0u) {
         var local = 1.0;
         if (params.flags.z > 1u) {
-            local = adjust::local_tone(textureLoad(local_planes, at, 0), params.local_tone, params.flags.z);
+            local = adjust::local_tone(textureLoad(local_planes, at, 0), params.local_tone, params.local_detail, params.flags.z);
         }
         return adjust::exposure(ramped, params.exposure_gain_knee, local);
     }

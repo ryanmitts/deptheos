@@ -48,8 +48,9 @@ pub struct Adjustments {
     pub shadows: f64,
     pub whites: f64,
     pub blacks: f64,
-    /// [`slider::CLARITY`].
+    /// [`slider::CLARITY`], [`slider::TEXTURE`].
     pub clarity: f64,
+    pub texture: f64,
     /// [`slider::VIBRANCE`], [`slider::SATURATION`].
     pub vibrance: f64,
     pub saturation: f64,
@@ -101,6 +102,7 @@ impl Adjustments {
         whites: 0.0,
         blacks: 0.0,
         clarity: 0.0,
+        texture: 0.0,
         vibrance: 0.0,
         saturation: 0.0,
     };
@@ -126,6 +128,7 @@ impl Adjustments {
             whites,
             blacks,
             clarity,
+            texture,
             vibrance,
             saturation,
         } = self;
@@ -137,6 +140,7 @@ impl Adjustments {
             && at_default(&slider::WHITES, *whites)
             && at_default(&slider::BLACKS, *blacks)
             && at_default(&slider::CLARITY, *clarity)
+            && at_default(&slider::TEXTURE, *texture)
             && at_default(&slider::VIBRANCE, *vibrance)
             && at_default(&slider::SATURATION, *saturation)
     }

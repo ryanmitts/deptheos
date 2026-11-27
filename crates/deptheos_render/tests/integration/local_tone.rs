@@ -145,7 +145,8 @@ fn a_region_with_each_local_slider_draws_as_the_whole_picture() {
     let plain = adjusted(0.0, 0.0);
     let cases = [
         Adjustments { clarity: 45.0, ..plain.clone() },
-        Adjustments { clarity: -70.0, ..adjusted(-30.0, 40.0) },
+        Adjustments { texture: -60.0, ..plain.clone() },
+        Adjustments { clarity: -70.0, texture: 80.0, ..adjusted(-30.0, 40.0) },
     ];
     for a in &cases {
         let linear =
@@ -226,6 +227,31 @@ fn clarity_raises_and_lowers_contrast_at_an_edge() {
     assert!(dark < -0.02 && light > 0.02, "{dark} {light}");
     let (dark, light) = at(-80.0);
     assert!(dark > 0.02 && light < -0.02, "{dark} {light}");
+}
+
+/// Texture raised strengthens fine detail and lowered smooths it: the
+/// spread of a fine pattern's log brightness grows and shrinks.
+#[test]
+fn texture_strengthens_and_smooths_fine_detail() {
+    let Some(ctx) = GpuContext::new_or_skip() else { return };
+    let size = [400u32, 400];
+    let pixels: Vec<u16> = (0..400 * 400u32)
+        .flat_map(|i| {
+            let (x, y) = (i % 400, i / 400);
+            let hash = (x.wrapping_mul(73_856_093) ^ y.wrapping_mul(19_349_663)) % 6000;
+            [(14_000 + hash) as u16; 3]
+        })
+        .collect();
+    let spread = |texture| {
+        let a = Adjustments { texture, ..Adjustments::NEUTRAL };
+        let logs: Vec<f64> =
+            linear_green(&ctx, size, &pixels, &a).iter().map(|v| v.max(1e-6).log2()).collect();
+        let mean = logs.iter().sum::<f64>() / logs.len() as f64;
+        (logs.iter().map(|l| (l - mean).powi(2)).sum::<f64>() / logs.len() as f64).sqrt()
+    };
+    let (neutral, raised, lowered) = (spread(0.0), spread(80.0), spread(-80.0));
+    eprintln!("spread in stops: neutral {neutral:.4}, +80 {raised:.4}, -80 {lowered:.4}");
+    assert!(raised > neutral * 1.3 && lowered < neutral * 0.8, "{neutral} {raised} {lowered}");
 }
 
 /// Dark lettering on a bright panel: strokes 4 px wide with gaps of 3, in

@@ -6,7 +6,8 @@
 #import deptheos::render_constants::{PRO_TO_LMS, LMS_TO_PRO, LMS_TO_LAB, LAB_TO_LMS}
 #import deptheos::render_constants::{SKIN_HUE, SKIN_PROTECTION, SKIN_WIDTH, VIBRANCE_REACH, VIBRANCE_GAIN}
 #import deptheos::render_constants::{STRENGTH, SHADOW_LOW, SHADOW_HIGH, HIGHLIGHT_LOW, HIGHLIGHT_HIGH}
-#import deptheos::render_constants::{TONE_TERM, CLARITY_TERM}
+#import deptheos::render_constants::{TONE_TERM, CLARITY_TERM, TEXTURE_TERM}
+#import deptheos::render_constants::{TEXTURE_STRENGTH, TEXTURE_LIMIT, TEXTURE_TAME, TEXTURE_TAME_LOW, TEXTURE_TAME_HIGH}
 #import deptheos::render_constants::{CLARITY_STRENGTH, CLARITY_LIMIT, CLARITY_MIDTONES, CLARITY_FLOOR}
 
 // Identity up to `knee`, then the gap to white closes in stops, halving
@@ -38,12 +39,13 @@ fn rise(e0: f32, e1: f32, x: f32) -> f32 {
 // The local tone's gain, as a factor, at a pixel whose planes are
 // `planes`: its base (log2 of brightness over middle gray, before
 // exposure), or its log brightness without Highlights and Shadows, then
-// its log brightness less Clarity's filter. `amounts` holds Highlights',
-// Shadows' and Clarity's strengths and exposure's stops in z; `terms` the
-// flag bits of the terms that run. lightcraft's law (MIT OR Apache-2.0,
+// its log brightness less Clarity's filter, then less Texture's blur.
+// `amounts` holds Highlights', Shadows' and Clarity's strengths and
+// exposure's stops in z, `detail` Texture's strength; `terms` the flag
+// bits of the terms that run. lightcraft's law (MIT OR Apache-2.0,
 // lightcraft 5bdb4e7a6 `crates/pipeline/src/finish.rs`,
 // `local_tone_delta`).
-fn local_tone(planes: vec4f, amounts: vec4f, terms: u32) -> f32 {
+fn local_tone(planes: vec4f, amounts: vec4f, detail: vec4f, terms: u32) -> f32 {
     let at = planes.x + amounts.z;
     var stops = 0.0;
     if ((terms & TONE_TERM) != 0u) {
@@ -52,10 +54,15 @@ fn local_tone(planes: vec4f, amounts: vec4f, terms: u32) -> f32 {
         stops += amounts.y * STRENGTH * shadow * sqrt(shadow) + amounts.x * STRENGTH * highlight;
     }
     if ((terms & CLARITY_TERM) != 0u) {
-        let detail = clamp(planes.y, -CLARITY_LIMIT, CLARITY_LIMIT);
+        let d = clamp(planes.y, -CLARITY_LIMIT, CLARITY_LIMIT);
         let m = at / CLARITY_MIDTONES;
         let midtone = exp(-(m * m));
-        stops += amounts.w * CLARITY_STRENGTH * detail * (CLARITY_FLOOR + (1.0 - CLARITY_FLOOR) * midtone);
+        stops += amounts.w * CLARITY_STRENGTH * d * (CLARITY_FLOOR + (1.0 - CLARITY_FLOOR) * midtone);
+    }
+    if ((terms & TEXTURE_TERM) != 0u) {
+        let d = planes.z;
+        let tame = 1.0 - TEXTURE_TAME * rise(TEXTURE_TAME_LOW, TEXTURE_TAME_HIGH, abs(d));
+        stops += detail.x * TEXTURE_STRENGTH * clamp(d, -TEXTURE_LIMIT, TEXTURE_LIMIT) * tame;
     }
     return exp2(stops);
 }

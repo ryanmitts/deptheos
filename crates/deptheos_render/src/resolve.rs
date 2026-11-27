@@ -116,6 +116,7 @@ pub fn resolve_adjusted(
         slider::HIGHLIGHTS.clamp(adjustments.highlights),
         slider::SHADOWS.clamp(adjustments.shadows),
         slider::CLARITY.clamp(adjustments.clarity),
+        slider::TEXTURE.clamp(adjustments.texture),
         exposure,
     );
     let chroma = Chroma::new(
@@ -162,16 +163,27 @@ fn relative_white_balance(white_balance: WhiteBalance) -> Option<crate::white::M
 
 /// The sliders that read neighbors, lightcraft's laws as they stand
 /// (lightcraft 5bdb4e7a6 `crates/pipeline/src/finish.rs`, `FinishParams`,
-/// `tone_slider`): Highlights and Clarity linear, Shadows eased. The base
-/// is the picture's before exposure, so exposure's stops shift it. All at
-/// 0: none, and exposure's ramp keeps its clamp.
-fn local_tone(highlights: f64, shadows: f64, clarity: f64, exposure: f64) -> Option<LocalTone> {
-    use crate::local_tone::{clarity_strength, highlights_strength, shadows_strength};
-    (highlights != 0.0 || shadows != 0.0 || clarity != 0.0).then(|| LocalTone {
+/// `tone_slider`, `texture_slider`): Highlights and Clarity linear, Shadows
+/// eased, a negative Texture at 0.67 of its strength. The base is the
+/// picture's before exposure, so exposure's stops shift it. All at 0: none,
+/// and exposure's ramp keeps its clamp.
+fn local_tone(
+    highlights: f64,
+    shadows: f64,
+    clarity: f64,
+    texture: f64,
+    exposure: f64,
+) -> Option<LocalTone> {
+    use crate::local_tone::{
+        clarity_strength, highlights_strength, shadows_strength, texture_strength,
+    };
+    let any = [highlights, shadows, clarity, texture].iter().any(|&v| v != 0.0);
+    any.then(|| LocalTone {
         highlights: highlights_strength(highlights),
         shadows: shadows_strength(shadows),
         ev: exposure as f32,
         clarity: clarity_strength(clarity),
+        texture: texture_strength(texture),
     })
 }
 

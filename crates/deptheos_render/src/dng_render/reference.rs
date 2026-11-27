@@ -212,10 +212,10 @@ mod tests {
     /// unbounded at black: f32's rounding of the darkest values, magnified.
     const POWER_BOUND: f64 = 4.0;
 
-    /// With Whites raised: where a channel passes white by a hair, the
+    /// Through the tone map: where a channel passes white by a hair, the
     /// pull toward luminance divides by that hair, and moves the codes
     /// the stages before it rounded by up to 8 times as many.
-    const WHITES_BOUND: f64 = 16.0;
+    const TONE_MAP_BOUND: f64 = 16.0;
 
     /// With Vibrance or Saturation: OkLab's cube root, a `pow` in f32,
     /// and its cube on the way back. In a profile's own curves, a pure
@@ -229,12 +229,14 @@ mod tests {
     /// black.
     const CHROMA_PROPHOTO_BOUND: f64 = 8.0;
 
-    /// `bound` for `adjustments`, wider where Whites lifts past white and
-    /// through OkLab.
-    fn bound(bound: f64, chroma_bound: f64, adjustments: &Adjustments) -> f64 {
+    /// `bound` for `adjustments`, wider through the tone map (a standard
+    /// stack's curve, a camera RAW stack's Whites) and through OkLab.
+    fn bound(bound: f64, chroma_bound: f64, adjustments: &Adjustments, standard: bool) -> f64 {
         let chroma = adjustments.vibrance != 0.0 || adjustments.saturation != 0.0;
         let bound = if chroma { bound.max(chroma_bound) } else { bound };
-        if adjustments.whites > 0.0 { bound.max(WHITES_BOUND) } else { bound }
+        let curve = adjustments.contrast != 0.0 || adjustments.blacks != 0.0;
+        let tone_map = adjustments.whites != 0.0 || (standard && curve);
+        if tone_map { bound.max(TONE_MAP_BOUND) } else { bound }
     }
 
     /// The adjustments each test draws: neutral, then each slider's
@@ -298,7 +300,7 @@ mod tests {
                     let worst = worst(&pixels, &gpu, |stored| super::standard(standard, stored));
                     let name = icc.as_ref().and_then(IccProfile::name);
                     assert!(
-                        worst <= self::bound(bound, chroma_bound, &adjustments),
+                        worst <= self::bound(bound, chroma_bound, &adjustments, true),
                         "{name:?} into {output:?} under {adjustments:?}: {worst:.2} codes off"
                     );
                 }
@@ -353,7 +355,7 @@ mod tests {
                     super::linear(uniform, tone, curve.as_ref(), camera)
                 });
                 assert!(
-                    worst <= bound(linear_bound, chroma_bound, &adjustments),
+                    worst <= bound(linear_bound, chroma_bound, &adjustments, false),
                     "baseline {baseline} into {output:?} under {adjustments:?}: {worst:.2} codes off"
                 );
             }

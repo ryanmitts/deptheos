@@ -30,6 +30,8 @@ const BRADFORD: Mat3 =
 /// ProPhoto's primaries and its D50 white, as xy.
 pub(crate) const PROPHOTO: [[f64; 2]; 4] =
     [[0.734699, 0.265301], [0.159597, 0.840403], [0.036598, 0.000105], [0.3457, 0.3585]];
+/// Rec. 2020's primaries and its D65 white, as xy.
+const REC2020: [[f64; 2]; 4] = [[0.708, 0.292], [0.170, 0.797], [0.131, 0.046], [0.3127, 0.3290]];
 
 /// The matrix, in linear ProPhoto, for a standard stack's relative
 /// `temperature` and `tint`: positive temperature warmer, positive tint
@@ -138,12 +140,28 @@ pub(crate) fn bradford_checked(src: [f64; 3], dst: [f64; 3]) -> Option<Mat3> {
 
 /// Linear ProPhoto to XYZ, and back.
 pub(crate) fn prophoto() -> (Mat3, Mat3) {
-    let [r, g, b, white] = PROPHOTO.map(xy_to_xyz);
+    rgb_to_xyz(PROPHOTO)
+}
+
+/// Linear ProPhoto to linear Rec. 2020, white adapted D50 to D65
+/// (Bradford), as lightcraft converts (craft-libs b2d2a1e94
+/// `crates/develop/src/light_v3.rs`, `prophoto_matrices`).
+pub(crate) fn prophoto_to_rec2020() -> Mat3 {
+    let (to_xyz, _) = prophoto();
+    let (_, from_xyz) = rgb_to_xyz(REC2020);
+    let adapt =
+        bradford_checked(xy_to_xyz(PROPHOTO[3]), xy_to_xyz(REC2020[3])).expect("D50 and D65 adapt");
+    mul(&from_xyz, &mul(&adapt, &to_xyz))
+}
+
+/// A space's linear values to XYZ, and back, from its primaries and white.
+fn rgb_to_xyz(space: [[f64; 2]; 4]) -> (Mat3, Mat3) {
+    let [r, g, b, white] = space.map(xy_to_xyz);
     let m = [[r[0], g[0], b[0]], [r[1], g[1], b[1]], [r[2], g[2], b[2]]];
-    let inverse = invert(&m).expect("ProPhoto's primaries are independent");
+    let inverse = invert(&m).expect("the primaries are independent");
     let s = apply(&inverse, white);
     let to_xyz = m.map(|row| [row[0] * s[0], row[1] * s[1], row[2] * s[2]]);
-    (to_xyz, invert(&to_xyz).expect("ProPhoto's matrix inverts"))
+    (to_xyz, invert(&to_xyz).expect("the matrix inverts"))
 }
 
 pub(crate) fn mul(a: &Mat3, b: &Mat3) -> Mat3 {

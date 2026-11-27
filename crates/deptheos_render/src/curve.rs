@@ -17,6 +17,7 @@
 //! `curve`; [`Curve::apply`] is the same stage in f64 for the tests.
 
 use crate::curve_fits as fits;
+use crate::white;
 
 /// The tone map's middle gray.
 pub(crate) const GREY: f32 = 0.18;
@@ -27,8 +28,19 @@ pub(crate) const TONE_MAX_EV: f32 = 10.0;
 pub(crate) const TONE_N: usize = 4096;
 /// Entries of a fitted operator's table over encoded values 0 to 1.
 pub(crate) const OP_N: usize = 1024;
-/// Linear ProPhoto's luminance (the Y row of ProPhoto to XYZ).
+/// Linear ProPhoto's luminance (the Y row of ProPhoto to XYZ), which the
+/// fitted operators take.
 pub(crate) const PRO_Y: [f32; 3] = [0.288_040_2, 0.711_874_1, 0.000_085_7];
+/// Rec. 2020's luminance (BT.2020), which the tone map takes, as
+/// lightcraft's does (`luminance_2020`).
+const LUMA_2020: [f64; 3] = [0.2627, 0.6780, 0.0593];
+
+/// The tone map's luminance on linear ProPhoto: Rec. 2020's, through
+/// [`white::prophoto_to_rec2020`].
+pub(crate) fn tone_y() -> [f64; 3] {
+    let m = white::prophoto_to_rec2020();
+    std::array::from_fn(|c| (0..3).map(|r| LUMA_2020[r] * m[r][c]).sum())
+}
 
 /// The curve of one draw: the tone map, then each fitted operator.
 #[derive(Clone, Debug, PartialEq)]
@@ -147,14 +159,16 @@ fn tone_at(lut: &[f32], y: f64) -> f64 {
     if ev < min { v * (y / (grey * min.exp2())) } else { v }
 }
 
-/// The tone map on a pixel: scaled by the map's ratio at its luminance,
-/// then pulled toward that luminance as far as a channel passes white.
+/// The tone map on a pixel, as lightcraft's: scaled by the map's ratio
+/// at its Rec. 2020 luminance, then pulled toward that luminance as far
+/// as a Rec. 2020 channel passes white. Gray is gray in both spaces, so
+/// the pull is the same in ProPhoto.
 #[cfg(test)]
 fn tone_pixel(lut: &[f32], p: [f64; 3]) -> [f64; 3] {
-    let y = luminance(p);
+    let y: f64 = p.iter().zip(tone_y()).map(|(v, w)| v * w).sum();
     let o = tone_at(lut, y);
     let d = if y > 1e-9 { p.map(|v| v * o / y) } else { [0.0; 3] };
-    let top = d[0].max(d[1]).max(d[2]);
+    let top = white::apply(&white::prophoto_to_rec2020(), d).into_iter().fold(f64::MIN, f64::max);
     if top <= 1.0 {
         return d;
     }
@@ -329,6 +343,21 @@ mod tests {
             // 0.9875, and a little above it with Whites raised.
             assert!(white.iter().all(|v| (v - 0.988).abs() < 1e-3), "{white:?}");
         }
+    }
+
+    /// The pull toward luminance holds Rec. 2020's channels under white,
+    /// as lightcraft's does, and gray stays gray.
+    #[test]
+    fn the_tone_map_keeps_rec2020_under_white() {
+        let to_2020 = white::prophoto_to_rec2020();
+        assert!(white::apply(&to_2020, [1.0; 3]).iter().all(|v| (v - 1.0).abs() < 1e-9));
+        let curve = Curve::standard(0.0, 80.0, 0.0).unwrap();
+        for p in [[0.05, 0.95, 0.05], [0.9, 0.1, 0.2], [0.6, 0.7, 0.98], [0.9; 3]] {
+            let out = white::apply(&to_2020, curve.apply(p));
+            assert!(out.iter().all(|&v| v <= 1.0 + 1e-6), "{p:?}: {out:?}");
+        }
+        let gray = curve.apply([0.5; 3]);
+        assert!(gray.iter().all(|v| (v - gray[0]).abs() < 1e-9), "{gray:?}");
     }
 
     /// Contrast steepens around gray; Whites lifts the upper tones and

@@ -77,6 +77,8 @@ pub(super) fn constants_module() -> String {
     }
     let [r, g, b] = curve::PRO_Y;
     writeln!(wgsl, "const PRO_Y: vec3f = vec3f({r:?}, {g:?}, {b:?});").unwrap();
+    let [r, g, b] = curve::tone_y().map(|v| v as f32);
+    writeln!(wgsl, "const TONE_Y: vec3f = vec3f({r:?}, {g:?}, {b:?});").unwrap();
     let (to_lms, from_lms) = chroma::lms_matrices();
     let lab_to_lms = white::invert(&chroma::LMS_TO_LAB).expect("M2 inverts");
     for (name, m) in [
@@ -84,6 +86,7 @@ pub(super) fn constants_module() -> String {
         ("LMS_TO_PRO", from_lms),
         ("LMS_TO_LAB", chroma::LMS_TO_LAB),
         ("LAB_TO_LMS", lab_to_lms),
+        ("PRO_TO_2020", white::prophoto_to_rec2020()),
     ] {
         // WGSL's mat3x3f takes columns.
         let column = |c: usize| {

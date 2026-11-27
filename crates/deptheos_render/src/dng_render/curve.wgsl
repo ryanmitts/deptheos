@@ -18,16 +18,18 @@ fn curve_tone_at(y: f32) -> f32 {
     return v;
 }
 
-// The tone map on a pixel: scaled by the map's ratio at its luminance,
-// then pulled toward that luminance as far as a channel passes white.
+// The tone map on a pixel, as lightcraft's: scaled by the map's ratio at
+// its Rec. 2020 luminance, then pulled toward that luminance as far as a
+// Rec. 2020 channel passes white (gray is gray in both spaces).
 fn curve_tone(p: vec3f) -> vec3f {
-    let y = dot(p, PRO_Y);
+    let y = dot(p, TONE_Y);
     let o = curve_tone_at(y);
     var d = vec3f(0.0);
     if (y > 1e-9) {
         d = p * (o / y);
     }
-    let top = max(d.r, max(d.g, d.b));
+    let r = PRO_TO_2020 * d;
+    let top = max(r.r, max(r.g, r.b));
     if (top <= 1.0) {
         return d;
     }

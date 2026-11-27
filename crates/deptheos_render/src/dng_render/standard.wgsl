@@ -10,7 +10,7 @@
 
 #import deptheos::quantize::quantize_rgb_u16
 #import deptheos::color::linear_to_srgb_channel
-#import deptheos::render_constants::{CODES, TONE_N, OP_N, GREY, TONE_MIN_EV, TONE_MAX_EV, PRO_Y}
+#import deptheos::render_constants::{CODES, TONE_N, OP_N, GREY, TONE_MIN_EV, TONE_MAX_EV, PRO_Y, TONE_Y, PRO_TO_2020}
 #import deptheos::adjust
 
 @group(0) @binding(0) var in_tex: texture_2d<f32>;

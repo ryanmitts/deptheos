@@ -6,6 +6,7 @@
 
 use std::sync::Arc;
 
+use deptheos_app::adjust::crop::Aspect;
 use deptheos_app::adjust::histogram::Histogram;
 use deptheos_app::adjust::machine::{Phase, Status};
 use deptheos_app::adjust::preview::{FlatPicture, Region, Shown};
@@ -94,16 +95,21 @@ fn flat(picture: FlatPicture, histogram: Histogram) -> Heard {
 
 /// Which tool a click on the photo is, in Adjust.
 ///
-/// Lifecycle: `Sliders` or `Eyedropper`, held by [`Adjust`] and changed
-/// only by [`Adjust::set_tool`]: `Sliders` → `Eyedropper` by W or its
-/// button; back by W, the button, Esc, a click on the photo, or Adjust
-/// opening or leaving.
+/// Lifecycle: `Sliders`, `Eyedropper` or `Crop`, held by [`Adjust`] and
+/// changed only by [`Adjust::set_tool`]: `Sliders` → `Eyedropper` by W or
+/// its button; back by W, the button, Esc, a click on the photo, or Adjust
+/// opening or leaving. `Sliders` → `Crop` by C or the Crop button, holding
+/// the reframe it opened on; back by C, Done or Return (the crop kept), Esc
+/// (the reframe it opened on put back), or Adjust leaving. `Crop` → `Crop`
+/// when its aspect changes.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum AdjustTool {
     /// Clicks and drags pan.
     Sliders,
     /// A click sets the white balance from the spot.
     Eyedropper,
+    /// The picture uncropped, the crop's handles dragged.
+    Crop { opened: reframe::Reframe, aspect: Aspect },
 }
 
 /// Copy Adjustments' sliders, for Paste Adjustments in any window.
@@ -337,8 +343,13 @@ impl Adjust {
         cx.notify();
     }
 
-    pub fn commit(&mut self) {
+    pub fn commit(&self) {
         self.session.commit();
+    }
+
+    /// The reframe moves (a crop drag, a turn); a change until [`Self::commit`].
+    pub fn set_reframe(&self, reframe: reframe::Reframe) {
+        self.session.set_reframe(reframe);
     }
 
     /// The selected slider `steps` steps along: one change.

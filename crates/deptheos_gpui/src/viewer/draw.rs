@@ -55,6 +55,8 @@ pub(super) struct Frame {
     flat: Option<(Bounds<Pixels>, Bounds<Pixels>, Arc<RenderImage>)>,
     /// The crop marked over each pane that marks it: the pane, the crop.
     marks: Vec<(Bounds<Pixels>, Bounds<Pixels>)>,
+    /// The crop tool's crop, its handles drawn: the pane, the crop.
+    handles: Option<(Bounds<Pixels>, Bounds<Pixels>)>,
 }
 
 /// The paint source under the brush's inner circle, drawn over the canvas
@@ -112,12 +114,25 @@ impl Viewer {
             preview: None,
             flat: None,
             marks: Vec::new(),
+            handles: None,
         };
 
         self.layout(bounds, window, &mut frame);
         self.panes = frame.draws.iter().map(|d| (d.clip, d.rect)).collect();
         frame.marks =
             self.panes.iter().filter_map(|&(c, r)| Some((c, self.crop_mark(r)?))).collect();
+        // The crop tool draws its crop, whole picture or not, with handles.
+        if matches!(self.tool, Tool::Crop(_))
+            && let (Some(&(clip, rect)), Some(area)) = (self.panes.last(), self.crop_area())
+        {
+            let per = self.per_pixel(rect);
+            let at = |x: f64, y: f64| {
+                point(rect.origin.x + px(x as f32 * per), rect.origin.y + px(y as f32 * per))
+            };
+            let mark = Bounds::from_corners(at(area.left, area.top), at(area.right, area.bottom));
+            frame.marks = vec![(clip, mark)];
+            frame.handles = Some((clip, mark));
+        }
         if let Some(&(clip, rect)) = self.panes.last() {
             self.sync_adjust_view(clip, rect, cx);
             frame.flat = self.flat().map(|f| (clip, self.flat_rect(f, rect), f.image.clone()));
@@ -416,6 +431,9 @@ impl Viewer {
             for &(clip, mark) in &frame.marks {
                 paint_crop_mark(window, clip, mark);
             }
+            if let Some((clip, mark)) = frame.handles {
+                paint_crop_handles(window, clip, mark);
+            }
             if let Some(p) = &frame.preview {
                 paint_preview(p, window);
             }
@@ -673,5 +691,38 @@ fn paint_crop_mark(window: &mut Window, clip: Bounds<Pixels>, mark: Bounds<Pixel
             edge,
             BorderStyle::default(),
         ));
+    });
+}
+
+/// The crop tool's thirds and its eight handles over `mark`.
+fn paint_crop_handles(window: &mut Window, clip: Bounds<Pixels>, mark: Bounds<Pixels>) {
+    let thirds: Hsla = gpui::opaque_grey(1.0, 0.35);
+    let handle: Hsla = gpui::white();
+    window.with_content_mask(Some(ContentMask { bounds: clip }), |window| {
+        let (l, t, w, h) = (mark.origin.x, mark.origin.y, mark.size.width, mark.size.height);
+        for k in [1.0 / 3.0, 2.0 / 3.0] {
+            let (x, y) = (l + w * k, t + h * k);
+            window.paint_quad(fill(Bounds { origin: point(x, t), size: size(px(1.0), h) }, thirds));
+            window.paint_quad(fill(Bounds { origin: point(l, y), size: size(w, px(1.0)) }, thirds));
+        }
+        let side = px(8.0);
+        let at = [
+            (0.0, 0.0),
+            (0.5, 0.0),
+            (1.0, 0.0),
+            (1.0, 0.5),
+            (1.0, 1.0),
+            (0.5, 1.0),
+            (0.0, 1.0),
+            (0.0, 0.5),
+        ];
+        for (fx, fy) in at {
+            let c = point(l + w * fx, t + h * fy);
+            let b = Bounds {
+                origin: point(c.x - side / 2.0, c.y - side / 2.0),
+                size: size(side, side),
+            };
+            window.paint_quad(fill(b, handle));
+        }
     });
 }

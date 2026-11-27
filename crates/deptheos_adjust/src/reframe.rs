@@ -88,6 +88,32 @@ impl Reframe {
         *self == Self::NONE
     }
 
+    /// Turned a quarter clockwise as shown; the crop is kept.
+    pub fn turned_right(self) -> Self {
+        Self { turn: self.turn.then(Turn::Quarter), ..self }
+    }
+
+    /// Turned a quarter counterclockwise as shown; the crop is kept.
+    pub fn turned_left(self) -> Self {
+        Self { turn: self.turn.then(Turn::ThreeQuarters), ..self }
+    }
+
+    /// Mirrored left to right as shown: a mirror after a turn is the
+    /// mirror before the opposite turn.
+    pub fn flipped_horizontally(self) -> Self {
+        let flip = match self.flip {
+            Flip::None => Flip::Horizontal,
+            Flip::Horizontal => Flip::None,
+        };
+        Self { flip, turn: Turn::of_quarters(4 - self.turn.quarters()), ..self }
+    }
+
+    /// Mirrored top to bottom as shown: left to right, then a half turn.
+    pub fn flipped_vertically(self) -> Self {
+        let mirrored = self.flipped_horizontally();
+        Self { turn: mirrored.turn.then(Turn::Half), ..mirrored }
+    }
+
     /// The rectangle kept of a `picture`-sized stored picture.
     pub fn window(&self, picture: Size) -> Result<Rect, OutsidePicture> {
         let whole = Rect { x: 0, y: 0, width: picture.width, height: picture.height };
@@ -208,6 +234,47 @@ impl Reframe {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// Each turn and flip is the picture shown turned or mirrored, from
+    /// every reframe, the crop kept.
+    #[test]
+    fn turns_and_flips_act_on_the_picture_as_shown() {
+        let picture = Size { width: 3, height: 2 };
+        let pixels: Vec<u8> = (0..6).collect();
+        let shown = |r: Reframe| r.apply(&pixels, picture, 1).unwrap();
+        // The shown picture, turned or mirrored directly.
+        let turn_right = |(p, s): (Vec<u8>, Size)| {
+            let (w, h) = (s.width as usize, s.height as usize);
+            let out = (0..w * h).map(|i| (i / h, i % h)).map(|(y, x)| p[(h - 1 - x) * w + y]);
+            (out.collect::<Vec<_>>(), Size { width: s.height, height: s.width })
+        };
+        let mirror = |(p, s): (Vec<u8>, Size)| {
+            let w = s.width as usize;
+            let out = (0..p.len()).map(|i| p[(i / w) * w + (w - 1 - i % w)]);
+            (out.collect::<Vec<_>>(), s)
+        };
+        let upside_down = |(p, s): (Vec<u8>, Size)| {
+            let (w, h) = (s.width as usize, s.height as usize);
+            let out = (0..p.len()).map(|i| p[(h - 1 - i / w) * w + i % w]);
+            (out.collect::<Vec<_>>(), s)
+        };
+        for turn in [Turn::None, Turn::Quarter, Turn::Half, Turn::ThreeQuarters] {
+            for flip in [Flip::None, Flip::Horizontal] {
+                let r = Reframe { crop: None, flip, turn };
+                assert_eq!(shown(r.turned_right()), turn_right(shown(r)), "{r:?} right");
+                let left = turn_right(turn_right(turn_right(shown(r))));
+                assert_eq!(shown(r.turned_left()), left, "{r:?} left");
+                assert_eq!(shown(r.flipped_horizontally()), mirror(shown(r)), "{r:?} mirror");
+                assert_eq!(
+                    shown(r.flipped_vertically()),
+                    upside_down(shown(r)),
+                    "{r:?} upside down"
+                );
+                let crop = Some(Rect { x: 1, y: 0, width: 2, height: 1 });
+                assert_eq!(Reframe { crop, ..r }.turned_left().crop, crop, "the crop kept");
+            }
+        }
+    }
 
     const PICTURE: Size = Size { width: 7, height: 5 };
 

@@ -30,6 +30,7 @@ mod batch_run;
 mod bindings;
 pub(crate) mod chrome;
 mod command_line_tool;
+mod cropping;
 pub(crate) mod diagnostics;
 mod export;
 mod exporting;
@@ -653,6 +654,8 @@ impl AppView {
                 self.adjust.update(cx, |a, cx| a.eyedrop(at, cx));
                 self.set_adjust_tool(crate::adjust::AdjustTool::Sliders, cx);
             }
+            ViewerEvent::Crop(reframe) => self.crop_moved(*reframe, cx),
+            ViewerEvent::CropEnd => self.crop_released(cx),
         }
     }
 

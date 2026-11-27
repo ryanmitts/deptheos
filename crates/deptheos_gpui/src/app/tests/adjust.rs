@@ -302,3 +302,68 @@ fn copy_and_paste_between_renders(cx: &mut TestAppContext) {
     cx.simulate_keystrokes(window, "cmd-shift-v");
     wait_until(cx, "pasted in Adjust", |cx| value(cx, &app, Slider::Exposure) == Some(1.25));
 }
+
+/// C opens the crop tool over the picture uncropped; a corner drag sets
+/// the crop as it moves and commits once on release, of the aspect's
+/// shape; ⌘] turns and X swaps the shape, one change each; Esc puts the
+/// reframe back as the tool opened on it, and Return keeps a crop.
+#[gpui::test]
+fn the_crop_tool_drags_turns_and_cancels(cx: &mut TestAppContext) {
+    use deptheos_app::adjust::crop::Aspect;
+    use deptheos_app::reframe::{Reframe, Turn};
+    use deptheos_app::view::Pane;
+    use gpui::{Modifiers, point};
+    let Some((Fixture { dir: _dir, window, app, .. }, _)) = adjusting(cx) else { return };
+    let reframe = |cx: &mut TestAppContext| {
+        app.read_with(cx, |app, cx| app.adjust.read(cx).status().unwrap().value.reframe)
+    };
+    let tool = |cx: &mut TestAppContext| app.read_with(cx, |app, cx| app.adjust.read(cx).tool());
+    cx.simulate_keystrokes(window, "c");
+    assert_eq!(tool(cx), AdjustTool::Crop { opened: Reframe::NONE, aspect: Aspect::Original });
+    let viewer = app.read_with(cx, |app, _| app.viewer.clone());
+    assert_eq!(viewer.read_with(cx, |v, _| v.pane()), Pane::Uncropped);
+
+    // The bottom right corner, dragged up and left.
+    let mut vcx = drawn(cx, window);
+    let (_, rect) = *viewer.read_with(&vcx, |v, _| v.pane_rects()).last().unwrap();
+    let corner = point(rect.right() - px(1.0), rect.bottom() - px(1.0));
+    let to = point(corner.x - rect.size.width / 3.0, corner.y - px(5.0));
+    vcx.simulate_mouse_down(corner, MouseButton::Left, Modifiers::none());
+    vcx.simulate_mouse_move(to, Some(MouseButton::Left), Modifiers::none());
+    vcx.simulate_mouse_up(to, MouseButton::Left, Modifiers::none());
+    wait_until(cx, "the crop committed", |cx| steps(cx, &app)[0] == 1);
+    let cropped = reframe(cx);
+    let crop = cropped.crop.expect("a crop");
+    let (w, h) = app.read_with(cx, |app, cx| {
+        let p = app.viewer.read(cx).picture().unwrap();
+        (p.width, p.height)
+    });
+    let (cw, ch) = (f64::from(crop.width), f64::from(crop.height));
+    assert!((cw / ch - f64::from(w) / f64::from(h)).abs() < 0.05, "the picture's shape: {crop:?}");
+    assert_eq!((crop.x, crop.y), (0, 0), "anchored at the opposite corner");
+
+    // ⌘] turns a quarter, one change.
+    cx.simulate_keystrokes(window, "cmd-]");
+    wait_until(cx, "the turn", |cx| steps(cx, &app)[0] == 2);
+    assert_eq!(reframe(cx), Reframe { turn: Turn::Quarter, ..cropped });
+
+    // Esc: back to no reframe, as the tool opened, one more change.
+    cx.simulate_keystrokes(window, "escape");
+    wait_until(cx, "the reframe put back", |cx| steps(cx, &app)[0] == 3);
+    assert_eq!(reframe(cx), Reframe::NONE);
+    assert_eq!(tool(cx), AdjustTool::Sliders);
+    assert!(app.read_with(cx, |app, _| app.adjusting().is_some()), "Adjust stays");
+    assert_eq!(viewer.read_with(cx, |v, _| v.pane()), Pane::Result);
+
+    // An aspect picked shapes the crop; Return keeps it.
+    cx.simulate_keystrokes(window, "c");
+    app.update(cx, |app, cx| app.set_aspect(Aspect::Ratio(1, 1), cx));
+    wait_until(cx, "the square", |cx| steps(cx, &app)[0] == 4);
+    let square = reframe(cx).crop.expect("a square crop");
+    assert!(square.width.abs_diff(square.height) <= 1, "{square:?}");
+    cx.simulate_keystrokes(window, "x");
+    assert_eq!(steps(cx, &app)[0], 4, "a square turned is the same square");
+    cx.simulate_keystrokes(window, "enter");
+    assert_eq!(tool(cx), AdjustTool::Sliders);
+    assert_eq!(reframe(cx).crop, Some(square));
+}

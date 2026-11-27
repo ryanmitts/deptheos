@@ -199,4 +199,10 @@ impl Viewer {
     pub fn crop_window(&self) -> Option<Rect> {
         self.framed.window
     }
+
+    /// What the view's pane shows of the render.
+    #[cfg(test)]
+    pub fn pane(&self) -> deptheos_app::view::Pane {
+        self.state.pane()
+    }
 }

@@ -4,10 +4,15 @@
 use deptheos_app::paint::Dab;
 use gpui::{Context, MouseButton, Pixels, Point, ScrollDelta};
 
+use deptheos_app::adjust::crop::{Area, CropFrame, Handle};
+
 use super::{PaintInput, Tool, Viewer, ViewerEvent};
 
 /// Points a map press may move and still be a click rather than a pan.
 const CLICK_SLOP: f32 = 3.0;
+
+/// How near a crop edge or corner a press takes it, in points.
+const CROP_REACH: f32 = 10.0;
 
 /// What a held mouse button is doing: one at a time; the other button's
 /// press is ignored and only the holder's release ends it.
@@ -33,6 +38,15 @@ pub(super) enum Gesture {
     },
     /// Held after its stroke ended (Paint tool left): inert until released.
     Spent(MouseButton),
+    /// The crop tool's `handle` dragged from shown point `at`, the crop
+    /// then `from`, now `now`.
+    Crop {
+        button: MouseButton,
+        handle: Handle,
+        at: (f32, f32),
+        from: Area,
+        now: Area,
+    },
 }
 
 impl Gesture {
@@ -41,7 +55,9 @@ impl Gesture {
         match self {
             Gesture::Idle => None,
             Gesture::Pan(b) | Gesture::Divider(b) | Gesture::Spent(b) => Some(b),
-            Gesture::Stroke { button, .. } | Gesture::MapPress { button, .. } => Some(button),
+            Gesture::Stroke { button, .. }
+            | Gesture::MapPress { button, .. }
+            | Gesture::Crop { button, .. } => Some(button),
         }
     }
 }
@@ -99,6 +115,8 @@ impl Viewer {
                 cx.emit(ViewerEvent::Eyedrop { x: f64::from(x) + 0.5, y: f64::from(y) + 0.5 });
             }
             Gesture::Spent(button)
+        } else if let Some(gesture) = self.crop_press(position, button) {
+            gesture
         } else if self.tool == Tool::Paint && !self.held_keys.space && !self.state.now().is_map() {
             let Some(pane) = self.pane_at(position) else { return };
             let Some(dab) = self.dab(pane, position) else { return };
@@ -112,6 +130,36 @@ impl Viewer {
             Gesture::Pan(button)
         };
         self.set_gesture(gesture);
+    }
+
+    /// The crop tool's picture: the stored picture uncropped, turned and
+    /// flipped as the render is.
+    pub(super) fn crop_frame(&self) -> Option<CropFrame> {
+        let frame = CropFrame::of(self.picture?, self.reframe);
+        let shown = frame.shown();
+        ((shown.width, shown.height) == self.framed.shown).then_some(frame)
+    }
+
+    /// The crop as the tool draws it: dragged, else the reframe's.
+    pub(super) fn crop_area(&self) -> Option<Area> {
+        match self.gesture {
+            Gesture::Crop { now, .. } => Some(now),
+            _ => Some(self.crop_frame()?.area()),
+        }
+    }
+
+    /// A press with the crop tool on one of the crop's handles, or inside
+    /// it: the drag it starts; elsewhere it pans.
+    fn crop_press(&self, position: Point<Pixels>, button: MouseButton) -> Option<Gesture> {
+        if !matches!(self.tool, Tool::Crop(_)) || self.held_keys.space {
+            return None;
+        }
+        let (frame, area) = (self.crop_frame()?, self.crop_area()?);
+        let at = self.image_point(position)?;
+        let rect = self.panes.last()?.1;
+        let reach = f64::from(CROP_REACH / self.per_pixel(rect).max(f32::MIN_POSITIVE));
+        let handle = frame.handle_at(area, (f64::from(at.0), f64::from(at.1)), reach)?;
+        Some(Gesture::Crop { button, handle, at, from: area, now: area })
     }
 
     /// ⌥-click: the pixel under `position`, for the sharpest frame there. No
@@ -186,6 +234,17 @@ impl Viewer {
                 }
                 ring_moved
             }
+            Gesture::Crop { button, handle, at, from, .. } => {
+                let (Some(frame), Some(p)) = (self.crop_frame(), self.image_point(position)) else {
+                    return false;
+                };
+                let Tool::Crop(aspect) = self.tool else { return false };
+                let by = (f64::from(p.0 - at.0), f64::from(p.1 - at.1));
+                let now = frame.drag(from, handle, by, aspect);
+                self.set_gesture(Gesture::Crop { button, handle, at, from, now });
+                cx.emit(ViewerEvent::Crop(frame.reframed(now)));
+                true
+            }
             Gesture::Pan(_) => self.view.drag(x, y) || ring_moved,
             Gesture::Idle | Gesture::Spent(_) => ring_moved,
         }
@@ -198,6 +257,7 @@ impl Viewer {
         let gesture = self.gesture;
         match gesture {
             Gesture::Stroke { .. } => cx.emit(ViewerEvent::Paint(PaintInput::End)),
+            Gesture::Crop { .. } => cx.emit(ViewerEvent::CropEnd),
             Gesture::MapPress { at, .. } if self.state.now().is_map() => {
                 if let Some((x, y)) = self.pixel_at(at) {
                     cx.emit(ViewerEvent::MapClick { x, y });

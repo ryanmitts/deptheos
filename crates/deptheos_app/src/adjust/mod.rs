@@ -2,6 +2,7 @@
 //! stored picture and drawn under them, never written into it (ADR-152).
 
 pub mod copies;
+pub mod crop;
 pub mod eyedropper;
 pub mod histogram;
 pub mod machine;

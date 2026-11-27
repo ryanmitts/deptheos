@@ -43,12 +43,15 @@ impl AppView {
         }
     }
 
-    /// Esc or Done: the eyedropper dropped, else Adjust left, a change in
-    /// progress committed.
+    /// Esc or Done: the eyedropper dropped or the crop tool canceled, else
+    /// Adjust left, a change in progress committed.
     pub(super) fn leave_adjust(&mut self, cx: &mut Context<Self>) {
-        if self.adjusting().is_some() && self.adjust.read(cx).tool() == AdjustTool::Eyedropper {
+        if self.adjusting().is_none() || self.cancel_crop(cx) {
+            return;
+        }
+        if self.adjust.read(cx).tool() == AdjustTool::Eyedropper {
             self.set_adjust_tool(AdjustTool::Sliders, cx);
-        } else if self.adjusting().is_some() {
+        } else {
             self.set_mode(super::mode::Mode::Viewing, cx);
         }
     }
@@ -76,6 +79,7 @@ impl AppView {
         let pointer = match tool {
             AdjustTool::Sliders => Tool::Pan,
             AdjustTool::Eyedropper => Tool::Eyedropper,
+            AdjustTool::Crop { aspect, .. } => Tool::Crop(aspect),
         };
         self.viewer.update(cx, |v, cx| v.set_tool(pointer, cx));
     }
@@ -218,6 +222,7 @@ impl AppView {
         window: &mut Window,
         cx: &mut Context<Self>,
     ) -> impl IntoElement + use<> {
+        let crop = self.render_crop_section(cx);
         let adjust = self.adjust.read(cx);
         let theme = cx.theme();
         let (muted, border) = (theme.muted_foreground, theme.sidebar_border);
@@ -246,6 +251,7 @@ impl AppView {
             );
         }
         let Some(panel_of) = adjust.panel() else { return panel };
+        panel = panel.child(section().child(crop));
         let eyedropping = adjust.tool() == AdjustTool::Eyedropper;
         for (group, sliders) in panel_of.groups() {
             let mut heading = h_flex().justify_between().items_center().child(
@@ -360,13 +366,25 @@ impl AppView {
     /// The keys Adjust takes, under the sliders.
     fn render_adjust_keys(&self, cx: &App) -> impl IntoElement + use<> {
         let muted = cx.theme().muted_foreground;
-        let keys: [(&[&'static str], String); 5] = [
-            (&["↑", "↓"], say!(cx, "adjust-key-slider")),
-            (&["←", "→"], say!(cx, "adjust-key-nudge")),
-            (&["\\"], say!(cx, "adjust-key-before")),
-            (&["W"], say!(cx, "adjust-key-eyedropper")),
-            (&["Esc"], say!(cx, "adjust-key-done")),
-        ];
+        let cropping = matches!(self.adjust.read(cx).tool(), AdjustTool::Crop { .. });
+        let keys: Vec<(&[&'static str], String)> = if cropping {
+            vec![
+                (&["X"], say!(cx, "adjust-key-aspect-swap")),
+                (&["⌘[", "⌘]"], say!(cx, "adjust-key-turn")),
+                (&["↩"], say!(cx, "adjust-key-crop-done")),
+                (&["Esc"], say!(cx, "adjust-key-crop-cancel")),
+            ]
+        } else {
+            vec![
+                (&["↑", "↓"], say!(cx, "adjust-key-slider")),
+                (&["←", "→"], say!(cx, "adjust-key-nudge")),
+                (&["\\"], say!(cx, "adjust-key-before")),
+                (&["W"], say!(cx, "adjust-key-eyedropper")),
+                (&["C"], say!(cx, "adjust-key-crop")),
+                (&["⌘[", "⌘]"], say!(cx, "adjust-key-turn")),
+                (&["Esc"], say!(cx, "adjust-key-done")),
+            ]
+        };
         let mut grid = v_flex()
             .gap_1p5()
             .child(div().text_xs().text_color(muted).child(say!(cx, "adjust-reset-hint")));

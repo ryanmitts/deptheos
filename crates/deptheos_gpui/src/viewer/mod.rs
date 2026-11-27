@@ -110,6 +110,10 @@ pub enum ViewerEvent {
     Shown(deptheos_app::adjust::preview::Shown),
     /// A click with the eyedropper, in stored pixels.
     Eyedrop { x: f64, y: f64 },
+    /// The crop tool's handle dragged: the reframe it makes.
+    Crop(deptheos_app::reframe::Reframe),
+    /// The crop tool's drag released.
+    CropEnd,
 }
 
 /// A stroke as the pointer draws it.
@@ -127,6 +131,8 @@ pub enum Tool {
     Paint,
     /// Adjust's white balance eyedropper: a click picks the spot.
     Eyedropper,
+    /// Adjust's crop tool, its drags shaped by the aspect.
+    Crop(deptheos_app::adjust::crop::Aspect),
 }
 
 /// The brush ring: radius in image pixels, and hardness.
@@ -525,7 +531,14 @@ impl Viewer {
             self.set_gesture(Gesture::Spent(button));
             cx.emit(ViewerEvent::Paint(PaintInput::End));
         }
+        // The crop tool shows the picture uncropped (`view::Tool::Crop`).
+        let crop = |t: Tool| matches!(t, Tool::Crop(_));
+        let changed = crop(tool) != crop(self.tool);
         self.tool = tool;
+        if changed && self.state.adjusting().is_some() {
+            let to = if crop(tool) { view::Tool::Crop } else { view::Tool::Sliders };
+            self.on(ViewEvent::Tool(to), cx);
+        }
         self.sync_tracking();
         cx.notify();
     }

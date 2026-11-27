@@ -1923,6 +1923,27 @@ adjust-key-nudge = move the slider; with Shift, ten steps
 adjust-key-before = held, see Before
 adjust-key-eyedropper = white balance eyedropper
 adjust-key-done = Done Adjusting
+adjust-key-crop = crop, turn and flip
+adjust-key-turn = turn left or right
+adjust-key-aspect-swap = swap the crop's width and height
+adjust-key-crop-done = keep the crop
+adjust-key-crop-cancel = put the crop back as it was
+# The panel's Crop section.
+adjust-crop = Crop
+adjust-crop-open = Crop
+adjust-crop-tooltip = Crop, turn and flip the photo
+adjust-aspect-original = Original
+adjust-aspect-free = Free
+# An aspect ratio; $width and $height: its sides, as text ("4", "5").
+adjust-aspect-ratio = { $width }:{ $height }
+adjust-aspect-swap-tooltip = Swap the crop's width and height
+adjust-turn-left = Turn Left
+adjust-turn-right = Turn Right
+adjust-flip-horizontal = Flip Horizontal
+adjust-flip-vertical = Flip Vertical
+adjust-reset-crop = Reset Crop
+adjust-crop-done = Done
+adjust-crop-done-tooltip = Keep the crop
 adjust-before = Before
 adjust-before-tooltip = Hold to see the render without its adjustments
 adjust-reset-all = Reset All

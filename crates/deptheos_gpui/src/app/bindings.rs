@@ -22,6 +22,11 @@ impl AppView {
             .on_action(cx.listener(|this, _: &LeaveAdjust, _, cx| this.leave_adjust(cx)))
             .on_action(cx.listener(|this, _: &HoldBefore, _, cx| this.hold_before(true, cx)))
             .on_action(cx.listener(|this, _: &Eyedropper, _, cx| this.toggle_eyedropper(cx)))
+            .on_action(cx.listener(|this, _: &ToggleCrop, _, cx| this.toggle_crop(cx)))
+            .on_action(cx.listener(|this, _: &CropDone, _, cx| this.crop_done(cx)))
+            .on_action(cx.listener(|this, _: &SwapAspect, _, cx| this.swap_aspect(cx)))
+            .on_action(cx.listener(|this, _: &TurnLeft, _, cx| this.turn(false, cx)))
+            .on_action(cx.listener(|this, _: &TurnRight, _, cx| this.turn(true, cx)))
             .on_action(cx.listener(|this, _: &CopyAdjustments, _, cx| this.copy_adjustments(cx)))
             .on_action(cx.listener(|this, _: &PasteAdjustments, window, cx| {
                 this.paste_adjustments(window, cx)

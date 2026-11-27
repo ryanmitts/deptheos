@@ -285,7 +285,7 @@ impl DngRenderPipeline {
             self.log_brightness(ctx, &prepared, source, Region::of(rect))
         });
         tracing::debug!("local tone planes: {needs:?} built");
-        prepared.planes = Planes::Built(planes);
+        prepared.planes = Planes::Built(Box::new(planes));
         prepared
     }
 

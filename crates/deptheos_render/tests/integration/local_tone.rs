@@ -9,7 +9,7 @@ use deptheos_gpu::gpu_utils::download_texture_with;
 use deptheos_render::dng_render::{
     Constants, DngRenderPipeline, PreparedRender, Region, Source, TILE,
 };
-use deptheos_render::{Adjustments, Color, OutputSpace, resolve_adjusted};
+use deptheos_render::{Adjustments, Color, OutputSpace, Sharpening, resolve_adjusted};
 use image::{DynamicImage, ImageBuffer, Rgb};
 
 /// Wider than a tile, so regions cross a tile's edge.
@@ -146,7 +146,13 @@ fn a_region_with_each_local_slider_draws_as_the_whole_picture() {
     let cases = [
         Adjustments { clarity: 45.0, ..plain.clone() },
         Adjustments { texture: -60.0, ..plain.clone() },
-        Adjustments { clarity: -70.0, texture: 80.0, ..adjusted(-30.0, 40.0) },
+        Adjustments { sharpening: sharpening(60.0, 1.4, 50.0), ..plain.clone() },
+        Adjustments {
+            clarity: -70.0,
+            texture: 80.0,
+            sharpening: sharpening(150.0, 0.6, 0.0),
+            ..adjusted(-30.0, 40.0)
+        },
     ];
     for a in &cases {
         let linear =
@@ -227,6 +233,26 @@ fn clarity_raises_and_lowers_contrast_at_an_edge() {
     assert!(dark < -0.02 && light > 0.02, "{dark} {light}");
     let (dark, light) = at(-80.0);
     assert!(dark > 0.02 && light < -0.02, "{dark} {light}");
+}
+
+fn sharpening(amount: f64, radius: f64, masking: f64) -> Sharpening {
+    Sharpening { amount, radius, masking, ..Sharpening::NONE }
+}
+
+/// Sharpening darkens the dark side of an edge and lightens the light side
+/// right beside it, a pixel or two, and leaves flat areas as they are.
+#[test]
+fn sharpening_steepens_an_edge() {
+    let Some(ctx) = GpuContext::new_or_skip() else { return };
+    let (size, pixels) = step();
+    let neutral = linear_green(&ctx, size, &pixels, &Adjustments::NEUTRAL);
+    let a = Adjustments { sharpening: sharpening(80.0, 1.0, 0.0), ..Adjustments::NEUTRAL };
+    let drawn = linear_green(&ctx, size, &pixels, &a);
+    let (dark, light) =
+        (lift_over(&drawn, &neutral, 198..200), lift_over(&drawn, &neutral, 200..202));
+    let flat = lift_over(&drawn, &neutral, 20..60);
+    eprintln!("sharpening 80 at the edge: dark {dark:.3}, light {light:.3}, flat {flat:.4} stops");
+    assert!(dark < -0.05 && light > 0.05 && flat.abs() < 1e-3, "{dark} {light} {flat}");
 }
 
 /// Texture raised strengthens fine detail and lowered smooths it: the

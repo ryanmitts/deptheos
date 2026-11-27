@@ -6,7 +6,7 @@ use std::path::{Path, PathBuf};
 use serde::{Deserialize, Serialize};
 
 use deptheos_adjust::reframe::Rect;
-use deptheos_adjust::{Adjustments, Flip, Reframe, Turn, WhiteBalance, slider};
+use deptheos_adjust::{Adjustments, Flip, Reframe, Sharpening, Turn, WhiteBalance, slider};
 use deptheos_app::library::export::ExportFormat;
 
 use crate::Expect;
@@ -141,8 +141,16 @@ pub struct Adjust {
     pub temperature: Option<f64>,
     pub tint: Option<f64>,
     pub contrast: Option<f64>,
+    pub highlights: Option<f64>,
+    pub shadows: Option<f64>,
     pub whites: Option<f64>,
     pub blacks: Option<f64>,
+    pub clarity: Option<f64>,
+    pub texture: Option<f64>,
+    pub sharpening: Option<f64>,
+    pub sharpen_radius: Option<f64>,
+    pub sharpen_detail: Option<f64>,
+    pub sharpen_masking: Option<f64>,
     pub vibrance: Option<f64>,
     pub saturation: Option<f64>,
 }
@@ -161,8 +169,18 @@ impl Adjust {
             exposure: self.exposure.unwrap_or(n.exposure),
             white_balance,
             contrast: self.contrast.unwrap_or(n.contrast),
+            highlights: self.highlights.unwrap_or(n.highlights),
+            shadows: self.shadows.unwrap_or(n.shadows),
             whites: self.whites.unwrap_or(n.whites),
             blacks: self.blacks.unwrap_or(n.blacks),
+            clarity: self.clarity.unwrap_or(n.clarity),
+            texture: self.texture.unwrap_or(n.texture),
+            sharpening: Sharpening {
+                amount: self.sharpening.unwrap_or(n.sharpening.amount),
+                radius: self.sharpen_radius.unwrap_or(n.sharpening.radius),
+                detail: self.sharpen_detail.unwrap_or(n.sharpening.detail),
+                masking: self.sharpen_masking.unwrap_or(n.sharpening.masking),
+            },
             vibrance: self.vibrance.unwrap_or(n.vibrance),
             saturation: self.saturation.unwrap_or(n.saturation),
             ..n
@@ -188,11 +206,26 @@ impl Adjust {
             ("temperature", self.temperature, slider::TEMPERATURE_RELATIVE),
             ("tint", self.tint, tint),
             ("contrast", self.contrast, slider::CONTRAST),
+            ("highlights", self.highlights, slider::HIGHLIGHTS),
+            ("shadows", self.shadows, slider::SHADOWS),
             ("whites", self.whites, slider::WHITES),
             ("blacks", self.blacks, slider::BLACKS),
+            ("clarity", self.clarity, slider::CLARITY),
+            ("texture", self.texture, slider::TEXTURE),
+            ("sharpening", self.sharpening, slider::SHARPENING),
+            ("sharpen_radius", self.sharpen_radius, slider::SHARPEN_RADIUS),
+            ("sharpen_detail", self.sharpen_detail, slider::SHARPEN_DETAIL),
+            ("sharpen_masking", self.sharpen_masking, slider::SHARPEN_MASKING),
             ("vibrance", self.vibrance, slider::VIBRANCE),
             ("saturation", self.saturation, slider::SATURATION),
         ];
+        let part = self.sharpen_radius.or(self.sharpen_detail).or(self.sharpen_masking);
+        if part.is_some() && !self.sharpening.is_some_and(|v| v != 0.0) {
+            return Err(
+                "adjust: sharpen_radius, sharpen_detail and sharpen_masking go with sharpening"
+                    .into(),
+            );
+        }
         for (name, value, spec) in sliders {
             let Some(value) = value else { continue };
             if !(spec.min..=spec.max).contains(&value) {
@@ -627,7 +660,8 @@ mod tests {
     fn adjustments_space_and_reframe_read_and_are_refused_by_the_apps() {
         let config = parse(
             "sets = \"s\"\n[[case]]\nname = \"a\"\nset = \"a\"\nstack_bits = 16\n\
-             adjust = { exposure = 0.5, kelvin = 4300, tint = 12, vibrance = 20 }\n\
+             adjust = { exposure = 0.5, kelvin = 4300, tint = 12, vibrance = 20, clarity = 15, \
+             sharpening = 40, sharpen_radius = 0.8 }\n\
              space = \"display-p3\"\n\
              reframe = { crop = [10, 20, 300, 200], flip = \"vertical\", turn = 90 }\n\
              [[case]]\nname = \"b\"\nset = \"b\"\nstack_bits = 8\n\
@@ -643,6 +677,8 @@ mod tests {
                 exposure: 0.5,
                 white_balance: WhiteBalance::Kelvin { temperature: 4300.0, tint: 12.0 },
                 vibrance: 20.0,
+                clarity: 15.0,
+                sharpening: Sharpening { amount: 40.0, radius: 0.8, ..Sharpening::NONE },
                 ..Adjustments::NEUTRAL
             }
         );

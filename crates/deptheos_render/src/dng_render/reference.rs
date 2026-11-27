@@ -295,7 +295,7 @@ mod tests {
                 for adjustments in adjustments() {
                     let color = Color::Standard(icc.as_ref());
                     let constants = resolve_adjusted(color, &adjustments, output);
-                    let Kind::Standard(standard) = &constants.0 else { unreachable!() };
+                    let Kind::Standard(standard) = &constants.kind else { unreachable!() };
                     let gpu = drawn(&ctx, &constants, &pixels);
                     let worst = worst(&pixels, &gpu, |stored| super::standard(standard, stored));
                     let name = icc.as_ref().and_then(IccProfile::name);
@@ -346,7 +346,7 @@ mod tests {
                 let color = Color::Linear(&params);
                 let constants = resolve_adjusted(color, &adjustments, output);
                 assert_eq!(constants.output(), output);
-                let Kind::Linear { uniform, tone, curve, .. } = &constants.0 else {
+                let Kind::Linear { uniform, tone, curve, .. } = &constants.kind else {
                     unreachable!()
                 };
                 let gpu = drawn(&ctx, &constants, &pixels);

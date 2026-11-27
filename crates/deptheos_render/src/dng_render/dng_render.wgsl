@@ -79,7 +79,8 @@ struct DngColorParams {
     local_tone: vec4f,
     // The ramp's constants at the baseline exposure, as `exposure`: what
     // the base is taken of.
-    base_exposure: vec4f,    // The fine terms' numbers: Texture's strength (adjust.wgsl).
+    base_exposure: vec4f,    // The fine terms' numbers: Texture's strength, then Sharpening's
+    // strength, limit and Masking (adjust.wgsl).
     local_detail: vec4f,
 }
 

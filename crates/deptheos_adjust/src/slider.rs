@@ -63,6 +63,15 @@ pub const VIGNETTE_MIDPOINT: SliderSpec =
     SliderSpec { min: 0.0, max: 100.0, default: 50.0, step: 1.0, track: Track::Linear };
 pub const SHARPENING: SliderSpec =
     SliderSpec { min: 0.0, max: 150.0, default: 0.0, step: 1.0, track: Track::Linear };
+/// Sharpening's Radius, in the picture's pixels.
+pub const SHARPEN_RADIUS: SliderSpec =
+    SliderSpec { min: 0.5, max: 3.0, default: 1.0, step: 0.1, track: Track::Linear };
+/// Sharpening's Detail: higher keeps more of large edges' sharpening.
+pub const SHARPEN_DETAIL: SliderSpec =
+    SliderSpec { min: 0.0, max: 100.0, default: 25.0, step: 1.0, track: Track::Linear };
+/// Sharpening's Masking: higher sharpens only stronger edges.
+pub const SHARPEN_MASKING: SliderSpec =
+    SliderSpec { min: 0.0, max: 100.0, default: 0.0, step: 1.0, track: Track::Linear };
 
 impl SliderSpec {
     /// `v` within the range; the default if it isn't a finite number.
@@ -117,7 +126,7 @@ impl SliderSpec {
 mod tests {
     use super::*;
 
-    const ALL: [SliderSpec; 17] = [
+    const ALL: [SliderSpec; 20] = [
         EXPOSURE,
         TEMPERATURE_KELVIN,
         TINT_RAW,
@@ -135,6 +144,9 @@ mod tests {
         VIGNETTE,
         VIGNETTE_MIDPOINT,
         SHARPENING,
+        SHARPEN_RADIUS,
+        SHARPEN_DETAIL,
+        SHARPEN_MASKING,
     ];
 
     #[test]

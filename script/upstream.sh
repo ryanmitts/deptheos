@@ -20,6 +20,7 @@ CRAFT_LIBS_FILES=(
   crates/develop/src/local.rs
   crates/develop/src/raster/resample.rs
   crates/develop/src/raster/blur.rs
+  crates/develop/src/finish.rs
   crates/develop/src/colorops.rs
   crates/develop/src/light_v3.rs
   crates/develop/src/light_v3_params.rs

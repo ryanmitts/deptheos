@@ -180,7 +180,11 @@ impl DngRenderPipeline {
 /// What the shader is given for one draw, on the CPU. Made by
 /// [`crate::resolve`]; equal values draw equal pictures.
 #[derive(Clone, Debug, PartialEq)]
-pub struct Constants(Kind);
+pub struct Constants {
+    kind: Kind,
+    /// The planes the draw's local tone reads, if it has any.
+    local: Option<crate::local_tone::Needs>,
+}
 
 #[derive(Clone, Debug, PartialEq)]
 enum Kind {
@@ -225,14 +229,16 @@ impl Constants {
             uniform.base_exposure = pack_params(rp, rp.baseline_exposure, to_output).exposure;
         }
         (uniform.flags.w, uniform.late) = stages.late();
-        Self(Kind::Linear {
+        let local = stages.local_tone.map(|l| l.needs());
+        let kind = Kind::Linear {
             output,
             curve: stages.curve.clone(),
             uniform,
             tone: precompose_tone_curve(&rp.tone_curve, exposure_tone(ramp), TONE_CURVE_SAMPLES),
             hsm: lut(rp.hue_sat_map.as_ref()),
             look: lut(rp.look_table.as_ref()),
-        })
+        };
+        Self { kind, local }
     }
 
     /// A standard stack's constants: stored values in `profile` (`None`:
@@ -242,14 +248,15 @@ impl Constants {
         output: crate::OutputSpace,
         stages: &Stages,
     ) -> Self {
-        Self(Kind::Standard(standard::StandardConstants::new(profile, output, stages)))
+        let kind = Kind::Standard(standard::StandardConstants::new(profile, output, stages));
+        Self { kind, local: stages.local_tone.map(|l| l.needs()) }
     }
 
     /// These constants with exposure's shoulder a clamp at white, as the
     /// SDK's ramp clips: for the tests that match the SDK.
     #[doc(hidden)]
     pub fn without_shoulder(mut self) -> Self {
-        match &mut self.0 {
+        match &mut self.kind {
             Kind::Linear { uniform, .. } => uniform.exposure_gain_knee.y = 1.0,
             Kind::Standard(standard) => standard.uniform.exposure_gain_knee.y = 1.0,
         }
@@ -259,7 +266,7 @@ impl Constants {
     /// The space the drawn values are in: sRGB but for a standard stack
     /// drawn in its own profile.
     pub fn output(&self) -> crate::OutputSpace {
-        match &self.0 {
+        match &self.kind {
             Kind::Linear { output, .. } => *output,
             Kind::Standard(standard) => standard.output,
         }
@@ -268,23 +275,13 @@ impl Constants {
     /// Whether the draw has a slider that reads neighbors, so it needs
     /// planes of the whole frame ([`DngRenderPipeline::with_planes`]).
     pub fn has_local_tone(&self) -> bool {
-        self.local_needs().is_some()
-    }
-
-    /// The planes the draw's local tone reads, if it has any.
-    fn local_needs(&self) -> Option<crate::local_tone::Needs> {
-        let z = match &self.0 {
-            Kind::Linear { uniform, .. } => uniform.flags.z,
-            Kind::Standard(standard) => standard.uniform.flags.z,
-        };
-        let needs = stages::needs(z);
-        (needs != crate::local_tone::Needs::default()).then_some(needs)
+        self.local.is_some()
     }
 
     /// How the stored pixels go to the GPU for this draw: as they are
     /// (`None`), or linearized on the CPU first, uploaded as Rgba32Float.
     pub fn linearizer(&self) -> Option<&Linearizer> {
-        match &self.0 {
+        match &self.kind {
             Kind::Linear { .. } => None,
             Kind::Standard(standard) => standard.linearizer.as_ref(),
         }
@@ -306,7 +303,7 @@ pub struct PreparedRender {
 enum Planes {
     None,
     Needed(crate::local_tone::Needs),
-    Built(crate::local_tone::Planes),
+    Built(Box<crate::local_tone::Planes>),
 }
 
 enum Prepared {
@@ -327,12 +324,12 @@ enum Prepared {
 impl PreparedRender {
     pub fn new(ctx: &GpuContext, constants: &Constants) -> Self {
         let buffers = Self::buffers(ctx, constants);
-        let planes = constants.local_needs().map_or(Planes::None, Planes::Needed);
+        let planes = constants.local.map_or(Planes::None, Planes::Needed);
         Self { buffers, planes }
     }
 
     fn buffers(ctx: &GpuContext, constants: &Constants) -> Prepared {
-        match &constants.0 {
+        match &constants.kind {
             Kind::Linear { uniform, tone, hsm, look, curve, output: _ } => Prepared::Linear {
                 params: ctx.create_uniform_buffer(uniform, "dng_color_params"),
                 tone: storage_buffer(ctx, tone, "dng_tone_curve"),

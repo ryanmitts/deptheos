@@ -47,7 +47,8 @@ struct StandardParams {
     late: vec4f,
     // Highlights', Shadows' and Clarity's strengths, exposure's stops in z
     // (adjust.wgsl).
-    local_tone: vec4f,    // The fine terms' numbers: Texture's strength (adjust.wgsl).
+    local_tone: vec4f,    // The fine terms' numbers: Texture's strength, then Sharpening's
+    // strength, limit and Masking (adjust.wgsl).
     local_detail: vec4f,
 }
 

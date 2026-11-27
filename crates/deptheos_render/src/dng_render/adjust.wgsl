@@ -6,7 +6,8 @@
 #import deptheos::render_constants::{PRO_TO_LMS, LMS_TO_PRO, LMS_TO_LAB, LAB_TO_LMS}
 #import deptheos::render_constants::{SKIN_HUE, SKIN_PROTECTION, SKIN_WIDTH, VIBRANCE_REACH, VIBRANCE_GAIN}
 #import deptheos::render_constants::{STRENGTH, SHADOW_LOW, SHADOW_HIGH, HIGHLIGHT_LOW, HIGHLIGHT_HIGH}
-#import deptheos::render_constants::{TONE_TERM, CLARITY_TERM, TEXTURE_TERM}
+#import deptheos::render_constants::{TONE_TERM, CLARITY_TERM, TEXTURE_TERM, SHARPEN_TERM}
+#import deptheos::render_constants::{SHARPEN_GAIN, SHARPEN_MASK_SCALE, SHARPEN_MASK_WIDTH}
 #import deptheos::render_constants::{TEXTURE_STRENGTH, TEXTURE_LIMIT, TEXTURE_TAME, TEXTURE_TAME_LOW, TEXTURE_TAME_HIGH}
 #import deptheos::render_constants::{CLARITY_STRENGTH, CLARITY_LIMIT, CLARITY_MIDTONES, CLARITY_FLOOR}
 
@@ -39,12 +40,14 @@ fn rise(e0: f32, e1: f32, x: f32) -> f32 {
 // The local tone's gain, as a factor, at a pixel whose planes are
 // `planes`: its base (log2 of brightness over middle gray, before
 // exposure), or its log brightness without Highlights and Shadows, then
-// its log brightness less Clarity's filter, then less Texture's blur.
-// `amounts` holds Highlights', Shadows' and Clarity's strengths and
-// exposure's stops in z, `detail` Texture's strength; `terms` the flag
-// bits of the terms that run. lightcraft's law (MIT OR Apache-2.0,
-// lightcraft 5bdb4e7a6 `crates/pipeline/src/finish.rs`,
-// `local_tone_delta`).
+// its log brightness less Clarity's filter, less Texture's blur and less
+// Sharpening's. `amounts` holds Highlights', Shadows' and Clarity's
+// strengths and exposure's stops in z, `detail` Texture's strength, then
+// Sharpening's strength, limit and Masking; `terms` the flag bits of the
+// terms that run. lightcraft's law (MIT OR Apache-2.0, lightcraft
+// 5bdb4e7a6 `crates/pipeline/src/finish.rs`, `local_tone_delta`), with
+// Sharpening's term craft-libs b2d2a1e94 `crates/develop/src/finish.rs`
+// (`sharpen_term`, `pixel_sharpen_mask_weight`).
 fn local_tone(planes: vec4f, amounts: vec4f, detail: vec4f, terms: u32) -> f32 {
     let at = planes.x + amounts.z;
     var stops = 0.0;
@@ -63,6 +66,15 @@ fn local_tone(planes: vec4f, amounts: vec4f, detail: vec4f, terms: u32) -> f32 {
         let d = planes.z;
         let tame = 1.0 - TEXTURE_TAME * rise(TEXTURE_TAME_LOW, TEXTURE_TAME_HIGH, abs(d));
         stops += detail.x * TEXTURE_STRENGTH * clamp(d, -TEXTURE_LIMIT, TEXTURE_LIMIT) * tame;
+    }
+    if ((terms & SHARPEN_TERM) != 0u) {
+        let d = planes.w;
+        var edges = 1.0;
+        if (detail.w > 0.0) {
+            let low = detail.w * SHARPEN_MASK_SCALE;
+            edges = rise(low, low + SHARPEN_MASK_WIDTH, abs(d));
+        }
+        stops += detail.y * (SHARPEN_GAIN * edges * d / (1.0 + abs(d) / detail.z));
     }
     return exp2(stops);
 }

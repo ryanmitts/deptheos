@@ -11,7 +11,8 @@ use deptheos_app::library::render_folder::RenderFolder;
 use deptheos_app::reframe::{Flip, Rect, Reframe, Size, Turn};
 use deptheos_app::slider::{self, SliderSpec};
 use deptheos_app::{
-    Adjustments, Engine, Look, OutputSpace, ProcessVersion, Temperature, WhiteBalance, Words,
+    Adjustments, Engine, Look, OutputSpace, ProcessVersion, Sharpening, Temperature, WhiteBalance,
+    Words,
 };
 
 use crate::args::{Checks, SaveArgs};
@@ -99,6 +100,28 @@ pub(crate) struct RedrawArgs {
     #[arg(long, value_name = "N", allow_hyphen_values = true,
           value_parser = |s: &str| parse_slider(s, &slider::TEXTURE), help_heading = "Adjust")]
     texture: Option<f64>,
+
+    /// Sharpening's amount, 0 to 150
+    #[arg(long, value_name = "N",
+          value_parser = |s: &str| parse_slider(s, &slider::SHARPENING), help_heading = "Adjust")]
+    sharpening: Option<f64>,
+
+    /// Sharpening's radius, in the picture's pixels, 0.5 to 3 [default: 1]
+    #[arg(long, value_name = "PX",
+          value_parser = |s: &str| parse_slider(s, &slider::SHARPEN_RADIUS), help_heading = "Adjust")]
+    sharpen_radius: Option<f64>,
+
+    /// Sharpening's detail, 0 to 100: higher keeps more of it on large
+    /// edges [default: 25]
+    #[arg(long, value_name = "N",
+          value_parser = |s: &str| parse_slider(s, &slider::SHARPEN_DETAIL), help_heading = "Adjust")]
+    sharpen_detail: Option<f64>,
+
+    /// Sharpening's masking, 0 to 100: higher sharpens only stronger edges
+    /// [default: 0]
+    #[arg(long, value_name = "N",
+          value_parser = |s: &str| parse_slider(s, &slider::SHARPEN_MASKING), help_heading = "Adjust")]
+    sharpen_masking: Option<f64>,
 
     /// Vibrance, -100 to 100
     #[arg(long, value_name = "N", allow_hyphen_values = true,
@@ -218,6 +241,12 @@ impl RedrawArgs {
             blacks: self.blacks.unwrap_or(neutral.blacks),
             clarity: self.clarity.unwrap_or(neutral.clarity),
             texture: self.texture.unwrap_or(neutral.texture),
+            sharpening: Sharpening {
+                amount: self.sharpening.unwrap_or(neutral.sharpening.amount),
+                radius: self.sharpen_radius.unwrap_or(neutral.sharpening.radius),
+                detail: self.sharpen_detail.unwrap_or(neutral.sharpening.detail),
+                masking: self.sharpen_masking.unwrap_or(neutral.sharpening.masking),
+            },
             vibrance: self.vibrance.unwrap_or(neutral.vibrance),
             saturation: self.saturation.unwrap_or(neutral.saturation),
             ..neutral
@@ -282,6 +311,7 @@ impl RedrawArgs {
             || off(self.blacks)
             || off(self.clarity)
             || off(self.texture)
+            || off(self.sharpening)
             || off(self.vibrance)
             || off(self.saturation)
             || self.temperature.is_some()
@@ -314,6 +344,12 @@ impl RedrawArgs {
         }
         if self.process.is_some() && !self.sets_a_slider() {
             c.refuse("--process needs an adjustment to read");
+        }
+        let sharpen_part = self.sharpen_radius.or(self.sharpen_detail).or(self.sharpen_masking);
+        if sharpen_part.is_some() && !self.sharpening.is_some_and(|v| v != 0.0) {
+            c.refuse(
+                "--sharpen-radius, --sharpen-detail and --sharpen-masking go with --sharpening",
+            );
         }
     }
 }
@@ -466,13 +502,19 @@ mod tests {
         assert_eq!(parsed(&["--highlights", "-40", "--shadows", "35"]), Ok((tone, true)));
         let local = Adjustments { clarity: 25.0, texture: -10.0, ..Adjustments::NEUTRAL };
         assert_eq!(parsed(&["--clarity", "25", "--texture", "-10"]), Ok((local, true)));
+        let sharpening = Sharpening { amount: 40.0, radius: 0.8, masking: 30.0, detail: 25.0 };
+        let sharpened = Adjustments { sharpening, ..Adjustments::NEUTRAL };
+        let flags = ["--sharpening", "40", "--sharpen-radius", "0.8", "--sharpen-masking", "30"];
+        assert_eq!(parsed(&flags), Ok((sharpened, true)));
+        assert_eq!(parsed(&["--sharpen-radius", "2"]).map(|(_, passes)| passes), Ok(false));
         assert_eq!(parsed(&["--process", "1"]).map(|(_, passes)| passes), Ok(false));
-        let bad: [&[&str]; 5] = [
+        let bad: [&[&str]; 6] = [
             &["--exposure", "6"],
             &["--exposure", "nan"],
             &["--process", "0"],
             &["--blacks", "101"],
             &["--shadows", "-101"],
+            &["--sharpen-radius", "3.5"],
         ];
         for bad in bad {
             assert!(parsed(bad).is_err(), "{bad:?}");

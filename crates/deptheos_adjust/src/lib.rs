@@ -51,9 +51,36 @@ pub struct Adjustments {
     /// [`slider::CLARITY`], [`slider::TEXTURE`].
     pub clarity: f64,
     pub texture: f64,
+    pub sharpening: Sharpening,
     /// [`slider::VIBRANCE`], [`slider::SATURATION`].
     pub vibrance: f64,
     pub saturation: f64,
+}
+
+/// Sharpening: its Amount ([`slider::SHARPENING`]), and its Radius,
+/// Detail and Masking ([`slider::SHARPEN_RADIUS`],
+/// [`slider::SHARPEN_DETAIL`], [`slider::SHARPEN_MASKING`]), which change
+/// nothing while the amount is 0.
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub struct Sharpening {
+    pub amount: f64,
+    pub radius: f64,
+    pub detail: f64,
+    pub masking: f64,
+}
+
+impl Sharpening {
+    pub const NONE: Self = Self {
+        amount: slider::SHARPENING.default,
+        radius: slider::SHARPEN_RADIUS.default,
+        detail: slider::SHARPEN_DETAIL.default,
+        masking: slider::SHARPEN_MASKING.default,
+    };
+
+    /// Whether it sharpens nothing.
+    pub fn is_none(self) -> bool {
+        at_default(&slider::SHARPENING, self.amount)
+    }
 }
 
 /// What a render's white is set to. A camera RAW stack takes kelvins,
@@ -103,6 +130,7 @@ impl Adjustments {
         blacks: 0.0,
         clarity: 0.0,
         texture: 0.0,
+        sharpening: Sharpening::NONE,
         vibrance: 0.0,
         saturation: 0.0,
     };
@@ -116,7 +144,9 @@ impl Adjustments {
         Self { process, ..self }
     }
 
-    /// Whether every slider is at its default.
+    /// Whether it draws as no adjustments do: every slider at its
+    /// default, Sharpening's Radius, Detail and Masking aside while its
+    /// amount is 0.
     pub fn is_neutral(&self) -> bool {
         let Self {
             process: _,
@@ -129,6 +159,7 @@ impl Adjustments {
             blacks,
             clarity,
             texture,
+            sharpening,
             vibrance,
             saturation,
         } = self;
@@ -141,6 +172,7 @@ impl Adjustments {
             && at_default(&slider::BLACKS, *blacks)
             && at_default(&slider::CLARITY, *clarity)
             && at_default(&slider::TEXTURE, *texture)
+            && sharpening.is_none()
             && at_default(&slider::VIBRANCE, *vibrance)
             && at_default(&slider::SATURATION, *saturation)
     }
@@ -178,6 +210,12 @@ mod tests {
         assert!(!white(kelvin).is_neutral());
         assert!(white(WhiteBalance::Relative { temperature: 0.0, tint: f64::NAN }).is_neutral());
         assert!(!white(WhiteBalance::Relative { temperature: 0.0, tint: 1.0 }).is_neutral());
+        let sharpen = |amount, radius| Adjustments {
+            sharpening: Sharpening { amount, radius, ..Sharpening::NONE },
+            ..Adjustments::NEUTRAL
+        };
+        assert!(sharpen(0.0, 2.5).is_neutral());
+        assert!(!sharpen(40.0, 1.0).is_neutral());
     }
 
     #[test]

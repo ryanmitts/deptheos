@@ -1,13 +1,17 @@
 //! The local tone: the sliders that read neighbors, each a gain in stops
 //! read from planes of the picture's log brightness. Highlights and
 //! Shadows read a base, an edge-aware filter of it; Clarity its own guided
-//! filter; Texture a blur. The planes and the laws are lightcraft's as they stand (MIT OR
-//! Apache-2.0): the planes are craft-libs b2d2a1e94
-//! `crates/develop/src/local.rs` (`tone_base`, `detail_free`, `median_hv`,
-//! `guided_fast`, `texture_sigma`) with its resampling and blur
+//! filter; Texture and Sharpening a blur each. The planes and the laws are
+//! lightcraft's as they stand (MIT OR Apache-2.0): the planes are
+//! craft-libs b2d2a1e94 `crates/develop/src/local.rs` (`tone_base`,
+//! `detail_free`, `median_hv`, `guided_fast`, `texture_sigma`,
+//! `sharpen_gain`) with its resampling and blurs
 //! (`crates/develop/src/raster/resample.rs`,
 //! `crates/develop/src/raster/blur.rs`); the laws are lightcraft 5bdb4e7a6
-//! `crates/pipeline/src/finish.rs` (`local_tone_delta`, `tone_slider`).
+//! `crates/pipeline/src/finish.rs` (`local_tone_delta`, `tone_slider`,
+//! `texture_slider`) and, for Sharpening's detail term, craft-libs
+//! b2d2a1e94 `crates/develop/src/finish.rs` (`sharpen_term`,
+//! `sharpen_limit`).
 //!
 //! The planes are computed for a rectangle at a time from the log
 //! brightness around it and from planes of the whole frame far smaller than
@@ -56,6 +60,15 @@ pub const TEXTURE_STRENGTH: f32 = 1.1;
 pub const TEXTURE_LIMIT: f32 = 1.0;
 pub const TEXTURE_TAME: f32 = 0.6;
 pub const TEXTURE_TAME_EDGES: [f32; 2] = [0.4, 1.6];
+/// Sharpening's blur: the smallest and largest reach, in pixels.
+pub const SHARPEN_SIGMA_MIN: f32 = 0.5;
+pub const SHARPEN_SIGMA_MAX: f32 = 64.0;
+/// Sharpening's law: its gain in stops per stop of detail at full
+/// strength, and where Masking's edge weight rises (stops of detail, per
+/// unit of Masking over 100, and its width).
+pub const SHARPEN_GAIN: f32 = 7.0;
+pub const SHARPEN_MASK_SCALE: f32 = 0.1;
+pub const SHARPEN_MASK_WIDTH: f32 = 0.06;
 /// The law's numbers: each slider's gain in stops at full weight, and
 /// where Shadows' and Highlights' weights rise over the base (stops from
 /// middle gray). The shaders take them from here.
@@ -106,6 +119,85 @@ pub fn texture_sigma(long: usize) -> f32 {
 pub fn texture_strength(value: f64) -> f32 {
     let t = value / 100.0;
     if t < 0.0 { (t * NEGATIVE_TEXTURE) as f32 } else { t as f32 }
+}
+
+/// Sharpening's numbers for the law: its strength (Amount over 150, times
+/// the response's gain), the detail term's limit in stops and Masking over
+/// 100; and its blur's reach. `None` when it changes nothing.
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub struct Sharpen {
+    pub strength: f32,
+    pub limit: f32,
+    pub masking: f32,
+    pub sigma: f32,
+}
+
+impl Sharpen {
+    /// Amount (0 to 150), Radius (0.5 to 3, in the picture's pixels),
+    /// Detail and Masking (0 to 100), drawn at full size: one drawn pixel
+    /// per pixel of the picture.
+    pub fn new(amount: f64, radius: f64, detail: f64, masking: f64) -> Option<Self> {
+        let raw = sharpen_sigma_raw(radius, 1.0, 1.0);
+        let gain = sharpen_gain(raw);
+        (amount != 0.0 && gain > 0.0).then(|| Self {
+            strength: (amount / 150.0) as f32 * gain,
+            limit: sharpen_limit(detail),
+            masking: (masking / 100.0) as f32,
+            sigma: sharpen_sigma(raw),
+        })
+    }
+}
+
+/// The blur's reach before it is clamped: Radius in the picture's pixels,
+/// times the drawn pixels per pixel of the picture.
+fn sharpen_sigma_raw(radius: f64, px_per_long: f64, native_long: f64) -> f32 {
+    let radius = if radius.is_finite() { radius.clamp(0.1, 10.0) } else { 1.0 };
+    (radius * px_per_long / native_long.max(1.0)) as f32
+}
+
+fn sharpen_sigma(raw: f32) -> f32 {
+    raw.clamp(SHARPEN_SIGMA_MIN, SHARPEN_SIGMA_MAX)
+}
+
+/// Below one pixel, the gain that matches the continuous Gaussian's
+/// response at Nyquist through the taps the blur can make, blended out
+/// between half a pixel and one.
+fn sharpen_gain(raw: f32) -> f32 {
+    if !raw.is_finite() || raw <= 0.0 {
+        return 0.0;
+    }
+    if raw >= 1.0 {
+        return 1.0;
+    }
+    let taps = gauss_taps(sharpen_sigma(raw));
+    let radius = taps.len() / 2;
+    let response = taps
+        .iter()
+        .enumerate()
+        .map(|(i, &t)| if (i + radius).is_multiple_of(2) { t } else { -t })
+        .sum::<f32>();
+    let desired = -(-0.5 * std::f32::consts::PI.powi(2) * raw * raw).exp_m1();
+    let ratio = desired / (1.0 - response).max(1e-6);
+    let blend = ((1.0 - raw) / 0.5).clamp(0.0, 1.0);
+    1.0 + (ratio - 1.0) * blend
+}
+
+/// The detail term's soft limit, in stops, for Detail 0 to 100: 0.03
+/// stops, which flattens large edges so halos stay small, up to 1.5.
+fn sharpen_limit(detail: f64) -> f32 {
+    let d = (detail / 100.0).clamp(0.0, 1.0) as f32;
+    0.03 * 50f32.powf(d)
+}
+
+/// Normalized Gaussian taps for `sigma`, out to `ceil(3·sigma)`.
+fn gauss_taps(sigma: f32) -> Vec<f32> {
+    let sigma = if sigma.is_nan() { 0.05 } else { sigma.clamp(0.05, SHARPEN_SIGMA_MAX) };
+    let r = (3.0 * sigma).ceil() as i32;
+    let k = -0.5 / (sigma * sigma);
+    let mut t: Vec<f32> = (-r..=r).map(|i| ((i * i) as f32 * k).exp()).collect();
+    let sum: f32 = t.iter().sum();
+    t.iter_mut().for_each(|v| *v /= sum);
+    t
 }
 
 /// A plane of f32 values, row by row.
@@ -288,12 +380,13 @@ impl Base {
 }
 
 /// Which planes a draw's local tone reads: Highlights and Shadows' base,
-/// Clarity's guided filter, Texture's blur.
-#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+/// Clarity's guided filter, Texture's blur, Sharpening's blur at its reach.
+#[derive(Clone, Copy, Debug, Default, PartialEq)]
 pub struct Needs {
     pub base: bool,
     pub clarity: bool,
     pub texture: bool,
+    pub sharpen: Option<f32>,
 }
 
 /// The whole frame's planes a draw's local tone reads, far smaller than
@@ -307,6 +400,8 @@ pub struct Planes {
     clarity: Option<Guided>,
     /// Texture's blur of log brightness (craft-libs' `gaussian`).
     texture: Option<BoxBlur>,
+    /// Sharpening's taps (craft-libs' `gaussian_taps`).
+    sharpen: Option<Vec<f32>>,
 }
 
 impl Planes {
@@ -327,24 +422,28 @@ impl Planes {
         });
         let texture =
             needs.texture.then(|| BoxBlur::new(frame, texture_sigma(frame[0].max(frame[1]))));
-        Self { frame, base, clarity, texture }
+        let sharpen = needs.sharpen.map(gauss_taps);
+        Self { frame, base, clarity, texture, sharpen }
     }
 
     /// The rectangle around `rect` whose log brightness [`Self::at`] reads.
     pub fn around(&self, rect: Rect) -> Rect {
-        let base = rect.grown(self.base.as_ref().map_or(0, Base::margin), self.frame);
-        self.texture.as_ref().map_or(base, |t| base.union(t.around(rect)))
+        let base = self.base.as_ref().map_or(0, Base::margin);
+        let sharpen = self.sharpen.as_ref().map_or(0, |t| t.len() / 2);
+        let near = rect.grown(base.max(sharpen), self.frame);
+        self.texture.as_ref().map_or(near, |t| near.union(t.around(rect)))
     }
 
     /// Each pixel of `rect`, row by row: its base, or its log brightness
-    /// without one; then its log brightness less Clarity's filter and less
-    /// Texture's blur, each 0 without it; then a zero. `around` covers
-    /// [`Self::around`].
+    /// without one; then its log brightness less Clarity's filter, less
+    /// Texture's blur and less Sharpening's, each 0 without it. `around`
+    /// covers [`Self::around`].
     pub fn at(&self, around: &Patch, rect: Rect) -> Vec<[f32; 4]> {
         let own = crop(around, rect);
         let base = self.base.as_ref().map(|b| b.base(around, rect));
         let clarity = self.clarity.as_ref().map(|c| c.apply(&own, rect));
         let texture = self.texture.as_ref().map(|t| t.apply(around, rect));
+        let sharpen = self.sharpen.as_ref().map(|t| blur_taps(around, self.frame, rect, t));
         let mut out = vec![[0.0; 4]; rect.width * rect.height];
         for (i, (o, l)) in out.iter_mut().zip(&own.data).enumerate() {
             o[0] = base.as_ref().map_or(*l, |b| b.data[i]);
@@ -353,6 +452,9 @@ impl Planes {
             }
             if let Some(t) = &texture {
                 o[2] = l - t.data[i];
+            }
+            if let Some(b) = &sharpen {
+                o[3] = l - b.data[i];
             }
         }
         out
@@ -442,6 +544,44 @@ impl BoxBlur {
         }
         out
     }
+}
+
+/// craft-libs' separable blur with `taps` (`gaussian_taps`, edges clamped
+/// to the `frame`) over `rect`, from values over `rect` grown by the taps'
+/// radius within the frame.
+fn blur_taps(around: &Patch, frame: [usize; 2], rect: Rect, taps: &[f32]) -> Plane {
+    let [w, h] = frame;
+    if taps.len() < 3 {
+        return crop(around, rect);
+    }
+    let r = (taps.len() / 2) as isize;
+    let clamp = |v: isize, n: usize| v.clamp(0, n as isize - 1) as usize;
+    let rows = rect.grown(taps.len() / 2, frame).rows();
+    let first = rows.start;
+    let across: Vec<Vec<f32>> = rows
+        .into_par_iter()
+        .map(|y| {
+            rect.columns()
+                .map(|x| {
+                    let mut acc = 0.0f32;
+                    for (k, t) in taps.iter().enumerate() {
+                        acc += around.at(clamp(x as isize + k as isize - r, w), y) * *t;
+                    }
+                    acc
+                })
+                .collect()
+        })
+        .collect();
+    let mut out = Plane::new(rect.width, rect.height);
+    out.data.par_chunks_mut(rect.width).zip(rect.rows()).for_each(|(row, y)| {
+        for (k, t) in taps.iter().enumerate() {
+            let src = &across[clamp(y as isize + k as isize - r, h) - first];
+            for (o, v) in row.iter_mut().zip(src) {
+                *o += *v * *t;
+            }
+        }
+    });
+    out
 }
 
 /// One box pass down the columns of a frame `h` rows high, over `out`'s
@@ -975,7 +1115,8 @@ mod tests {
     /// band, and Clarity's filter is the guided filter of log brightness.
     #[test]
     fn the_planes_at_a_region_are_the_whole_frames() {
-        let needs = Needs { base: true, clarity: true, texture: true };
+        let sharpen = Some(1.4);
+        let needs = Needs { base: true, clarity: true, texture: true, sharpen };
         for (w, h) in [(1300, 700), (61, 40)] {
             let p = scene(w, h);
             let at = |planes: &Planes, rect: Rect| {
@@ -997,6 +1138,7 @@ mod tests {
             let blur = gaussian(&p, texture_sigma(w.max(h)));
             let detail: Vec<f32> = p.data.iter().zip(&blur.data).map(|(l, b)| l - b).collect();
             assert!(full.iter().map(|v| v[2]).eq(detail), "{w}x{h}: Texture's blur");
+            assert!(full.iter().any(|v| v[3] != 0.0));
         }
     }
 

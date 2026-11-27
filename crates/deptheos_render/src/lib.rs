@@ -10,6 +10,6 @@ pub mod local_tone;
 mod resolve;
 mod white;
 
-pub use deptheos_adjust::{Adjustments, ProcessVersion, Reframe, WhiteBalance};
+pub use deptheos_adjust::{Adjustments, ProcessVersion, Reframe, Sharpening, WhiteBalance};
 pub use deptheos_adjust::{reframe, slider, temperature};
 pub use resolve::{Color, Draw, OutputSpace, resolve, resolve_adjusted};

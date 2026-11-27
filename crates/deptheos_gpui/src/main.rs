@@ -578,6 +578,8 @@ gpui_kit::assets::icon_assets!(
         Map,
         Menu,
         Mountain,
+        Pipette,
+        RotateCcw,
         Rows2,
         Scan,
         Settings,

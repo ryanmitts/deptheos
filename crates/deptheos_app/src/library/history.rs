@@ -381,6 +381,8 @@ pub struct History {
     /// their stack fails or the run ends. In memory only, so a run cut short
     /// shows them at the next open.
     unstacked: Arc<std::sync::Mutex<std::collections::HashSet<RenderId>>>,
+    /// Each render's thumbnail rewrites sent.
+    pub(crate) rewrites: crate::library::thumbnails::rewrite::Rewrites,
     _lock: Arc<LibraryLock>,
 }
 
@@ -428,8 +430,13 @@ impl History {
         lock.name_holder(&root);
         let renders = root.join(RENDERS_DIR);
         std::fs::create_dir_all(&renders).map_err(io_error(&renders))?;
-        let history =
-            Self { root, frames: Arc::new(frames), unstacked: Arc::default(), _lock: lock };
+        let history = Self {
+            root,
+            frames: Arc::new(frames),
+            unstacked: Arc::default(),
+            rewrites: Default::default(),
+            _lock: lock,
+        };
         history.sweep();
         history.purge_deleted(SystemTime::now());
         Ok(history)
@@ -525,6 +532,10 @@ impl History {
     /// encoded on the pool as a write quit waits for, then written on the
     /// store thread in order (ADR-143). Never canceled: dropping the future
     /// only stops the wait.
+    ///
+    /// A render that inherits adjustments ([`Self::inherited_by`]) has its
+    /// thumbnail drawn under them by `engine`, in place of `thumbnail`
+    /// (the display's, unadjusted).
     pub fn save(
         self: &Arc<Self>,
         frames: Vec<PathBuf>,
@@ -532,12 +543,13 @@ impl History {
         thumbnail: RgbImage,
         of: StackId,
         made: Made,
+        engine: Arc<crate::engine::Engine>,
     ) -> impl std::future::Future<Output = std::result::Result<Render, Unsaved>> + Send + 'static
     {
         let (tx, rx) = futures::channel::oneshot::channel();
         let history = self.clone();
         // The job holds the token quit waits on until the write is queued.
-        let save = move || match history.encode_render(&stack, &thumbnail) {
+        let save = move || match history.encode_inheriting(&stack, &thumbnail, &made, &engine) {
             Err(e) => {
                 let _ = tx.send(Err(Unsaved::Failed(e)));
             }
@@ -580,6 +592,33 @@ impl History {
         self.save_encoded(frames, stack, pictures, of, made)
     }
 
+    /// [`Self::encode_render`] with what `made` inherits, its thumbnail
+    /// drawn under it.
+    fn encode_inheriting(
+        &self,
+        stack: &CompletedStack,
+        thumbnail: &RgbImage,
+        made: &Made,
+        engine: &crate::engine::Engine,
+    ) -> Result<EncodedPictures> {
+        let inherited = self.inherited_by(stack, made);
+        let drawn = inherited.as_ref().and_then(|value| {
+            let generation = crate::engine::generation::Generation::ON_DISK;
+            crate::library::thumbnails::rewrite::draw(
+                engine,
+                stack,
+                &stack.pixels,
+                value,
+                generation,
+            )
+            .inspect_err(|e| tracing::warn!("the inherited look's thumbnail wasn't drawn: {e}"))
+            .ok()
+        });
+        let mut pictures = self.encode_render(stack, drawn.as_ref().unwrap_or(thumbnail))?;
+        pictures.inherited = inherited;
+        Ok(pictures)
+    }
+
     /// The pool half of [`Self::save`]: the pictures encoded into a
     /// `.partial` folder for [`Self::save_encoded`].
     pub fn encode_render(
@@ -616,8 +655,10 @@ impl History {
         let dir = self.render_path(&id);
         let partial = &pictures.partial;
         let place = Place { stack: of.clone(), number, batch: made.batch().map(BatchFile::from) };
-        if let Some(inherited) = self.inherited_by(stack, made)
-            && let Err(e) = crate::library::adjustments::write(partial, &inherited)
+        // What the encode drew the thumbnail under, else worked out here.
+        let inherited = pictures.inherited.clone().or_else(|| self.inherited_by(stack, made));
+        if let Some(inherited) = &inherited
+            && let Err(e) = crate::library::adjustments::write(partial, inherited)
         {
             tracing::warn!("the new render's inherited adjustments weren't written: {e}");
         }

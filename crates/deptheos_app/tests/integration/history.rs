@@ -233,6 +233,9 @@ fn encoded_pictures_wait_in_their_partial_folder() {
 /// A save whose future is dropped at once still lands in the Library.
 #[test]
 fn a_save_dropped_at_once_still_lands() {
+    let Some(ctx) = deptheos_gpu::GpuContext::new_or_skip() else { return };
+    let words = deptheos_app::Words::english(deptheos_app::Platform::Desktop);
+    let engine = deptheos_app::Engine::with_gpu(ctx, words);
     let dir = tempfile::tempdir().unwrap();
     let history = std::sync::Arc::new(History::open(dir.path().join("store")).unwrap());
     let listed = paths(dir.path(), &["a.png", "b.png"]);
@@ -243,6 +246,7 @@ fn a_save_dropped_at_once_still_lands() {
         thumbnail(),
         StackId::new(),
         Made::Stacked { base: None },
+        engine,
     ));
     let start = std::time::Instant::now();
     let render = loop {
@@ -624,4 +628,42 @@ fn a_new_render_inherits_its_base_renders_adjustments() {
     std::fs::write(history.render_path(&base.id).join(ADJUSTMENTS_FILE), b"{").unwrap();
     let after_damage = save(&srgb_stack(listed.clone()), from);
     assert_eq!(history.adjustments(&after_damage), Ok(RenderAdjustments::NONE));
+}
+
+/// A render's thumbnail drawn again under its adjustments and reframe: a
+/// rewrite sent later overtakes one not yet written, and the file is the
+/// window, turned, at the thumbnail's side.
+#[test]
+fn a_thumbnail_is_drawn_again_under_its_look() {
+    use deptheos_app::library::adjustments::RenderAdjustments;
+    use deptheos_app::library::thumbnails::rewrite::Rewrote;
+    use deptheos_app::reframe::{Rect, Turn};
+    use deptheos_app::{Adjustments, Reframe};
+    let Some(ctx) = deptheos_gpu::GpuContext::new_or_skip() else { return };
+    let words = deptheos_app::Words::english(deptheos_app::Platform::Desktop);
+    let engine = deptheos_app::Engine::with_gpu(ctx, words);
+    let dir = tempfile::tempdir().unwrap();
+    let history = std::sync::Arc::new(History::open(dir.path().join("store")).unwrap());
+    let listed = paths(dir.path(), &["a.png", "b.png"]);
+    let stack = std::sync::Arc::new(srgb_stack(listed.clone()));
+    let render = history
+        .save_render(&listed, &stack, &thumbnail(), &StackId::new(), &Made::Stacked { base: None })
+        .unwrap();
+    let before = history.load_thumbnail(&render.id).unwrap();
+    let value = RenderAdjustments {
+        adjustments: Adjustments { exposure: 1.0, ..Adjustments::NEUTRAL },
+        reframe: Reframe {
+            crop: Some(Rect { x: 4, y: 2, width: 30, height: 20 }),
+            turn: Turn::Quarter,
+            ..Reframe::NONE
+        },
+    };
+    history.adjustment_writes(&render.id).send(value).save().unwrap();
+    let first = history.rewrite_thumbnail(engine.clone(), render.id.clone(), stack.clone(), None);
+    let second = history.rewrite_thumbnail(engine, render.id.clone(), stack, None);
+    assert_eq!(futures::executor::block_on(first).unwrap(), Rewrote::Overtaken);
+    assert_eq!(futures::executor::block_on(second).unwrap(), Rewrote::Written);
+    let after = history.load_thumbnail(&render.id).unwrap();
+    assert_eq!((after.width(), after.height()), (20, 30), "the window, turned");
+    assert_ne!((before.width(), before.height()), (20, 30));
 }

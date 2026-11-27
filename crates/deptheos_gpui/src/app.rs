@@ -641,6 +641,10 @@ impl AppView {
             PaintEvent::Notice(text) => {
                 self.post(Kind::Info, Subject::Alone, text.clone(), Vec::new(), window, cx)
             }
+            PaintEvent::Painted { render, stack, flattened } => {
+                let (render, stack, flattened) = (render.clone(), stack.clone(), flattened.take());
+                self.renders.update(cx, |r, cx| r.rewrite_thumbnail(render, stack, flattened, cx));
+            }
             // No display: the render shows its plain result, as it does.
             PaintEvent::Presented { key, display } => {
                 let current = self.result_doc(cx).is_some_and(|(_, k)| k == *key);

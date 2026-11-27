@@ -5,16 +5,24 @@
 //! and thumbnails draw from the stored pixels. The preview's two tiers
 //! draw from them ([`GpuCopies::draw_preview`], ADR-138).
 
+use deptheos_core::io;
 use deptheos_gpu::PooledTexture;
+use deptheos_gpu::gpu_utils::download_texture_with;
 use deptheos_render::dng_render::{
     Constants, DngRenderPipeline, Encoding, GridPlanes, KeptPlanes, PlanesKey, PreparedRender,
     REDUCED_FORMAT, Region, Source, TILE, reduced_size,
 };
 use deptheos_render::{Adjustments, Draw, OutputSpace, Reframe};
 
+use deptheos_render::reframe::{Rect, Size};
+use image::RgbImage;
+
+use super::histogram::{Histogram, SMALL_LONG, scaled_window};
 use super::preview::{Draft, FlatPicture, FlatSlot, Shown, Tier, fit_size, read_flat};
 use crate::engine::Engine;
 use crate::engine::generation::Generation;
+use crate::engine::present::source_rgb;
+use crate::library::render_file::THUMBNAIL_SIDE;
 use crate::runs::session::CompletedStack;
 use crate::{Error, Look, Result};
 
@@ -28,14 +36,14 @@ pub struct GpuCopies {
     /// How the reduced copy and its fit copy take their means.
     encoding: Encoding,
     planes: KeptPlanes,
-    /// The fit tier's: the reduced copy at the size shown.
-    fit: Option<([u32; 2], wgpu::Texture)>,
+    /// The fit tier's, at the size shown.
+    fit: Fitted,
+    /// The histogram's and the thumbnail's, at their sizes.
+    small: Fitted,
     /// The local tone's values of the whole frame on a grid of the fit
     /// tier's largest size, gathered from the full-size pixels, and what
     /// their planes were made from.
     grid: Option<(PlanesKey, wgpu::Texture)>,
-    /// The grid at the size shown.
-    fit_planes: Option<(PlanesKey, [u32; 2], wgpu::Texture)>,
     /// The region tier's: the local tone's values of the region last
     /// drawn.
     region: Option<(Region, PlanesKey, PooledTexture)>,
@@ -61,9 +69,9 @@ impl GpuCopies {
             reduced,
             encoding,
             planes: KeptPlanes::default(),
-            fit: None,
+            fit: Fitted::default(),
+            small: Fitted::default(),
             grid: None,
-            fit_planes: None,
             region: None,
         };
         tracing::debug!("adjust: GPU copies made, {}", copies.memory());
@@ -136,6 +144,71 @@ impl GpuCopies {
         picture
     }
 
+    /// The histogram of the picture through `constants` under `crop`
+    /// (stored pixels), counted from a draw of the reduced copy
+    /// [`SMALL_LONG`] on its long side, so it doesn't change with zoom or
+    /// pan. Its clipping is the small draw's; [`super::histogram::clipping`]
+    /// counts it again over a full redraw.
+    pub fn histogram(
+        &mut self,
+        engine: &Engine,
+        constants: &Constants,
+        crop: Option<Rect>,
+        draft: Draft,
+    ) -> Result<Histogram> {
+        let [w, h] = self.frame();
+        let zoom = SMALL_LONG as f32 / w.max(h) as f32;
+        let size = fit_size(w, h, zoom, [self.reduced.width(), self.reduced.height()]);
+        let output = self.draw_fitted(engine, constants, size, draft, Fit::Small);
+        let window = scaled_window(crop, [w, h], size);
+        let rgb = read_rgb8(engine, &output, window)?;
+        let row = window.width as usize * 3;
+        Ok(Histogram::count(rgb.chunks_exact(row)))
+    }
+
+    /// The picture through `constants` (a look's for a file, framed by
+    /// its reframe) as a thumbnail: the reframe's window, flipped and
+    /// turned, [`THUMBNAIL_SIDE`] on its long side or its full size if
+    /// smaller. Drawn from the reduced copy, without Texture and
+    /// Sharpening, unless the window is too small in it; then the window
+    /// is drawn at full size with every slider and reduced on the CPU.
+    pub fn thumbnail(
+        &mut self,
+        engine: &Engine,
+        constants: &Constants,
+        reframe: Reframe,
+    ) -> Result<RgbImage> {
+        let [w, h] = self.frame();
+        let picture = Size { width: w, height: h };
+        let crop = reframe
+            .window(picture)
+            .map_err(|o| Error::InvalidState(format!("crop {:?} outside the picture", o.crop)))?;
+        let long = crop.width.max(crop.height);
+        let scale = (THUMBNAIL_SIDE as f32 / long as f32).min(1.0);
+        let size = fit_size(w, h, scale, [self.reduced.width(), self.reduced.height()]);
+        let reached = size[0].max(size[1]) as f32 / w.max(h) as f32;
+        let (rgb, drawn) = if reached >= scale * 0.999 {
+            let output = self.draw_fitted(engine, constants, size, Draft::Settled, Fit::Small);
+            let window = scaled_window(Some(crop), [w, h], size);
+            (read_rgb8(engine, &output, window)?, [window.width, window.height])
+        } else {
+            let region = Region { x: crop.x, y: crop.y, width: crop.width, height: crop.height };
+            let output = self.region_texture(engine, constants, region, Draft::Settled);
+            let whole = Region::whole(crop.width, crop.height);
+            (read_rgb8(engine, &output, whole)?, [crop.width, crop.height])
+        };
+        let image = RgbImage::from_raw(drawn[0], drawn[1], rgb).expect("rows of its size");
+        let target = |v: u32| ((v as f32 * scale).round() as u32).max(1);
+        let (tw, th) = (target(crop.width), target(crop.height));
+        let image =
+            if [tw, th] == drawn { image } else { image::imageops::thumbnail(&image, tw, th) };
+        let turned = Reframe { crop: None, ..reframe };
+        let (pixels, out) = turned
+            .apply(image.as_raw(), Size { width: tw, height: th }, 3)
+            .expect("the whole picture is inside it");
+        Ok(RgbImage::from_raw(out.width, out.height, pixels).expect("rows of its size"))
+    }
+
     fn draw_fit(
         &mut self,
         engine: &Engine,
@@ -144,28 +217,52 @@ impl GpuCopies {
         draft: Draft,
         slot: &FlatSlot,
     ) -> Result<FlatPicture> {
-        let (color, ctx) = (engine.color(), engine.gpu());
         let [w, h] = self.frame();
         let size = fit_size(w, h, zoom, [self.reduced.width(), self.reduced.height()]);
-        if self.fit.as_ref().is_none_or(|(s, _)| *s != size) {
-            self.fit = Some((size, color.resample(ctx, &self.reduced, size, &self.encoding)));
+        let output = self.draw_fitted(engine, constants, size, draft, Fit::Shown);
+        read_flat(engine.gpu(), &output, size, Region::whole(w, h), constants.output(), slot)
+    }
+
+    /// The whole picture through `constants` at `size`, from the reduced
+    /// copy, without Texture and Sharpening, into `which` copies.
+    fn draw_fitted(
+        &mut self,
+        engine: &Engine,
+        constants: &Constants,
+        size: [u32; 2],
+        draft: Draft,
+        which: Fit,
+    ) -> PooledTexture {
+        let (color, ctx) = (engine.color(), engine.gpu());
+        let [w, h] = self.frame();
+        if self.fitted(which).copy.as_ref().is_none_or(|(s, _)| *s != size) {
+            let copy = color.resample(ctx, &self.reduced, size, &self.encoding);
+            self.fitted(which).copy = Some((size, copy));
         }
         let (sx, sy) = (size[0] as f32 / w as f32, size[1] as f32 / h as f32);
         let drawn = constants.clone().without_fine_detail().reduced().scaled(sx, sy);
         if drawn.has_local_tone() {
-            self.fit_planes(engine, constants, size, draft);
+            self.fit_planes(engine, constants, size, draft, which);
         }
-        let ((_, copy), planes) = (self.fit.as_ref().expect("made above"), &self.fit_planes);
+        let fitted = self.fitted(which);
+        let (_, copy) = fitted.copy.as_ref().expect("made above");
         let prepared = PreparedRender::new(ctx, &drawn);
         let (output, whole) =
             (color_output(engine, size[0], size[1]), Region::whole(size[0], size[1]));
-        match planes {
+        match &fitted.planes {
             Some((_, _, planes)) if drawn.has_local_tone() => {
                 color.draw_reading(ctx, &prepared, Source::whole(copy), whole, planes, &output);
             }
             _ => color.draw(ctx, &prepared, Source::whole(copy), whole, &output),
         }
-        read_flat(ctx, &output, size, Region::whole(w, h), constants.output(), slot)
+        output
+    }
+
+    fn fitted(&mut self, which: Fit) -> &mut Fitted {
+        match which {
+            Fit::Shown => &mut self.fit,
+            Fit::Small => &mut self.small,
+        }
     }
 
     fn draw_region(
@@ -176,6 +273,20 @@ impl GpuCopies {
         draft: Draft,
         slot: &FlatSlot,
     ) -> Result<FlatPicture> {
+        let output = self.region_texture(engine, constants, region, draft);
+        let size = [region.width, region.height];
+        read_flat(engine.gpu(), &output, size, region, constants.output(), slot)
+    }
+
+    /// `region` of the picture through `constants` at full size, every
+    /// slider.
+    fn region_texture(
+        &mut self,
+        engine: &Engine,
+        constants: &Constants,
+        region: Region,
+        draft: Draft,
+    ) -> PooledTexture {
         let (color, ctx) = (engine.color(), engine.gpu());
         let output = color_output(engine, region.width, region.height);
         let (prepared, made) = self.prepared(engine, constants, draft);
@@ -195,8 +306,7 @@ impl GpuCopies {
             }
             _ => color.draw(ctx, &prepared, source, region, &output),
         }
-        let size = [region.width, region.height];
-        read_flat(ctx, &output, size, region, constants.output(), slot)
+        output
     }
 
     /// `constants` prepared with the local tone's planes, and what those
@@ -224,7 +334,14 @@ impl GpuCopies {
     /// The local tone's values at the fit tier's `size`, from the grid,
     /// gathering it first unless it holds these planes (or, for a tick,
     /// planes of the same sliders).
-    fn fit_planes(&mut self, engine: &Engine, constants: &Constants, size: [u32; 2], draft: Draft) {
+    fn fit_planes(
+        &mut self,
+        engine: &Engine,
+        constants: &Constants,
+        size: [u32; 2],
+        draft: Draft,
+        which: Fit,
+    ) {
         let (color, ctx) = (engine.color(), engine.gpu());
         let frame = self.frame();
         let Some(key) = constants.planes_key(frame) else { return };
@@ -237,14 +354,19 @@ impl GpuCopies {
             self.set_grid(made.unwrap_or(key), grid.texture(ctx));
         }
         let (grid_key, grid) = self.grid.as_ref().expect("gathered above");
-        if !self.fit_planes.as_ref().is_some_and(|(k, s, _)| k == grid_key && *s == size) {
-            let resampled = color.resample_planes(ctx, grid, size);
-            self.fit_planes = Some((grid_key.clone(), size, resampled));
+        let held = match which {
+            Fit::Shown => &self.fit.planes,
+            Fit::Small => &self.small.planes,
+        };
+        if !held.as_ref().is_some_and(|(k, s, _)| k == grid_key && *s == size) {
+            let resampled = (grid_key.clone(), size, color.resample_planes(ctx, grid, size));
+            self.fitted(which).planes = Some(resampled);
         }
     }
 
     fn set_grid(&mut self, key: PlanesKey, grid: wgpu::Texture) {
-        self.fit_planes = None;
+        self.fit.planes = None;
+        self.small.planes = None;
         self.grid = Some((key, grid));
     }
 
@@ -266,9 +388,12 @@ impl GpuCopies {
             source: texel(&self.source) * pixels(width, height),
             reduced: texel(&self.reduced) * pixels(self.reduced.width(), self.reduced.height()),
             planes: self.planes.bytes(),
-            fit: [self.fit.as_ref().map(|(_, t)| t), self.grid.as_ref().map(|(_, t)| t)]
+            fit: [&self.fit, &self.small]
                 .into_iter()
-                .chain([self.fit_planes.as_ref().map(|(_, _, t)| t)])
+                .flat_map(|f| {
+                    [f.copy.as_ref().map(|(_, t)| t), f.planes.as_ref().map(|(_, _, t)| t)]
+                })
+                .chain([self.grid.as_ref().map(|(_, t)| t)])
                 .flatten()
                 .map(|t| texel(t) * pixels(t.width(), t.height()))
                 .sum(),
@@ -287,6 +412,38 @@ impl GpuCopies {
             Tier::Region => self.planes.key() == Some(&key),
         }
     }
+}
+
+/// The reduced copy at one size, and the local tone's values at it.
+#[derive(Default)]
+struct Fitted {
+    copy: Option<([u32; 2], wgpu::Texture)>,
+    planes: Option<(PlanesKey, [u32; 2], wgpu::Texture)>,
+}
+
+/// Which [`Fitted`] a draw uses: the fit tier's, or the small draws'.
+#[derive(Clone, Copy)]
+enum Fit {
+    Shown,
+    Small,
+}
+
+/// `window` of `texture`, a drawn output, as 8-bit RGB rows.
+fn read_rgb8(engine: &Engine, texture: &wgpu::Texture, window: Region) -> Result<Vec<u8>> {
+    let texel = match texture.format() {
+        wgpu::TextureFormat::Rgba16Unorm => 8,
+        wgpu::TextureFormat::Rgba32Float => 16,
+        other => return Err(Error::InvalidState(format!("cannot read a {other:?} texture"))),
+    };
+    let mut rgb = Vec::with_capacity(window.width as usize * window.height as usize * 3);
+    let (origin, size) = ([window.x, window.y], [window.width, window.height]);
+    download_texture_with(engine.gpu(), texture, origin, size, |row| {
+        for t in row.chunks_exact(texel) {
+            rgb.extend(source_rgb(t).map(io::u16_to_u8));
+        }
+    })
+    .map_err(|e| Error::Core(e.into()))?;
+    Ok(rgb)
 }
 
 fn color_output(engine: &Engine, width: u32, height: u32) -> PooledTexture {

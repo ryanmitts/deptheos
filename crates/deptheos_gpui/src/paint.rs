@@ -9,6 +9,7 @@ use std::path::{Path, PathBuf};
 use std::sync::Arc;
 use std::time::Duration;
 
+use deptheos_app::engine::generation::Generation;
 use deptheos_app::frames::names::file_label;
 use deptheos_app::library::history::History;
 use deptheos_app::paint::{
@@ -70,6 +71,13 @@ pub enum PaintEvent {
         key: RenderId,
         display: Cell<Option<PresentedImage>>,
     },
+    /// Retouch left `render` after painting it: its thumbnail is drawn
+    /// again from `flattened`, the stack with its paint. Taken once.
+    Painted {
+        render: RenderId,
+        stack: Arc<CompletedStack>,
+        flattened: Cell<Option<std::sync::mpsc::Receiver<Flattened>>>,
+    },
 }
 
 /// What [`Paint::open`] paints.
@@ -111,6 +119,11 @@ enum Mode {
 
 /// The desktop's part of the render painted.
 struct Painting {
+    render: RenderId,
+    stack: Arc<CompletedStack>,
+    /// Its stored picture's generation as it opened: another as it closes
+    /// means it was painted.
+    opened: Generation,
     /// What the left panel lists to paint from.
     sources: SourcesTab,
     /// Render source names from picks ("#3 ★"), richer than [`Paint::name_of`]'s.
@@ -138,6 +151,7 @@ pub enum SourcesTab {
 
 pub struct Paint {
     session: PaintSession,
+    engine: Arc<Engine>,
     /// The session's status as last read, after each call and report.
     status: Option<Status>,
     viewer: Entity<Viewer>,
@@ -193,6 +207,7 @@ impl Paint {
         let _subscriptions = vec![ring_follows(cx, &brush.size), ring_follows(cx, &brush.hardness)];
         Self {
             session,
+            engine,
             status: None,
             viewer,
             canvas: None,
@@ -398,13 +413,18 @@ impl Paint {
         let OpenRender { stack, render, frames, first_source } = render;
         #[cfg(test)]
         let kept = frames.clone();
+        self.leave(cx);
+        let opened = self.engine.generations().of(&render);
         self.session.open(deptheos_app::paint::OpenRender {
-            key: render,
-            stack,
+            key: render.clone(),
+            stack: stack.clone(),
             frames,
             first: first_source,
         });
         self.set_mode(Mode::Open(Painting {
+            render,
+            stack,
+            opened,
             sources: SourcesTab::Frames,
             labels: Vec::new(),
             #[cfg(test)]
@@ -434,9 +454,23 @@ impl Paint {
             return;
         }
         self.session.close();
+        self.leave(cx);
         self.set_mode(Mode::Closed);
         self.refresh();
         cx.notify();
+    }
+
+    /// The render painted is being left: if it was painted, say so
+    /// ([`PaintEvent::Painted`]) with its paint, flattened after the
+    /// session's last commit.
+    fn leave(&mut self, cx: &mut Context<Self>) {
+        let Some(p) = self.painting() else { return };
+        if self.engine.generations().of(&p.render) == p.opened {
+            return;
+        }
+        let (render, stack) = (p.render.clone(), p.stack.clone());
+        let flattened = Cell::new(Some(self.session.flatten(render.clone(), stack.clone())));
+        cx.emit(PaintEvent::Painted { render, stack, flattened });
     }
 
     /// Show render `key`'s paint outside paint mode; [`PaintEvent::Presented`]

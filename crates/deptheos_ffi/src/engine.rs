@@ -184,7 +184,8 @@ impl Engine {
         // Not shown until asked for (later, or never), so not held through
         // the encode.
         result.release_map();
-        let saving = self.history.save(frames, result.stack.clone(), thumbnail, of, made);
+        let engine = self.engine.clone();
+        let saving = self.history.save(frames, result.stack.clone(), thumbnail, of, made, engine);
         let render = match saving.await {
             Ok(render) => render,
             Err(Unsaved::Failed(e)) => return self.told(Err(e)),

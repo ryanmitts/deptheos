@@ -183,3 +183,25 @@ fn shedding_keeps_only_what_is_wanted_and_clearing_drops_all() {
     // Nothing is in flight after: a want reads again.
     assert_eq!(r.want(&[2], 2), ["read 2"]);
 }
+
+/// A rewritten thumbnail is let go and read again while wanted; one out
+/// of view is only forgotten, and one being read is read again after.
+#[test]
+fn a_rewritten_thumbnail_is_read_again() {
+    let mut run = Run::new(10);
+    assert_eq!(run.want(&[1, 2], 0), ["read 1 2"]);
+    assert_eq!(run.land(&[1, 2], &[1, 2], 0), ["keep 1", "keep 2"]);
+    let now = run.at(1);
+    assert_eq!(run.on(Event::Rewritten { id: id(1), now }), ["drop 1", "read 1"]);
+    // Rewritten again while that read is in flight: its pixels are old.
+    assert!(run.on(Event::Rewritten { id: id(1), now }).is_empty());
+    assert_eq!(run.land(&[1], &[1], 1), ["read 1"]);
+    assert_eq!(run.land(&[1], &[1], 2), ["keep 1"]);
+    // Out of view, it is only let go.
+    assert!(run.want(&[1], 3).is_empty());
+    let now = run.at(4);
+    assert_eq!(run.on(Event::Rewritten { id: id(2), now }), ["drop 2"]);
+    assert_eq!(run.thumbs.get(&id(2)), None);
+    // A render with no thumbnail yet: nothing to do.
+    assert!(run.on(Event::Rewritten { id: id(9), now }).is_empty());
+}

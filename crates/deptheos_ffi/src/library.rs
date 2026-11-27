@@ -532,6 +532,13 @@ impl ThumbnailPolicy {
         self.on(library::thumbnails::Event::Finished { token, now: Instant::now() })
     }
 
+    /// `id`'s thumbnail file was drawn again: the one held goes, read
+    /// again while it is wanted.
+    pub fn rewritten(&self, id: String) -> Vec<ThumbnailAction> {
+        let Some(id) = RenderId::parse(&id) else { return Vec::new() };
+        self.on(library::thumbnails::Event::Rewritten { id, now: Instant::now() })
+    }
+
     /// These renders were deleted.
     pub fn deleted(&self, ids: Vec<String>) -> Vec<ThumbnailAction> {
         let ids = ids.iter().filter_map(|id| RenderId::parse(id)).collect();

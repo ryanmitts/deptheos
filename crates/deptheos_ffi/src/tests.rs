@@ -261,6 +261,17 @@ fn the_thumbnail_policy_reads_keeps_and_drops() {
     assert!(policy.finished(*token).is_empty(), "2 failed just now");
     assert!(policy.wanted(vec![id(2)]).is_empty());
     assert_eq!(policy.shed(), [ThumbnailAction::Drop { id: id(1) }]);
+    let [ThumbnailAction::Read { token, .. }] = &policy.wanted(vec![id(3)])[..] else {
+        panic!("a read")
+    };
+    assert_eq!(policy.read(*token, id(3), true), [ThumbnailAction::Keep { id: id(3) }]);
+    assert!(policy.finished(*token).is_empty());
+    let [ThumbnailAction::Drop { id: dropped }, ThumbnailAction::Read { ids, .. }] =
+        &policy.rewritten(id(3))[..]
+    else {
+        panic!("dropped and read again")
+    };
+    assert_eq!((dropped, ids), (&id(3), &vec![id(3)]));
 }
 
 /// The view across the bridge: Depth Map over a frame with Contribution

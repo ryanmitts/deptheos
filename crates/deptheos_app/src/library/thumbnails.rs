@@ -30,6 +30,7 @@ pub const PER_READ: usize = 24;
 ///                       └──couldn't be──▶ Failed ──wanted, RETRY_AFTER on──▶ Reading
 /// (none), Reading, Failed ──its render saved──▶ Shown
 /// any ──its render deleted, or the Library──▶ (none)
+/// any ──its file rewritten──▶ (none), read again while wanted
 /// ```
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Thumb {
@@ -69,6 +70,9 @@ pub enum Event {
     Finished { token: ReadToken, now: Instant },
     /// A render was saved and the app has its thumbnail from the save.
     Saved { id: RenderId },
+    /// A render's thumbnail file was drawn again ([`rewrite`]): the
+    /// pixels held go, read again while it is wanted.
+    Rewritten { id: RenderId, now: Instant },
     /// These renders were deleted: nothing of them is wanted or kept.
     Deleted { ids: Vec<RenderId> },
     /// Memory is short: keep only what is wanted now.
@@ -202,6 +206,12 @@ impl Thumbnails {
                 self.set(&id, Thumb::Shown);
                 actions.push(Action::Keep(id));
             }
+            Event::Rewritten { id, now } => {
+                if self.forget(&id) == Some(Thumb::Shown) {
+                    actions.push(Action::Drop(id));
+                }
+                self.read_next(now, &mut actions);
+            }
             Event::Deleted { ids } => {
                 self.wanted.retain(|w| !ids.contains(w));
                 for id in ids {
@@ -310,5 +320,6 @@ impl Thumbnails {
     }
 }
 
+pub mod rewrite;
 #[cfg(test)]
 mod tests;

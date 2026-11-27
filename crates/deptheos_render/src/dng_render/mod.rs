@@ -10,12 +10,14 @@ use glam::{Mat3, UVec4, Vec4};
 use deptheos_core::pack::{QUANTIZE_MODULE, threshold_bind_group};
 use deptheos_core::pipelines::COLOR_MODULE;
 
+pub use clip::Clipped;
 pub use deptheos_dng::{HueSatMap, RenderParams};
 pub use draw::{GridPlanes, KeptPlanes, NeighborStage, Region, Source, TILE};
 pub use reduce::{Encoding, REDUCED_FORMAT, REDUCED_LONG, reduced_size};
 pub(crate) use stages::{Exposure, LocalTone, Stages};
 pub use standard::Linearizer;
 
+mod clip;
 mod draw;
 mod reduce;
 #[cfg(test)]
@@ -80,6 +82,7 @@ pub struct DngRenderPipeline {
     linear: Shader,
     standard: Shader,
     reduce: reduce::Reduce,
+    clip: clip::Clip,
 }
 
 /// One kind's compiled shader.
@@ -132,6 +135,7 @@ impl DngRenderPipeline {
             linear: Shader::new(ctx, include_str!("dng_render.wgsl"), "dng_render", 7),
             standard: Shader::new(ctx, include_str!("standard.wgsl"), "standard_render", 5),
             reduce: reduce::Reduce::new(ctx),
+            clip: clip::Clip::new(ctx),
         }
     }
 

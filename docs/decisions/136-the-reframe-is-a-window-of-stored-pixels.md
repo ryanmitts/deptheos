@@ -48,7 +48,7 @@ A typo in a flag would draw a different crop than asked for, silently.
 
 - An export of a reframed render draws the whole picture first; the window costs a copy of its pixels.
 - 8-bit exports are dithered by position in the output, so they are not compared with a window of the whole.
-- Thumbnails and the viewer are not reframed until renders store their reframe.
+- A thumbnail is drawn under its render's reframe, the window cut from a small draw and flipped and turned on the CPU, its vignette on the window in the draw's pixels (ADR-138). The viewer is not reframed yet.
 
 ## Code
 

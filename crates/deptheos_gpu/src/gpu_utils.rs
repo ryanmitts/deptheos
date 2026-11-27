@@ -187,6 +187,27 @@ fn map_read_blocking(
         .map_err(|e| GpuError::BufferMappingFailed(format!("{e:?}")))
 }
 
+/// The first `size` bytes of `buffer` (made with `COPY_SRC`), read back
+/// once the queue reaches them.
+pub fn download_buffer(ctx: &GpuContext, buffer: &wgpu::Buffer, size: u64) -> Result<Vec<u8>> {
+    let staging = ctx.device.create_buffer(&wgpu::BufferDescriptor {
+        label: Some("download_buffer"),
+        size,
+        usage: wgpu::BufferUsages::MAP_READ | wgpu::BufferUsages::COPY_DST,
+        mapped_at_creation: false,
+    });
+    let mut encoder = ctx.encoder("download_buffer");
+    encoder.copy_buffer_to_buffer(buffer, 0, &staging, 0, size);
+    let sub = ctx.submit(encoder);
+    let slice = staging.slice(..);
+    let mapped = map_read_blocking(&ctx.device, &slice, Some(sub));
+    ctx.check()?;
+    mapped?;
+    let bytes = slice.get_mapped_range().to_vec();
+    staging.unmap();
+    Ok(bytes)
+}
+
 /// Bytes per texel of an uncompressed single-plane format; an error for
 /// block-compressed and depth/stencil formats.
 pub(crate) fn texel_bytes(format: wgpu::TextureFormat) -> Result<u32> {

@@ -82,6 +82,9 @@ pub(crate) fn partial_of(dir: &Path) -> PathBuf {
 pub struct EncodedPictures {
     pub(crate) id: crate::library::history::RenderId,
     pub(crate) partial: PathBuf,
+    /// What the render inherits, its thumbnail drawn under it, written
+    /// beside them as it is saved; none is worked out as it is saved.
+    pub(crate) inherited: Option<crate::library::adjustments::RenderAdjustments>,
 }
 
 impl Drop for EncodedPictures {
@@ -102,7 +105,7 @@ pub(crate) fn encode_pictures(
     thumbnail: &RgbImage,
 ) -> Result<EncodedPictures> {
     std::fs::create_dir_all(&partial).map_err(io_error(&partial))?;
-    let pictures = EncodedPictures { id, partial };
+    let pictures = EncodedPictures { id, partial, inherited: None };
     let dir = &pictures.partial;
     encode_into(&dir.join(RESULT_FILE), |file, budget| {
         jxl::encode_rgb16(
@@ -142,7 +145,7 @@ fn encode_into(
 }
 
 /// A thumbnail at most [`THUMBNAIL_SIDE`] px, as JPEG.
-fn encode_thumbnail(image: &RgbImage) -> Result<Vec<u8>> {
+pub(crate) fn encode_thumbnail(image: &RgbImage) -> Result<Vec<u8>> {
     let small;
     let image = if image.width().max(image.height()) > THUMBNAIL_SIDE {
         let scale = THUMBNAIL_SIDE as f32 / image.width().max(image.height()) as f32;

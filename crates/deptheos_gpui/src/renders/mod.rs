@@ -785,6 +785,34 @@ impl Renders {
         }
     }
 
+    /// Draw render `id`'s thumbnail again under its look, from `stack`
+    /// with the paint `flattened` answers, then read it again where shown.
+    /// A Library write, never canceled: the wait is detached.
+    pub fn rewrite_thumbnail(
+        &mut self,
+        id: RenderId,
+        stack: Arc<CompletedStack>,
+        flattened: Option<std::sync::mpsc::Receiver<deptheos_app::paint::Flattened>>,
+        cx: &mut Context<Self>,
+    ) {
+        let rewrite =
+            self.store.rewrite_thumbnail(self.engine.clone(), id.clone(), stack, flattened);
+        cx.spawn(async move |this, cx| match rewrite.await {
+            Ok(deptheos_app::library::thumbnails::rewrite::Rewrote::Written) => {
+                this.update(cx, |this, cx| {
+                    if let Some(read) = this.thumbnails.rewritten(&id, cx) {
+                        this.read_thumbnails(read, cx);
+                    }
+                    cx.notify();
+                })
+                .ok();
+            }
+            Ok(deptheos_app::library::thumbnails::rewrite::Rewrote::Overtaken) => {}
+            Err(e) => tracing::warn!("render {}'s thumbnail not drawn again: {e}", id.as_str()),
+        })
+        .detach();
+    }
+
     /// Start `read`, in the background.
     fn read_thumbnails(&mut self, (token, ids): thumbnails::Read, cx: &mut Context<Self>) {
         let store = self.store.clone();

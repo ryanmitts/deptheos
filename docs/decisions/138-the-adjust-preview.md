@@ -36,6 +36,12 @@ The viewer's levels take the mean of display values, and a mean of linear values
 
 A draw that isn't of the stored picture at full size takes the reframe's rectangle in its own pixels. The fit tier scales it to the copy's size (`Constants::scaled`). A region is drawn at frame coordinates, so the rectangle needs no change.
 
+### The histogram and the thumbnail are small draws of the reduced copy
+
+- **The histogram is counted from a draw of the whole picture 512 on its long side** (`GpuCopies::histogram`, `crates/deptheos_app/src/adjust/histogram.rs`), from the reduced copy, under the crop, so it is the same at any zoom or pan and in the engine for both apps. Its bins are 8-bit display values per channel and Rec. 709 luma. It keeps the settled picture's level: on the fine-detail scene its channels' means are within 2 codes of the full draw's under the crop, and on a plain picture with a vignette their distributions too. The small draw has copies of its own beside the fit tier's, so a histogram each tick doesn't make the fit tier resample. A tick's histogram takes 2.4 ms at 45 MP (2.6 with the local tone).
+- **The clipping flags come from every pixel.** The small draw counts the pixels at 8-bit 0 and 255 per channel, but its means hide a highlight a pixel wide. When a drag ends, the session counts them again on the GPU over the settled full redraw under the crop (`histogram::clipping`, `DngRenderPipeline::clipped`, `crates/deptheos_render/src/dng_render/clip.rs`), with the same thresholds, in 1.6 to 3 ms at 45 MP and nothing read back but six counts.
+- **A thumbnail is drawn the same way** (`GpuCopies::thumbnail`): the whole picture at the size that gives the reframe's window `THUMBNAIL_SIDE` on its long side, from the reduced copy without Texture and Sharpening, its vignette on the window scaled to the draw; the window cut, flipped and turned on the CPU. A window too small in the reduced copy is drawn at full size from the source, every slider, and reduced on the CPU. It is in sRGB, as `thumb.jpg` is (ADR-140).
+
 ### The settle
 
 A full redraw with the local tone misses 250 ms, so the picture on screen settles first and the rest follows. When a drag ends, the last tick already is the settled picture there if its planes are this value's (`GpuCopies::is_settled`). Exposure, the curve, color and a set local slider's strength keep them; a white, or a local slider newly set, makes them anew. Otherwise the session draws the full picture first, which makes them, and then the tier on screen again. The full redraw then gives the viewer its levels for other zooms and pans. Without the local tone, the full redraw takes 4 ms and is simply drawn.
@@ -65,12 +71,16 @@ A full redraw takes 3.5 ms (p95 17) with the per-pixel sliders alone, and 590 ms
 - A tick's level is held to the settled picture's by a test on a fine-detail scene, not proved: a linear stack's copy takes its means through its response at the copy's making, so a strong exposure drag ends with a small step. The bound is in `preview_tests.rs`.
 - A white balance drag with the local tone set shows the planes of the white it started from until it settles.
 - The session must hand each flat picture back to its slot once it is replaced on screen, or ticks allocate again.
+- A tick's histogram narrows on fine detail, which the small draw averages, as the fit tier does; its level holds.
+- A thumbnail leaves out Texture and Sharpening, which at its size show little.
 
 ## Code
 
 - `crates/deptheos_app/src/adjust/preview.rs`
 - `crates/deptheos_app/src/adjust/copies.rs`
 - `crates/deptheos_app/src/adjust/preview_tests.rs`
+- `crates/deptheos_app/src/adjust/histogram.rs`
+- `crates/deptheos_render/src/dng_render/clip.rs`, `crates/deptheos_render/src/dng_render/clip.wgsl`
 - `crates/deptheos_render/src/dng_render/reduce.rs`
 - `crates/deptheos_render/src/dng_render/reduce.wgsl`
 - `crates/deptheos_render/src/dng_render/draw.rs`

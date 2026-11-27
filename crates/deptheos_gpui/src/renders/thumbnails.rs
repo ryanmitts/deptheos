@@ -121,6 +121,13 @@ impl Thumbnails {
         self.on(Event::Saved { id: id.clone() }, landed, cx);
     }
 
+    /// `id`'s thumbnail file was drawn again: the one held goes, and the
+    /// read to start, if it is in view.
+    pub(super) fn rewritten(&mut self, id: &RenderId, cx: &mut App) -> Option<Read> {
+        let now = self.now();
+        self.on(Event::Rewritten { id: id.clone(), now }, HashMap::new(), cx)
+    }
+
     /// `ids` were deleted: their shown thumbnails, for the caller to drop
     /// from the atlas.
     pub(super) fn forget(&mut self, ids: &[RenderId]) -> Vec<Arc<RenderImage>> {

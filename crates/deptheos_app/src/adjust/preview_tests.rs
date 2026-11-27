@@ -9,6 +9,7 @@ use deptheos_render::reframe::Rect;
 use deptheos_render::{Adjustments, Draw, Reframe, Sharpening, Vignette, WhiteBalance};
 
 use super::*;
+use crate::adjust::histogram::{Counted, Histogram};
 use crate::adjust::preview::{Draft, FlatPicture, FlatSlot, Shown, read_flat};
 use crate::runs::session::StackColor;
 
@@ -364,9 +365,29 @@ fn preview_times_at_45mp() {
         }
         eprintln!("{name}: tick {} (first, making its planes: {made:.0} ms)", stats(&mut ms));
     }
+    for (name, base) in [("per pixel", Adjustments::NEUTRAL), ("local tone", local.clone())] {
+        let mut ms = Vec::new();
+        for i in 0..30 {
+            let adjustments = Adjustments { exposure: 0.01 * i as f64, ..base.clone() };
+            let constants = constants(&stack, &adjustments, Reframe::NONE);
+            let start = Instant::now();
+            copies.histogram(&engine, &constants, None, Draft::Tick).unwrap();
+            ms.push(start.elapsed().as_secs_f64() * 1e3);
+        }
+        eprintln!("histogram, {name}: tick {}", stats(&mut ms));
+    }
     for (name, adjustments) in [("per pixel", Adjustments::NEUTRAL), ("local tone", fine)] {
         let constants =
             constants(&stack, &Adjustments { exposure: 0.3, ..adjustments }, Reframe::NONE);
+        let texture = copies.draw_full(&engine, &constants);
+        let mut ms = Vec::new();
+        for _ in 0..10 {
+            let start = Instant::now();
+            crate::adjust::histogram::clipping(&engine, &texture, None).unwrap();
+            ms.push(start.elapsed().as_secs_f64() * 1e3);
+        }
+        eprintln!("settled clipping, {name}: {}", stats(&mut ms));
+        drop(texture);
         let mut ms = Vec::new();
         for _ in 0..5 {
             let start = Instant::now();
@@ -375,5 +396,167 @@ fn preview_times_at_45mp() {
             ms.push(start.elapsed().as_secs_f64() * 1e3);
         }
         eprintln!("full redraw, {name}: {}", stats(&mut ms));
+    }
+}
+
+/// `picture`'s window `r` as 8-bit RGB rows.
+fn rgb_window(picture: &FlatPicture, r: Region) -> Vec<u8> {
+    window(picture, r).as_chunks::<4>().0.iter().flat_map(|p| [p[2], p[1], p[0]]).collect()
+}
+
+/// How far apart two histograms are: the mean of each channel, and the
+/// distance between their distributions (the mean shift, in 8-bit codes,
+/// to move one onto the other).
+fn histograms_apart(a: &Histogram, b: &Histogram) -> (f64, f64) {
+    let (mut mean, mut moved) = (0.0f64, 0.0f64);
+    for c in 0..3 {
+        let m = |h: &Histogram| {
+            let sum: f64 =
+                h.channels[c].iter().enumerate().map(|(v, &n)| v as f64 * f64::from(n)).sum();
+            sum / h.pixels as f64
+        };
+        mean = mean.max((m(a) - m(b)).abs());
+        let (mut ca, mut cb, mut d) = (0.0, 0.0, 0.0);
+        for v in 0..crate::adjust::histogram::BINS {
+            ca += f64::from(a.channels[c][v]) / a.pixels as f64;
+            cb += f64::from(b.channels[c][v]) / b.pixels as f64;
+            d += (ca - cb).abs();
+        }
+        moved = moved.max(d);
+    }
+    (mean, moved)
+}
+
+/// The histogram, counted from the reduced copy's small draw under the
+/// crop, keeps the settled full picture's level on the fine-detail scene,
+/// and on a plain picture its distribution too: the vignette lands where
+/// the full draw puts it.
+#[test]
+fn the_histogram_is_the_settled_pictures() {
+    let Some(engine) = crate::test_support::engine() else { return };
+    let dir = tempfile::tempdir().unwrap();
+    let (adjustments, reframe) = every_slider();
+    let fine = Adjustments { texture: 0.0, sharpening: Sharpening::NONE, ..adjustments };
+    let vignetted = Adjustments {
+        exposure: 0.3,
+        vignette: Vignette { amount: -80.0, midpoint: 30.0 },
+        ..Adjustments::NEUTRAL
+    };
+    let crop = reframe.crop.unwrap();
+    let window = Region { x: crop.x, y: crop.y, width: crop.width, height: crop.height };
+    let gray = vec![30_000u16; (SIZE[0] * SIZE[1] * 3) as usize];
+    let cases = [("fine", scene(SIZE), fine), ("plain", gray, vignetted)];
+    for (scene_name, pixels, adjustments) in cases {
+        for (kind, stack) in stacks(dir.path(), pixels.clone()) {
+            let constants = constants(&stack, &adjustments, reframe);
+            let mut copies =
+                GpuCopies::make(&engine, &stack, &stack.pixels, Generation::ON_DISK).unwrap();
+            let small = copies.histogram(&engine, &constants, Some(crop), Draft::Settled).unwrap();
+            let settled = full(&engine, &mut copies, &constants);
+            let rgb = rgb_window(&settled, window);
+            let whole = Histogram::count(rgb.chunks_exact(window.width as usize * 3));
+            let (mean, moved) = histograms_apart(&small, &whole);
+            eprintln!("{scene_name} {kind}: means {mean:.2} codes apart, distributions {moved:.2}");
+            assert!(mean <= HISTOGRAM_MEAN, "{scene_name} {kind}: {mean}");
+            if scene_name == "plain" {
+                assert!(moved <= HISTOGRAM_MOVED, "{scene_name} {kind}: {moved}");
+            }
+            assert_eq!(small.clipping.counted, Counted::Small);
+        }
+    }
+}
+
+/// How far the histogram may be from the settled picture's, in 8-bit
+/// codes: its channels' means on the fine-detail scene, whose lines a
+/// pixel or two wide the small draw averages, so its spread narrows; and
+/// on the plain picture, the shift between the two distributions.
+const HISTOGRAM_MEAN: f64 = 3.0;
+const HISTOGRAM_MOVED: f64 = 1.0;
+
+/// The settled clipping, counted on the GPU over the full redraw, is the
+/// count of its pixels at 0 and 255 under the crop, a single pixel too.
+#[test]
+fn the_settled_clipping_counts_every_pixel() {
+    let Some(engine) = crate::test_support::engine() else { return };
+    let mut pixels = scene(SIZE);
+    // Specks a pixel wide at white inside the crop, at black outside it.
+    for (x, y, v) in [(200, 100, 65535), (301, 222, 65535), (10, 10, 0)] {
+        let at = ((y * SIZE[0] + x) * 3) as usize;
+        pixels[at..at + 3].fill(v);
+    }
+    let stack = standard(pixels);
+    let adjustments = Adjustments { whites: 100.0, blacks: -100.0, ..Adjustments::NEUTRAL };
+    let crop = Rect { x: 120, y: 40, width: 500, height: 400 };
+    let reframe = Reframe { crop: Some(crop), ..Reframe::NONE };
+    let constants = constants(&stack, &adjustments, reframe);
+    let mut copies = GpuCopies::make(&engine, &stack, &stack.pixels, Generation::ON_DISK).unwrap();
+    let texture = copies.draw_full(&engine, &constants);
+    let counted = crate::adjust::histogram::clipping(&engine, &texture, Some(crop)).unwrap();
+    let whole = Region::whole(SIZE[0], SIZE[1]);
+    let picture =
+        read_flat(engine.gpu(), &texture, SIZE, whole, constants.output(), &FlatSlot::default())
+            .unwrap();
+    let window = Region { x: crop.x, y: crop.y, width: crop.width, height: crop.height };
+    let rgb = rgb_window(&picture, window);
+    let expected = Histogram::count(rgb.chunks_exact(window.width as usize * 3)).clipping;
+    assert_eq!((counted.shadows, counted.highlights), (expected.shadows, expected.highlights));
+    assert_eq!(counted.counted, Counted::Full);
+    assert!(counted.highlights_clipped(), "the white specks count");
+    let all = crate::adjust::histogram::clipping(&engine, &texture, None).unwrap();
+    assert!(all.shadows[0] > counted.shadows[0], "the black speck is outside the crop");
+}
+
+/// A thumbnail of an adjusted, cropped and turned render is the settled
+/// full picture's window, flipped and turned, within the fit tier's bound.
+#[test]
+fn a_thumbnail_is_the_settled_picture_reframed() {
+    use deptheos_render::reframe::{Flip, Turn};
+    let Some(engine) = crate::test_support::engine() else { return };
+    let dir = tempfile::tempdir().unwrap();
+    let (adjustments, reframe) = every_slider();
+    let fine = Adjustments { texture: 0.0, sharpening: Sharpening::NONE, ..adjustments };
+    let reframe = Reframe { flip: Flip::Horizontal, turn: Turn::Quarter, ..reframe };
+    let crop = reframe.crop.unwrap();
+    for (kind, stack) in stacks(dir.path(), scene(SIZE)) {
+        let file = Look::redrawn(&stack, &fine, reframe, OutputSpace::Srgb);
+        let Draw::Rendered(constants) = file.resolve() else { panic!("on the GPU") };
+        let mut copies =
+            GpuCopies::make(&engine, &stack, &stack.pixels, Generation::ON_DISK).unwrap();
+        let thumbnail = copies.thumbnail(&engine, &constants, reframe).unwrap();
+        assert_eq!((thumbnail.width(), thumbnail.height()), (400, 500), "{kind}: turned");
+        let settled = full(&engine, &mut copies, &constants);
+        let window = Region { x: crop.x, y: crop.y, width: crop.width, height: crop.height };
+        let rgb = rgb_window(&settled, window);
+        let size = deptheos_render::reframe::Size { width: crop.width, height: crop.height };
+        let turned = Reframe { crop: None, ..reframe };
+        let (expected, _) = turned.apply(&rgb, size, 3).unwrap();
+        let apart: f64 = expected
+            .iter()
+            .zip(thumbnail.as_raw())
+            .map(|(a, b)| (f64::from(*a) - f64::from(*b)).abs())
+            .sum::<f64>()
+            / expected.len() as f64;
+        eprintln!("{kind}: thumbnail {apart:.2} codes from the settled picture on average");
+        assert!(apart <= TICK_MEAN, "{kind}: {apart}");
+    }
+}
+
+/// A thumbnail reduced from a larger picture: its long side, and a crop
+/// too small in the reduced copy drawn from the full-size source.
+#[test]
+fn a_thumbnail_is_its_side_long() {
+    let Some(engine) = crate::test_support::engine() else { return };
+    let [w, h] = [1800u32, 1200];
+    let stack = CompletedStack::srgb(w, h, scene([w, h]), Vec::new());
+    let adjustments = Adjustments { exposure: 0.5, ..Adjustments::NEUTRAL };
+    let mut copies = GpuCopies::make(&engine, &stack, &stack.pixels, Generation::ON_DISK).unwrap();
+    for (crop, size) in
+        [(None, (512, 341)), (Some(Rect { x: 100, y: 100, width: 300, height: 200 }), (300, 200))]
+    {
+        let reframe = Reframe { crop, ..Reframe::NONE };
+        let file = Look::redrawn(&stack, &adjustments, reframe, OutputSpace::Srgb);
+        let Draw::Rendered(constants) = file.resolve() else { panic!("on the GPU") };
+        let thumbnail = copies.thumbnail(&engine, &constants, reframe).unwrap();
+        assert_eq!((thumbnail.width(), thumbnail.height()), size, "{crop:?}");
     }
 }

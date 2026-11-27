@@ -136,7 +136,7 @@ impl Renders {
             SaveRequest::EmptyDeleted => return self.start_empty(window, cx),
             request => request,
         };
-        let store = self.store.clone();
+        let (store, engine) = (self.store.clone(), self.engine.clone());
         // Which stack, the notice's subject and words, should the save fail.
         // A stack's own render fails under its stack, replacing any
         // "Stacked in" notice; a batch's stack is said by its run.
@@ -164,7 +164,7 @@ impl Renders {
                         Some(batch) => Made::Batch(batch),
                         None => Made::Stacked { base: from.clone() },
                     };
-                    match store.save(frames, stack.clone(), thumbnail, of, made).await {
+                    match store.save(frames, stack.clone(), thumbnail, of, made, engine).await {
                         Ok(render) => strip
                             .await
                             .map(|strip| Ok(Done::Saved(Box::new((render, strip, stack, from))))),

@@ -20,6 +20,7 @@
 
 uniffi::setup_scaffolding!();
 
+mod adjust;
 mod batch;
 mod bench;
 mod decode;
@@ -41,6 +42,7 @@ mod stacks;
 mod view;
 mod words;
 
+pub use adjust::*;
 pub use batch::*;
 pub use bench::*;
 pub use decode::*;

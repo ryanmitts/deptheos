@@ -4,7 +4,9 @@ use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex};
 
 use deptheos_app::engine::work::Lane;
+use deptheos_app::library::adjustments::RenderAdjustments;
 use deptheos_app::library::export::{self, ExportFormat, NameParts};
+use deptheos_app::library::history::{History, RenderId};
 use deptheos_app::{
     Adjustments, CompletedStack, Engine as AppEngine, Look, PresentedImage, PresentedStack,
     SaveOptions,
@@ -133,6 +135,9 @@ pub struct StackResult {
     /// Shared with the paint worker while the result is retouched.
     pub(crate) stack: Arc<CompletedStack>,
     displays: Mutex<Displays>,
+    /// The render it is in the Library, once saved or loaded: its export
+    /// draws under that render's adjustments.
+    saved: std::sync::OnceLock<(Arc<History>, RenderId)>,
 }
 
 /// A result's display and map levels, full size down: for 44 MP about
@@ -166,12 +171,26 @@ impl StackResult {
                 display: display.map(Arc::new),
                 map: map.map(Arc::new),
             }),
+            saved: std::sync::OnceLock::new(),
         })
+    }
+
+    /// It is render `id` of `history`.
+    pub(crate) fn saved_as(self: Arc<Self>, history: &Arc<History>, id: RenderId) -> Arc<Self> {
+        if self.saved.set((history.clone(), id)).is_err() {
+            tracing::debug!("a result saved twice keeps its first render");
+        }
+        self
     }
 
     /// No display or map: only its pixels are wanted.
     pub(crate) fn pixels_only(engine: Arc<AppEngine>, stack: CompletedStack) -> Arc<Self> {
-        Arc::new(Self { engine, stack: Arc::new(stack), displays: Mutex::new(Displays::Released) })
+        Arc::new(Self {
+            engine,
+            stack: Arc::new(stack),
+            displays: Mutex::new(Displays::Released),
+            saved: std::sync::OnceLock::new(),
+        })
     }
 
     /// The display (`map` false) or the map, while held: shared, not
@@ -403,10 +422,15 @@ impl StackResult {
         format: ExportFormat,
         save: SaveOptions,
     ) -> Result<PathBuf> {
-        let path = export_target(&self.stack, directory, name, format).told(self.engine.words())?;
-        self.engine
-            .save(Look::exported(&self.stack, Some(&Adjustments::NEUTRAL)), &path, save)
-            .told(self.engine.words())?;
+        let words = self.engine.words();
+        let path = export_target(&self.stack, directory, name, format).told(words)?;
+        // A saved render's adjustments, read after its pending writes; a
+        // result not saved has none.
+        let saved = match self.saved.get() {
+            Some((history, id)) => history.adjustments_to_export(id).told(words)?,
+            None => RenderAdjustments::NONE,
+        };
+        self.engine.save(Look::saved(&self.stack, &saved), &path, save).told(words)?;
         Ok(path)
     }
 }

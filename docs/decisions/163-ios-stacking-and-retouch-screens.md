@@ -109,4 +109,4 @@ The source in the canvas's place answers whether it is sharp at one spot, not wh
 - Stacking: `ios/DeptheosMobile/Views/StackingView.swift`, `Views/StackingColumns.swift`, `Views/ViewerView.swift`, `Views/ViewerDeck.swift`, `Views/ReservedAreas.swift`, `Views/ContentView.swift`.
 - Sources: `ios/DeptheosMobile/Views/SourcesSidebar.swift`, `Views/RendersList.swift`, `Views/FramesList.swift`, `Views/InspectorView.swift`, `Model/FileSource.swift`.
 - State: `ios/DeptheosMobile/Model/Panel.swift`, `Model/AppModel.swift`, `Model/AppModel+Opening.swift`, `Model/PaintModel.swift`, `Model/AppModel+Retouch.swift`.
-- Retouch: `ios/DeptheosMobile/Views/RetouchDeck.swift`, `Views/RetouchPanes.swift`, `Views/PaintControls.swift`, `Views/PaintCanvas.swift`; the bridge in `crates/deptheos_ffi/src/paint.rs`.
+- Retouch: `ios/DeptheosMobile/Views/RetouchDeck.swift`, `Views/RetouchPanes.swift`, `Views/PaintControls.swift`, `Views/PaintCanvas.swift`; the bridge in `crates/deptheos_ffi/src/paint.rs`. Adjust's bridge, which no screen uses yet: `crates/deptheos_ffi/src/adjust.rs`.

@@ -31,6 +31,7 @@ use deptheos_render::dng_render::DngRenderPipeline;
 use image::math::Rect;
 use image::{DynamicImage, RgbImage};
 
+use crate::library::adjustments::RenderAdjustments;
 use crate::library::history::THUMBNAIL_SIDE;
 use crate::lock;
 use crate::runs::session::{
@@ -42,7 +43,7 @@ use crate::words::Words;
 use crate::{Converted, DngCache, RawBackend, StackConversions};
 use crate::{Error, RenderUse};
 use deptheos_render::dng_render::Constants;
-use deptheos_render::{Adjustments, Color, Draw, resolve};
+use deptheos_render::{Adjustments, Color, Draw, Reframe, resolve};
 use look::Look;
 use present::{
     PresentedImage, conversion, display_space, present_map, present_rgb, present_rgb16,
@@ -484,7 +485,8 @@ impl Engine {
             }
             _ => None,
         };
-        Ok(self.presented(output.stack, adjustments, display))
+        let saved = RenderAdjustments { adjustments: adjustments.clone(), reframe: Reframe::NONE };
+        Ok(self.presented(output.stack, &saved, display))
     }
 
     /// A session over `paths`, ready to run; every stack starts here. With
@@ -553,7 +555,18 @@ impl Engine {
         stack: CompletedStack,
         adjustments: &Adjustments,
     ) -> Result<PresentedStack> {
-        let display = match Look::shown(&stack, adjustments).resolve() {
+        let saved = RenderAdjustments { adjustments: adjustments.clone(), reframe: Reframe::NONE };
+        self.present_saved(stack, &saved)
+    }
+
+    /// A render read from the Library, made ready to show under what it
+    /// was saved with ([`Look::shown_saved`]).
+    pub fn present_saved(
+        &self,
+        stack: CompletedStack,
+        saved: &RenderAdjustments,
+    ) -> Result<PresentedStack> {
+        let display = match Look::shown_saved(&stack, saved).resolve() {
             Draw::Rendered(constants) => {
                 let _t = cpu_scope("present: display render");
                 let (w, h) = (stack.width, stack.height);
@@ -562,7 +575,7 @@ impl Engine {
             }
             Draw::Stored { .. } => None,
         };
-        Ok(self.presented(stack, adjustments, display))
+        Ok(self.presented(stack, saved, display))
     }
 
     /// Save `look`'s stack, its format from the extension: `.dng` writes
@@ -626,14 +639,14 @@ impl Engine {
     fn presented(
         &self,
         stack: CompletedStack,
-        adjustments: &Adjustments,
+        saved: &RenderAdjustments,
         display: Option<PooledTexture>,
     ) -> PresentedStack {
         let display = {
             let _t = cpu_scope("present: display");
             match display {
                 Some(texture) => self.present(&texture, None),
-                None => self.present_pixels(Look::shown(&stack, adjustments), &stack.pixels),
+                None => self.present_pixels(Look::shown_saved(&stack, saved), &stack.pixels),
             }
             .inspect_err(|e| tracing::warn!("the stack's display readback failed: {e}"))
             .ok()

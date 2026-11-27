@@ -20,7 +20,7 @@ use std::sync::{Arc, Condvar, Mutex, Weak};
 use std::time::{Duration, Instant};
 
 use deptheos_render::reframe::Size;
-use deptheos_render::{Adjustments, Draw};
+use deptheos_render::{Adjustments, Draw, Reframe};
 
 use super::copies::{GpuCopies, RenderMemory};
 use super::eyedropper::eyedrop;
@@ -240,6 +240,12 @@ impl AdjustSession {
             adjustments: slider.set(&current.adjustments, panel, value),
             ..current.clone()
         });
+    }
+
+    /// The reframe moves (a crop handle, a turn, a flip); a change goes on
+    /// until [`Self::commit`].
+    pub fn set_reframe(&self, reframe: Reframe) {
+        self.inner.change(false, |current, _| RenderAdjustments { reframe, ..current.clone() });
     }
 
     /// The change ends: written and undoable if the value moved.

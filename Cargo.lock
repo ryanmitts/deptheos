@@ -1837,6 +1837,7 @@ version = "0.2.1"
 dependencies = [
  "deptheos_app",
  "deptheos_core",
+ "deptheos_render",
  "fast_image_resize",
  "futures",
  "image",

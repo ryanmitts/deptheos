@@ -21,6 +21,7 @@ crate-type = ["staticlib", "lib"]
 # it otherwise, through the app's FrameDecoder (ADR-131).
 deptheos_app = { workspace = true }
 deptheos_core = { workspace = true }
+deptheos_render = { workspace = true }
 fast_image_resize = { workspace = true }
 futures = { workspace = true }
 image = { workspace = true, features = ["jpeg", "png", "tiff", "rayon"] }

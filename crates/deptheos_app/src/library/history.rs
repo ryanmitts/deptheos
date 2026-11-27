@@ -796,6 +796,32 @@ impl History {
         })
     }
 
+    /// Paste `copied`'s sliders onto render `id`, which no Adjust session
+    /// has open (the session pastes onto its own), as Paste Adjustments
+    /// does (ADR-153): its reframe and process version kept. Read and
+    /// written on the store thread, after every write sent before; what it
+    /// was set to. Never on the store thread.
+    pub fn paste_adjustments(
+        self: &Arc<Self>,
+        id: &RenderId,
+        copied: &deptheos_render::Adjustments,
+    ) -> crate::Result<RenderAdjustments> {
+        use crate::library::adjustments::rules::{StackKind, pasted};
+        let (history, id, copied) = (self.clone(), id.clone(), copied.clone());
+        let pasting = crate::engine::store::store().write(move || {
+            let render = history.render(&id).map_err(crate::Error::from)?;
+            let onto = history.adjustments(&render).map_err(crate::Error::AdjustmentsUnread)?;
+            let kind = if render.linear { StackKind::CameraRaw } else { StackKind::Standard };
+            let value = pasted(&copied, &onto, kind);
+            history.adjustment_writes(&id).send(value.clone()).save()?;
+            tracing::debug!("render {}: adjustments pasted", id.as_str());
+            Ok(value)
+        });
+        pasting.wait().unwrap_or_else(|| {
+            Err(crate::Error::InvalidState("the adjustments' paste panicked".into()))
+        })
+    }
+
     pub fn adjustment_writes(&self, id: &RenderId) -> Writes {
         Writes::of(self.render_path(id))
     }

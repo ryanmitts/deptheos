@@ -187,7 +187,10 @@ impl Engine {
         let engine = self.engine.clone();
         let saving = self.history.save(frames, result.stack.clone(), thumbnail, of, made, engine);
         let render = match saving.await {
-            Ok(render) => render,
+            Ok(render) => {
+                result.clone().saved_as(&self.history, render.id.clone());
+                render
+            }
             Err(Unsaved::Failed(e)) => return self.told(Err(e)),
             Err(Unsaved::Panicked(e)) => {
                 return Err(EngineError::fault(words, Some(Line::SaveFailed), e));
@@ -290,9 +293,16 @@ impl Engine {
     ) -> Result<Arc<StackResult>> {
         let open = Ask::Latest("render-open", &self.engine);
         self.pool(&request, Lane::Interactive, open, move |e| {
+            let key = e.render_id(&id)?;
             let stack = e.read_render(&id)?;
-            let presented = e.told(e.engine.present_stack(stack, &Adjustments::NEUTRAL))?;
-            Ok(StackResult::new(e.engine.clone(), presented))
+            // Shown under what it was saved with, after its pending writes;
+            // as stored if that can't be read (an export of it fails).
+            let saved = e.history.adjustments_to_export(&key).unwrap_or_else(|err| {
+                tracing::warn!("render {id} shown without its adjustments: {err}");
+                deptheos_app::library::adjustments::RenderAdjustments::NONE
+            });
+            let presented = e.told(e.engine.present_saved(stack, &saved))?;
+            Ok(StackResult::new(e.engine.clone(), presented).saved_as(&e.history, key))
         })
         .await
     }
@@ -306,7 +316,9 @@ impl Engine {
         id: String,
     ) -> Result<Arc<StackResult>> {
         self.pool(&request, Lane::Interactive, Ask::Own("render-pixels"), move |e| {
-            Ok(StackResult::pixels_only(e.engine.clone(), e.read_render(&id)?))
+            let key = e.render_id(&id)?;
+            let result = StackResult::pixels_only(e.engine.clone(), e.read_render(&id)?);
+            Ok(result.saved_as(&e.history, key))
         })
         .await
     }

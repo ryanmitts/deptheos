@@ -157,6 +157,32 @@ pub enum ViewEvent {
         keep: bool,
         supplied: bool,
     },
+    /// Adjust opened on the result shown (`on`), or closed.
+    Adjust {
+        on: bool,
+    },
+    /// In Adjust: a drag's preview landed, shown over the settled picture.
+    Previewed,
+    /// In Adjust: the settled picture landed; the preview goes.
+    Settled,
+    /// In Adjust: the render without its adjustments held up, or let go.
+    HoldBefore {
+        held: bool,
+    },
+    /// In Adjust: a tool picked.
+    Tool {
+        tool: view::Tool,
+    },
+}
+
+/// What Adjust shows (`deptheos_app::view::Adjusting`): its tool, a drag's
+/// preview over the settled picture, the render without its adjustments
+/// held up.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, uniffi::Record)]
+pub struct AdjustView {
+    pub tool: view::Tool,
+    pub preview: bool,
+    pub before: bool,
 }
 
 /// What the app does after an event, in order.
@@ -180,6 +206,11 @@ pub struct ViewAnswer {
     pub actions: Vec<ViewAction>,
     pub now: ViewState,
     pub contribution: Option<ContributionToggle>,
+    /// In Adjust, what it shows.
+    pub adjust: Option<AdjustView>,
+    /// What the result's pane draws: reframed, uncropped with the crop
+    /// marked, or stored ([`crate::PaneFraming`]).
+    pub pane: view::Pane,
 }
 
 /// The viewer's view, as on the desktop. No call blocks: each is a reducer
@@ -210,10 +241,17 @@ impl ViewControl {
             on: o.chosen == Overlay::Contribution,
             can_change: o.supplied,
         });
+        let adjust = view.adjusting().map(|a| AdjustView {
+            tool: a.tool,
+            preview: a.picture == view::Picture::Preview,
+            before: a.hold == view::Hold::Before,
+        });
         ViewAnswer {
             actions: answer.actions.into_iter().map(ViewAction::from).collect(),
             now: answer.now.into(),
             contribution,
+            adjust,
+            pane: view.pane(),
         }
     }
 }
@@ -274,6 +312,11 @@ impl From<ViewEvent> for view::Event<String, String> {
             ViewEvent::Unlight => Self::Unlight,
             ViewEvent::LightFailed { token } => Self::LightFailed { token },
             ViewEvent::Shown { result, keep, supplied } => Self::Shown { result, keep, supplied },
+            ViewEvent::Adjust { on } => Self::Adjust(on),
+            ViewEvent::Previewed => Self::Previewed,
+            ViewEvent::Settled => Self::Settled,
+            ViewEvent::HoldBefore { held } => Self::HoldBefore(held),
+            ViewEvent::Tool { tool } => Self::Tool(tool),
         }
     }
 }

@@ -55,6 +55,13 @@ impl<'a> Look<'a> {
         }
     }
 
+    /// The render on screen under what it was saved with: its sliders, a
+    /// vignette centered on its crop. The crop, turn and flip themselves
+    /// are applied at the hand-off (`view::Framing`).
+    pub fn shown_saved(stack: &'a CompletedStack, saved: &'a RenderAdjustments) -> Self {
+        Self { reframe: saved.reframe, ..Self::shown(stack, &saved.adjustments) }
+    }
+
     /// The stored picture on screen, with no adjustments: source frames,
     /// the depth map and Retouch.
     pub fn stored(stack: &'a CompletedStack) -> Self {

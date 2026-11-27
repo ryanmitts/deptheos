@@ -67,6 +67,18 @@ impl History {
         }
     }
 
+    /// [`Self::rewrite_thumbnail`] with the paint this Library's paint
+    /// worker holds for `id`, if any: for an app that keeps none.
+    pub fn rewrite_thumbnail_painted(
+        self: &Arc<Self>,
+        engine: Arc<Engine>,
+        id: RenderId,
+        stack: Arc<CompletedStack>,
+    ) -> impl std::future::Future<Output = Result<Rewrote>> + Send + 'static {
+        let flattened = crate::paint::worker::flatten(self.root(), id.clone(), stack.clone());
+        self.rewrite_thumbnail(engine, id, stack, flattened)
+    }
+
     /// [`Self::rewrite_thumbnail`], calling `done` with what it did, on the
     /// pool's or the store's thread.
     pub fn rewrite_thumbnail_then(

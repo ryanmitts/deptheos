@@ -17,6 +17,7 @@ Focus stacking is GPU-bound and can run for several minutes on a large bracket o
   - A render being written once its GPU work is done finishes under a `UIApplication` background task (`BackgroundTask`), ended once, on completion or expiration, so iOS suspends the app rather than kills it.
   - A stack asked for while the app is already in the background stops before it starts.
 - **An export is held the same way** (`ExportRun` in `AppModel.exports`, `runExport` in `Model/AppModel+Export.swift`): its lasting request asks for its own background GPU time, and where there is none, or it ends, the export is canceled and the user told why.
+- **Adjust lets go of its GPU copies as the app leaves** (`AdjustSession::away`, and again under memory pressure), keeping its values and their writes, and makes them again on `back` (ADR-153).
 - **Everything else stops at one foreground token** (`leave_foreground` in `crates/deptheos_ffi/src/request.rs`, ADR-143): every request but the lasting ones is canceled as the app leaves, and refused until it is back, so no load, picture or thumbnail reaches the GPU in the background. A load still wanted is asked again once the app is back (`AppModel.stopped`, `MapLighter.askAgain`).
 
 ## Alternatives considered

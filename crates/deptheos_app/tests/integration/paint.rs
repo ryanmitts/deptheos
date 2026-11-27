@@ -446,6 +446,57 @@ fn paint_survives_a_restart_and_history_does_not() {
     h.settle(&mut shown, |s| s.undo == 0 && s.redo == 0 && !s.painted);
 }
 
+/// Outside Retouch a painted render shows under its saved adjustments, as
+/// its export draws it (within one 8-bit code: the screen's rounding).
+#[test]
+fn a_painted_render_shows_under_its_adjustments_as_it_exports() {
+    use deptheos_app::SaveOptions;
+    use deptheos_app::library::adjustments::RenderAdjustments;
+    let Some(engine) = engine() else { return };
+    let (a, renders) = (stack(300, 200, 5), Renders::new());
+    renders.dir(1);
+    let h = Harness::new(&engine, &renders);
+    open(&h, 1, &a);
+    let mut shown = h.canvas();
+    paint_source(&h, &engine, &a, 60000);
+    h.stroke(&[[10.0, 10.0], [290.0, 190.0]], 30.0);
+    h.settle(&mut shown, |s| s.undo == 1);
+    h.worker.send(Command::Close);
+
+    let mut saved = RenderAdjustments::NONE;
+    saved.adjustments.exposure = 0.5;
+    saved.adjustments.saturation = 30.0;
+    saved.adjustments.vignette.amount = -40.0;
+    renders.history.adjustment_writes(&key(1)).send(saved.clone()).save().unwrap();
+
+    h.worker.send(Command::Present { key: key(1), stack: a.clone() });
+    let display = h.until("presented", |o| match o {
+        Output::Presented { display, .. } => Some(display),
+        _ => None,
+    });
+    let display = display.expect("painted").levels[0].assemble();
+
+    let (reply, flat) = channel();
+    h.worker.send(Command::Flatten { key: key(1), stack: a.clone(), reply });
+    let dir = tempfile::tempdir().unwrap();
+    let path = dir.path().join("export.tif");
+    let options = SaveOptions { sixteen_bit: true, ..SaveOptions::default() };
+    engine.save_flattened(Look::saved(&a, &saved), Some(flat), &path, options).unwrap();
+    let exported = image::open(&path).unwrap().into_rgb16();
+
+    let unadjusted = engine.present_pixels(Look::stored(&a), &a.pixels).unwrap();
+    assert!(unadjusted.levels[0].assemble().pixels != display.pixels, "adjusted");
+    let mut worst = 0;
+    for (i, p) in exported.pixels().enumerate() {
+        // The display is BGRA.
+        for (c, at) in [(0, 2), (1, 1), (2, 0)] {
+            let want = (f64::from(p[c]) / 257.0).round() as i32;
+            worst = worst.max((i32::from(display.pixels[4 * i + at]) - want).abs());
+        }
+    }
+    assert!(worst <= 1, "worst {worst}");
+}
+
 /// Unreadable paint isn't taken for none: export fails, and the view says so.
 #[test]
 fn paint_that_cannot_be_read_is_not_left_out_quietly() {

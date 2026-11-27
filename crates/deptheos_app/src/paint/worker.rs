@@ -31,6 +31,7 @@ use super::tile::TileId;
 use super::undo::{Blob, Change, UndoStack};
 use crate::engine::memory::Budget;
 use crate::engine::present::PresentedImage;
+use crate::library::adjustments::RenderAdjustments;
 use crate::library::history::History;
 use crate::words::explain::{Explain, Kind};
 use crate::words::{Words, say, sentences};
@@ -907,9 +908,11 @@ impl Worker {
     /// shown, which is reported.
     fn present(&mut self, key: &RenderId, stack: &Arc<CompletedStack>) -> Option<PresentedImage> {
         let painted = self.painted(key, stack.clone());
+        let saved = self.saved(key);
         let words = self.engine.words();
+        let shown = crate::Look::shown_saved(stack, &saved);
         let error = match painted {
-            Ok(flat) => match self.engine.present_pixels(crate::Look::stored(stack), &flat?) {
+            Ok(flat) => match self.engine.present_pixels(shown, &flat?) {
                 Ok(display) => return Some(display),
                 Err(e) => failed(words, Lead::Shown, &e),
             },
@@ -917,6 +920,15 @@ impl Worker {
         };
         (self.output)(Output::Failed(error));
         None
+    }
+
+    /// The result outside Retouch: under the render's saved adjustments
+    /// (read after their pending writes), as stored if they can't be read.
+    fn saved(&self, key: &RenderId) -> RenderAdjustments {
+        self.history.adjustments_to_export(key).unwrap_or_else(|e| {
+            tracing::warn!("a painted render shown without its adjustments: {e}");
+            RenderAdjustments::NONE
+        })
     }
 
     /// `key`'s doc flattened over `stack`, if painted; `Err` when its paint

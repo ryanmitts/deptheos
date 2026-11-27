@@ -768,10 +768,6 @@ impl History {
         crate::library::adjustments::read(&self.render_path(&render.id), picture)
     }
 
-    /// The writes of a render's adjustments, each [`Write::save`]d on the
-    /// store thread.
-    ///
-    /// [`Write::save`]: crate::library::adjustments::Write::save
     /// Render `id`'s adjustments for an export, read on the store thread
     /// after every write sent before it, an Adjust change's among them;
     /// [`crate::Error::AdjustmentsUnread`] if they can't be. Never on the
@@ -822,6 +818,10 @@ impl History {
         })
     }
 
+    /// The writes of a render's adjustments, each [`Write::save`]d on the
+    /// store thread.
+    ///
+    /// [`Write::save`]: crate::library::adjustments::Write::save
     pub fn adjustment_writes(&self, id: &RenderId) -> Writes {
         Writes::of(self.render_path(id))
     }

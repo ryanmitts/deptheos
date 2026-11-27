@@ -44,7 +44,9 @@ A draw that isn't of the stored picture at full size takes the reframe's rectang
 
 ### The settle
 
-A full redraw with the local tone misses 250 ms, so the picture on screen settles first and the rest follows. When a drag ends, the last tick already is the settled picture there if its planes are this value's (`GpuCopies::is_settled`). Exposure, the curve, color and a set local slider's strength keep them; a white, or a local slider newly set, makes them anew. Otherwise the session draws the full picture first, which makes them, and then the tier on screen again. The full redraw then gives the viewer its levels for other zooms and pans. Without the local tone, the full redraw takes 4 ms and is simply drawn.
+A full redraw with the local tone misses 250 ms (503 ms at 45 MP with every slider, `just adjust-bench`), so the picture on screen settles first and the rest follows. When a drag ends, `AdjustSession` draws the view on screen as `Draft::Settled` and hands it over at once (`Update::OnScreen`), then draws the full picture, counts its clipping over every pixel and hands that over (`Update::Settled`), which gives the viewer its levels for other zooms and pans. Past 50% the view on screen is that window of the full picture, bit for bit; at fit it is drawn from the reduced copy without Texture and Sharpening, which then come with the full picture. The view on screen is shown only while its settle is still current (`Machine::is_settling`). Its draw makes the local tone's planes for this value when they aren't (a white, or a local slider newly set), about half a second at 45 MP; exposure, the curve, color and a set local slider's strength keep them (`GpuCopies::is_settled`). Without the local tone, the full redraw takes 5 ms.
+
+The settle on screen with every slider set and its planes kept, median and 95th percentile at 45 MP: 4.8 / 14.8 ms at fit and 6.6 / 75.2 ms at 100%, both within 250 ms (`just adjust-bench`).
 
 Measured at 45 MP (8256 × 5504) on an M5 Max, a synthetic standard stack, 30 ticks each, median and 95th percentile, readback included:
 

@@ -425,6 +425,12 @@ impl Machine {
         self.writes.contains_key(key)
     }
 
+    /// Whether full picture `id` is the one the render settles on now:
+    /// the session shows its view on screen first while it is.
+    pub fn is_settling(&self, id: RequestId) -> bool {
+        matches!(&self.state, State::Ready { pace: Pace::Settling(full), .. } if *full == id)
+    }
+
     /// Results dropped as stale so far.
     pub fn stale(&self) -> u64 {
         self.stale

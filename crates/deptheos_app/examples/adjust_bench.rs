@@ -158,6 +158,26 @@ fn main() {
         row(name, &mut ms, None);
     }
 
+    // A settle hands the view on screen over first, then draws the whole.
+    let settles = [
+        ("settle on screen at fit, every slider", fit),
+        ("settle on screen at 100%, every slider", region),
+    ];
+    for (name, shown) in settles {
+        drop(copies.draw_full(&engine, &constants(&stack, &fine)));
+        let mut ms = Vec::new();
+        for i in 0..REDRAWS {
+            let c = constants(&stack, &nudged(&fine, i + 1));
+            let start = Instant::now();
+            let picture =
+                copies.draw_preview(&engine, &c, shown, Draft::Settled, &slot).expect("a draw");
+            copies.histogram(&engine, &c, None, Draft::Settled).expect("a histogram");
+            ms.push(start.elapsed().as_secs_f64() * 1e3);
+            slot.give_back(picture);
+        }
+        row(name, &mut ms, Some(SETTLE_BUDGET));
+    }
+
     let redraws = [("full redraw, per pixel", &per_pixel), ("full redraw, every slider", &fine)];
     for (name, base) in redraws {
         // Planes made once, as opening Adjust does; a drag then keeps them.

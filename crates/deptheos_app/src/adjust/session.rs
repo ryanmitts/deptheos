@@ -49,6 +49,12 @@ pub enum Update {
     /// A tick of the drag preview: shown over the settled picture until
     /// the next. Its pixels go back with [`AdjustSession::give_back`].
     Preview { picture: FlatPicture, histogram: Histogram },
+    /// The settled picture of the view on screen, ahead of the full one:
+    /// shown in place of the preview. At fit it is drawn from the reduced
+    /// copy without Texture and Sharpening; past 50% it is that window of
+    /// the full picture. Its pixels go back with
+    /// [`AdjustSession::give_back`].
+    OnScreen { picture: FlatPicture, histogram: Histogram },
     /// The full picture of render `key` under its value, with the
     /// histogram's clipping counted over every pixel: in place of the
     /// viewer's display and every preview.
@@ -432,11 +438,12 @@ impl Inner {
             Action::DrawPreview { id, value } => {
                 let Some(open) = core.current.clone() else { return };
                 let shown = core.shown.unwrap_or_else(|| whole(&open.stack));
-                self.draw(id, open, value, Some(shown));
+                self.draw(id, open, value, shown);
             }
             Action::DrawFull { id, value } => {
                 let Some(open) = core.current.clone() else { return };
-                self.draw(id, open, value, None);
+                let shown = core.shown;
+                self.settle(id, open, value, shown);
             }
             Action::Show(id) => match core.drawn.remove(&id) {
                 Some(Drawn::Preview { picture, histogram }) => {
@@ -595,24 +602,20 @@ impl Inner {
             .detach();
     }
 
-    /// Draw `value` of `open` on the pool: a preview tick at `shown`, or
-    /// with none the full picture.
-    fn draw(&self, id: RequestId, open: Opened, value: RenderAdjustments, shown: Option<Shown>) {
+    /// Draw a preview tick of `value` of `open` at `shown` on the pool.
+    fn draw(&self, id: RequestId, open: Opened, value: RenderAdjustments, shown: Shown) {
         let me = self.me.clone();
         work::pool()
             .run(Lane::Interactive, Key::of("adjust-draw", id), work::root(), move || {
                 let Some(inner) = me.upgrade() else { return };
-                let drawn = inner.drawing(&open, &value, shown);
+                let drawn = inner.drawing_shown(&open, &value, shown, Draft::Tick);
                 let mut updates = Vec::new();
                 {
                     let mut core = crate::lock(&inner.core);
                     let event = match drawn {
-                        Ok(drawn) => {
-                            core.drawn.insert(id, drawn);
-                            match shown {
-                                Some(_) => Event::PreviewDrawn(id),
-                                None => Event::FullDrawn(id),
-                            }
+                        Ok((picture, histogram)) => {
+                            core.drawn.insert(id, Drawn::Preview { picture, histogram });
+                            Event::PreviewDrawn(id)
                         }
                         Err(e) => {
                             tracing::warn!("adjust: a draw of {} failed: {e}", open.key.as_str());
@@ -633,14 +636,103 @@ impl Inner {
             .detach();
     }
 
-    fn drawing(
+    /// Draw full picture `id` on the pool, the view on screen first
+    /// ([`Update::OnScreen`], while `id` is still the one settled on), so
+    /// the screen settles within its budget though the whole takes longer
+    /// (ADR-138).
+    fn settle(&self, id: RequestId, open: Opened, value: RenderAdjustments, shown: Option<Shown>) {
+        let me = self.me.clone();
+        work::pool()
+            .run(Lane::Interactive, Key::of("adjust-settle", id), work::root(), move || {
+                let Some(inner) = me.upgrade() else { return };
+                if let Some(shown) = shown {
+                    inner.on_screen(id, &open, &value, shown);
+                }
+                let drawn = inner.drawing(&open, &value);
+                let mut updates = Vec::new();
+                {
+                    let mut core = crate::lock(&inner.core);
+                    let event = match drawn {
+                        Ok(drawn) => {
+                            core.drawn.insert(id, drawn);
+                            Event::FullDrawn(id)
+                        }
+                        Err(e) => {
+                            tracing::warn!("adjust: a draw of {} failed: {e}", open.key.as_str());
+                            let why = say!(inner.engine.words(), "adjust-draw-failed");
+                            Event::DrawFailed { id, why }
+                        }
+                    };
+                    inner.feed(&mut core, event, &mut updates);
+                    core.drawn.remove(&id);
+                    crate::lock(&inner.outbox).queue.extend(updates);
+                }
+                inner.changed.notify_all();
+                inner.deliver();
+            })
+            .detach();
+    }
+
+    /// The settled picture of `shown`, handed over at once if full picture
+    /// `id` is still the one settled on; a failure waits for the full draw.
+    fn on_screen(&self, id: RequestId, open: &Opened, value: &RenderAdjustments, shown: Shown) {
+        let drawn = self.drawing_shown(open, value, shown, Draft::Settled);
+        let (picture, histogram) = match drawn {
+            Ok(drawn) => drawn,
+            Err(e) => {
+                tracing::warn!("adjust: {}'s view on screen not drawn: {e}", open.key.as_str());
+                return;
+            }
+        };
+        let current = crate::lock(&self.core).machine.is_settling(id);
+        if current {
+            crate::lock(&self.outbox).queue.push_back(Update::OnScreen { picture, histogram });
+            self.deliver();
+        } else {
+            tracing::debug!("adjust: a stale view on screen dropped");
+            self.slot.give_back(picture);
+        }
+    }
+
+    /// The full picture of `value` of `open`, its clipping counted over
+    /// every pixel.
+    fn drawing(&self, open: &Opened, value: &RenderAdjustments) -> crate::Result<Drawn> {
+        let engine = &self.engine;
+        let mut held = crate::lock(&self.copies);
+        let (copies, constants) = Self::copies_for(&mut held, open, value)?;
+        let crop = value.reframe.crop;
+        let full = copies.draw_full(engine, &constants);
+        let clipping = histogram::clipping(engine, &full, crop)?;
+        let picture = engine.present(&full, None)?;
+        drop(full);
+        let histogram =
+            copies.histogram(engine, &constants, crop, Draft::Settled)?.with_clipping(clipping);
+        Ok(Drawn::Settled { key: open.key.clone(), picture, histogram })
+    }
+
+    /// `value` of `open` drawn for `shown` as one flat picture, with the
+    /// small draw's histogram.
+    fn drawing_shown(
         &self,
         open: &Opened,
         value: &RenderAdjustments,
-        shown: Option<Shown>,
-    ) -> crate::Result<Drawn> {
+        shown: Shown,
+        draft: Draft,
+    ) -> crate::Result<(FlatPicture, Histogram)> {
         let engine = &self.engine;
         let mut held = crate::lock(&self.copies);
+        let (copies, constants) = Self::copies_for(&mut held, open, value)?;
+        let picture = copies.draw_preview(engine, &constants, shown, draft, &self.slot)?;
+        let histogram = copies.histogram(engine, &constants, value.reframe.crop, draft)?;
+        Ok((picture, histogram))
+    }
+
+    /// The copies of `open` and the constants of `value` on them.
+    fn copies_for<'a>(
+        held: &'a mut Option<Held>,
+        open: &Opened,
+        value: &RenderAdjustments,
+    ) -> crate::Result<(&'a mut GpuCopies, Box<deptheos_render::dng_render::Constants>)> {
         let copies = match held.as_mut() {
             Some(held) if held.key == open.key => &mut held.copies,
             _ => return Err(crate::Error::InvalidState("no GPU copies to draw from".into())),
@@ -649,25 +741,7 @@ impl Inner {
         let Draw::Rendered(constants) = look.resolve() else {
             return Err(crate::Error::InvalidState("Adjust draws on the GPU".into()));
         };
-        let crop = value.reframe.crop;
-        match shown {
-            Some(shown) => {
-                let picture =
-                    copies.draw_preview(engine, &constants, shown, Draft::Tick, &self.slot)?;
-                let histogram = copies.histogram(engine, &constants, crop, Draft::Tick)?;
-                Ok(Drawn::Preview { picture, histogram })
-            }
-            None => {
-                let full = copies.draw_full(engine, &constants);
-                let clipping = histogram::clipping(engine, &full, crop)?;
-                let picture = engine.present(&full, None)?;
-                drop(full);
-                let histogram = copies
-                    .histogram(engine, &constants, crop, Draft::Settled)?
-                    .with_clipping(clipping);
-                Ok(Drawn::Settled { key: open.key.clone(), picture, histogram })
-            }
-        }
+        Ok((copies, constants))
     }
 
     fn eyedrop(&self, at: (f64, f64)) {

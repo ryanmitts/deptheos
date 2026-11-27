@@ -18,11 +18,14 @@ const W: u32 = 96;
 const H: u32 = 64;
 const WAIT: Duration = Duration::from_secs(30);
 
-/// What the app heard, as text, and the settled pictures' sizes.
+/// What the app heard, as text, and the last on-screen and settled
+/// pictures' pixels.
 #[derive(Default)]
 struct Heard {
     log: Mutex<Vec<String>>,
     changed: Condvar,
+    on_screen: Mutex<Option<(deptheos_render::dng_render::Region, u32, Vec<u8>)>>,
+    settled: Mutex<Option<crate::engine::present::CpuImage>>,
 }
 
 impl Observer for Heard {
@@ -32,8 +35,23 @@ impl Observer for Heard {
             Update::Preview { picture, .. } => {
                 format!("preview {}x{}", picture.width, picture.height)
             }
+            Update::OnScreen { picture, .. } => {
+                let line = format!("on screen {}x{}", picture.width, picture.height);
+                *crate::lock(&self.on_screen) =
+                    Some((picture.covers, picture.width, picture.pixels));
+                line
+            }
             Update::Settled { picture, histogram, .. } => {
-                format!("settled {}x{} {}", picture.width(), picture.height(), histogram.pixels)
+                let line = format!(
+                    "settled {}x{} {}",
+                    picture.width(),
+                    picture.height(),
+                    histogram.pixels
+                );
+                if picture.first_level == 0 {
+                    *crate::lock(&self.settled) = Some(picture.levels[0].assemble());
+                }
+                line
             }
             Update::Closed { redraw, .. } => format!("closed {redraw}"),
             Update::Rewritten(_) => "rewritten".into(),
@@ -132,6 +150,37 @@ fn a_drag_previews_then_its_commit_settles_writes_and_undoes() {
     let at = heard.wait_for(at, "closed");
     heard.wait_for(at, "rewritten");
     assert!(session.closed(std::slice::from_ref(&library.key)).is_some());
+}
+
+/// Past 50% the settle hands over the view on screen first, that window of
+/// the full picture it then settles on (ADR-138).
+#[test]
+fn a_settle_shows_the_view_on_screen_before_the_whole() {
+    let Some(engine) = crate::test_support::engine() else { return };
+    let library = made([30000, 24000, 18000]);
+    let (session, heard) = start(engine, &library);
+    session.open(library.key.clone(), library.stack.clone());
+    let at = heard.wait_for(0, "status Ready");
+    let visible = deptheos_render::dng_render::Region { x: 40, y: 8, width: 48, height: 32 };
+    session.view(Shown { zoom: 2.0, visible });
+    session.set_slider(Slider::Exposure, 0.5);
+    session.set_slider(Slider::Clarity, 40.0);
+    let at = heard.wait_for(at, "preview");
+    session.commit();
+    let on_screen = heard.wait_for(at, "on screen 48x32");
+    let settled = heard.wait_for(at, "settled 96x64");
+    assert!(on_screen < settled, "{:?}", crate::lock(&heard.log));
+
+    let (covers, width, pixels) = crate::lock(&heard.on_screen).take().unwrap();
+    assert_eq!((covers, width), (visible, 48));
+    let whole = crate::lock(&heard.settled).take().unwrap();
+    let texel = pixels.len() / (48 * 32);
+    let row = whole.width as usize * texel;
+    for y in 0..32 {
+        let at = (y + 8) * row + 40 * texel;
+        let want = &whole.pixels[at..at + 48 * texel];
+        assert_eq!(&pixels[y * 48 * texel..(y + 1) * 48 * texel], want, "row {y}");
+    }
 }
 
 #[test]

@@ -1,6 +1,7 @@
-//! What Highlights and Shadows cost in memory, measured on the device that
-//! runs it: a synthetic standard stack drawn and read back as an export
-//! does, without them, with them whole, or with them a band at a time, one
+//! What the sliders that read neighbors cost in memory, measured on the
+//! device that runs it: a synthetic standard stack drawn and read back as
+//! an export does, without them, with them all whole, or with them all a
+//! band at a time, one
 //! draw per process, since memory let go of isn't always returned. The
 //! memory probe example runs it on the desktop; a debug iOS build runs it
 //! when its launch environment asks (`DEPTHEOS_PROBE_LOCAL_TONE`).
@@ -11,7 +12,7 @@ use std::time::{Duration, Instant};
 use deptheos_core::upload::ImageUploader;
 use deptheos_gpu::GpuContext;
 use deptheos_render::dng_render::DngRenderPipeline;
-use deptheos_render::{Adjustments, Color, OutputSpace, resolve_adjusted};
+use deptheos_render::{Adjustments, Color, OutputSpace, Sharpening, resolve_adjusted};
 use image::math::Rect;
 
 use crate::Result;
@@ -68,6 +69,9 @@ pub fn local_tone_memory(ctx: &GpuContext, width: u32, height: u32, draw: Draw) 
         exposure: 0.3,
         highlights: -60.0,
         shadows: 60.0,
+        clarity: 30.0,
+        texture: 20.0,
+        sharpening: Sharpening { amount: 40.0, ..Sharpening::NONE },
         ..Adjustments::NEUTRAL
     });
     let whole = Rect { x: 0, y: 0, width, height };

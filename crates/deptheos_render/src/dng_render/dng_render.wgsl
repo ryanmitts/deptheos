@@ -32,14 +32,15 @@
 @group(0) @binding(4) var<storage, read> hsm_lut: array<f32>;
 @group(0) @binding(5) var<storage, read> look_lut: array<f32>;
 @group(0) @binding(6) var<uniform> place: Placement;
-// The local tone's planes over the region drawn, at output texels
-// (`local_tone::Planes::at`).
+// The local tone's planes over a strip of the region drawn
+// (`local_tone::Planes::at`), read at the texel `place.size.zw` gives.
 @group(0) @binding(8) var local_planes: texture_2d<f32>;
 
 struct Placement {
     // xy = the tile's first source texel, zw = its first output texel.
     origins: vec4u,
-    // xy = the tile's width and height.
+    // xy = the tile's width and height, zw = its first texel of the local
+    // tone's planes.
     size: vec4u,
 }
 
@@ -79,7 +80,8 @@ struct DngColorParams {
     local_tone: vec4f,
     // The ramp's constants at the baseline exposure, as `exposure`: what
     // the base is taken of.
-    base_exposure: vec4f,    // The fine terms' numbers: Texture's strength, then Sharpening's
+    base_exposure: vec4f,
+    // The fine terms' numbers: Texture's strength, then Sharpening's
     // strength, limit and Masking (adjust.wgsl).
     local_detail: vec4f,
 }
@@ -303,14 +305,15 @@ fn ramp(prophoto: vec3f, e: vec4f, open: bool) -> vec3f {
     );
 }
 
-// The ramp, then the exposure stage with the local tone's gain at
-// the output texel `at`.
+// The ramp, then the exposure stage with the local tone's gain read at
+// texel `at` of its planes.
 fn exposure(prophoto: vec3f, at: vec2i) -> vec3f {
     let ramped = ramp(prophoto, params.exposure, params.flags.z != 0u);
     if (params.flags.z != 0u) {
         var local = 1.0;
         if (params.flags.z > 1u) {
-            local = adjust::local_tone(textureLoad(local_planes, at, 0), params.local_tone, params.local_detail, params.flags.z);
+            let planes = textureLoad(local_planes, at, 0);
+            local = adjust::local_tone(planes, params.local_tone, params.local_detail, params.flags.z);
         }
         return adjust::exposure(ramped, params.exposure_gain_knee, local);
     }
@@ -357,7 +360,7 @@ fn dng_render(@builtin(global_invocation_id) gid: vec3u) {
 
     var prophoto = camera_to_prophoto(normalize_camera(camera));
     prophoto = hue_sat_map(prophoto);
-    prophoto = exposure(prophoto, at);
+    prophoto = exposure(prophoto, vec2i(gid.xy + place.size.zw));
     prophoto = look_table(prophoto);
     prophoto = hue_preserving_tone_curve(prophoto);
     if ((params.flags.w & 7u) != 0u) {

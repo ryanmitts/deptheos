@@ -58,6 +58,16 @@ impl Region {
         Self { x, y, width: x_end - x, height: y_end - y }
     }
 
+    /// The strips of whole rows of tiles of `side` covering this region.
+    fn strips(self, side: u32) -> impl Iterator<Item = Region> {
+        let y1 = self.end()[1];
+        (self.y..y1).step_by(side as usize).map(move |y| Region {
+            y,
+            height: side.min(y1 - y),
+            ..self
+        })
+    }
+
     /// The tiles of `side` covering this region, row by row.
     fn tiles(self, side: u32) -> impl Iterator<Item = Region> {
         let [x1, y1] = self.end();
@@ -340,62 +350,71 @@ impl DngRenderPipeline {
     ) {
         assert!(source.covers.contains(region), "{region:?} outside {:?}", source.covers);
         assert!(region.width <= output.width() && region.height <= output.height());
-        let planes = self.local_planes(ctx, prepared, source, region);
-        let (in_view, out_view, planes_view) = (
+        let (in_view, out_view) = (
             source.texture.create_view(&Default::default()),
             output.create_view(&Default::default()),
-            planes.create_view(&Default::default()),
         );
-        for tile in region.tiles(side) {
-            let [sx, sy] = source.texel(tile.x, tile.y);
-            let placement = place::Placement {
-                origins: glam::UVec4::new(sx, sy, tile.x - region.x, tile.y - region.y),
-                size: glam::UVec4::new(tile.width, tile.height, 0, 0),
-            };
-            let placement = ctx.create_uniform_buffer(&placement, "dng_render_place");
-            let (shader, entries): (_, Vec<wgpu::BindingResource>) = match &prepared.buffers {
-                Prepared::Linear { params, tone, hsm, look, curve } => (
-                    &self.linear,
-                    vec![
-                        tex(&in_view),                 // in_tex
-                        tex(&out_view),                // out_tex
-                        params.as_entire_binding(),    // params
-                        tone.as_entire_binding(),      // tone_curve
-                        hsm.as_entire_binding(),       // hsm_lut
-                        look.as_entire_binding(),      // look_lut
-                        placement.as_entire_binding(), // place
-                        curve.as_entire_binding(),     // curve_luts
-                        tex(&planes_view),             // local_planes
-                    ],
-                ),
-                Prepared::Standard { params, decode, curve } => (
-                    &self.standard,
-                    vec![
-                        tex(&in_view),                 // in_tex
-                        tex(&out_view),                // out_tex
-                        params.as_entire_binding(),    // params
-                        decode.as_entire_binding(),    // decode
-                        placement.as_entire_binding(), // place
-                        curve.as_entire_binding(),     // curve_luts
-                        tex(&planes_view),             // local_planes
-                    ],
-                ),
-            };
-            let group0 =
-                create_bind_group(&ctx.device, &shader.pipeline, 0, "dng_render", &entries);
-            let groups: Vec<&wgpu::BindGroup> =
-                std::iter::once(&group0).chain(shader.thresholds.as_ref()).collect();
-            let mut encoder = ctx.encoder("dng_render");
-            dispatch_compute_with(
-                &mut encoder,
-                &shader.pipeline,
-                &groups,
-                "dng_render",
-                tile.width,
-                tile.height,
-                WORKGROUP_SIZE,
-            );
-            ctx.submit(encoder);
+        // The local tone's planes are made a strip of tiles at a time, so a
+        // whole picture never holds them at once.
+        for strip in region.strips(side) {
+            let planes = self.local_planes(ctx, prepared, source, strip);
+            let planes_view = planes.create_view(&Default::default());
+            for tile in strip.tiles(side) {
+                let [sx, sy] = source.texel(tile.x, tile.y);
+                let placement = place::Placement {
+                    origins: glam::UVec4::new(sx, sy, tile.x - region.x, tile.y - region.y),
+                    size: glam::UVec4::new(
+                        tile.width,
+                        tile.height,
+                        tile.x - strip.x,
+                        tile.y - strip.y,
+                    ),
+                };
+                let placement = ctx.create_uniform_buffer(&placement, "dng_render_place");
+                let (shader, entries): (_, Vec<wgpu::BindingResource>) = match &prepared.buffers {
+                    Prepared::Linear { params, tone, hsm, look, curve } => (
+                        &self.linear,
+                        vec![
+                            tex(&in_view),                 // in_tex
+                            tex(&out_view),                // out_tex
+                            params.as_entire_binding(),    // params
+                            tone.as_entire_binding(),      // tone_curve
+                            hsm.as_entire_binding(),       // hsm_lut
+                            look.as_entire_binding(),      // look_lut
+                            placement.as_entire_binding(), // place
+                            curve.as_entire_binding(),     // curve_luts
+                            tex(&planes_view),             // local_planes
+                        ],
+                    ),
+                    Prepared::Standard { params, decode, curve } => (
+                        &self.standard,
+                        vec![
+                            tex(&in_view),                 // in_tex
+                            tex(&out_view),                // out_tex
+                            params.as_entire_binding(),    // params
+                            decode.as_entire_binding(),    // decode
+                            placement.as_entire_binding(), // place
+                            curve.as_entire_binding(),     // curve_luts
+                            tex(&planes_view),             // local_planes
+                        ],
+                    ),
+                };
+                let group0 =
+                    create_bind_group(&ctx.device, &shader.pipeline, 0, "dng_render", &entries);
+                let groups: Vec<&wgpu::BindGroup> =
+                    std::iter::once(&group0).chain(shader.thresholds.as_ref()).collect();
+                let mut encoder = ctx.encoder("dng_render");
+                dispatch_compute_with(
+                    &mut encoder,
+                    &shader.pipeline,
+                    &groups,
+                    "dng_render",
+                    tile.width,
+                    tile.height,
+                    WORKGROUP_SIZE,
+                );
+                ctx.submit(encoder);
+            }
         }
     }
 
@@ -465,6 +484,53 @@ mod tests {
         assert_eq!(tiles[5], Region { x: 133, y: 71, width: 2, height: 1 });
         let area: u32 = tiles.iter().map(|t| t.width * t.height).sum();
         assert_eq!(area, 130 * 65);
+    }
+
+    /// With every slider that reads neighbors, a draw in small tiles, whose
+    /// planes are made strip by strip, equals one in a single tile.
+    #[test]
+    fn strips_of_planes_draw_as_one() {
+        use deptheos_core::upload::ImageUploader;
+        let Some(ctx) = GpuContext::new_or_skip() else { return };
+        let (w, h) = (230u32, 170u32);
+        let pixels: Vec<u16> = (0..w * h * 3)
+            .map(|i| {
+                let (x, y) = (i / 3 % w, i / 3 / w);
+                let block = if (x / 40 + y / 30) % 2 == 0 { 4000 } else { 45_000 };
+                (block + (i.wrapping_mul(2_654_435_761) >> 21) % 5000) as u16
+            })
+            .collect();
+        let mut uploader = ImageUploader::new(&ctx);
+        let prep = uploader.prepare_rgb16(&ctx, &pixels, w, h).unwrap();
+        let input = ImageUploader::create_target(&ctx, w, h, "strips_source");
+        let mut encoder = ctx.encoder("strips_upload");
+        prep.dispatch_to_rgba(&ctx, &mut encoder, &input);
+        ctx.submit(encoder);
+        let adjustments = crate::Adjustments {
+            highlights: -40.0,
+            shadows: 50.0,
+            clarity: 30.0,
+            texture: 40.0,
+            sharpening: crate::Sharpening { amount: 60.0, ..crate::Sharpening::NONE },
+            ..crate::Adjustments::NEUTRAL
+        };
+        let color = crate::Color::Standard(None);
+        let constants = crate::resolve_adjusted(color, &adjustments, crate::OutputSpace::Srgb);
+        let pipeline = DngRenderPipeline::new(&ctx);
+        let source = Source::whole(&input);
+        let prepared = pipeline.with_planes(&ctx, PreparedRender::new(&ctx, &constants), source, h);
+        let whole = Region::whole(w, h);
+        let drawn = |side| {
+            let output = DngRenderPipeline::create_output(&ctx, w, h);
+            pipeline.draw_tiled(&ctx, &prepared, source, whole, &output, side);
+            let mut bytes = Vec::new();
+            download_texture_with(&ctx, &output, [0, 0], [w, h], |row| {
+                bytes.extend_from_slice(row)
+            })
+            .unwrap();
+            bytes
+        };
+        assert!(drawn(TILE) == drawn(48));
     }
 
     #[test]

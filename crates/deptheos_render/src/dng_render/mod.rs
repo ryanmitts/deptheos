@@ -134,7 +134,10 @@ impl DngRenderPipeline {
         let (width, height) = (input.width(), input.height());
         let output = Self::create_output(ctx, width, height);
         let source = Source::whole(input);
-        let prepared = self.with_planes(ctx, PreparedRender::new(ctx, constants), source, height);
+        // Any band makes the same planes; a tile's height keeps the frame's
+        // log brightness out of memory at once.
+        let band = height.min(TILE);
+        let prepared = self.with_planes(ctx, PreparedRender::new(ctx, constants), source, band);
         self.draw(ctx, &prepared, source, Region::whole(width, height), &output);
         output
     }

@@ -18,9 +18,9 @@ private nonisolated let log = AppLog(category: "files")
 ///   Save to Test Folder, writing the export there with a note of what was
 ///   asked (`e2e-check notes` reads them), standing in for Save to Files….
 /// - `DEPTHEOS_PROBE_LOCAL_TONE`: `without`, `whole` or `bands`. At launch
-///   the engine measures that draw of a synthetic 45 MP stack, Highlights
-///   and Shadows' memory probe (`deptheos_app::runs::probe`), and logs its
-///   line; `DEPTHEOS_PROBE_BAND` sets the band's rows (512).
+///   the engine measures that draw of a synthetic 45 MP stack, the memory
+///   probe of the sliders that read neighbors (`deptheos_app::runs::probe`),
+///   and logs its line; `DEPTHEOS_PROBE_BAND` sets the band's rows (512).
 nonisolated enum E2E {
     static let frames: URL? = folder("DEPTHEOS_E2E_FRAMES")
     static let exports: URL? = folder("DEPTHEOS_E2E_EXPORTS")

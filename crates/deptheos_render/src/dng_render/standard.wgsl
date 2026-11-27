@@ -22,8 +22,8 @@
 @group(0) @binding(2) var<uniform> params: StandardParams;
 @group(0) @binding(3) var<storage, read> decode: array<f32>;
 @group(0) @binding(4) var<uniform> place: Placement;
-// The local tone's planes over the region drawn, at output texels
-// (`local_tone::Planes::at`).
+// The local tone's planes over a strip of the region drawn
+// (`local_tone::Planes::at`), read at the texel `place.size.zw` gives.
 @group(0) @binding(6) var local_planes: texture_2d<f32>;
 
 struct StandardParams {
@@ -47,7 +47,8 @@ struct StandardParams {
     late: vec4f,
     // Highlights', Shadows' and Clarity's strengths, exposure's stops in z
     // (adjust.wgsl).
-    local_tone: vec4f,    // The fine terms' numbers: Texture's strength, then Sharpening's
+    local_tone: vec4f,
+    // The fine terms' numbers: Texture's strength, then Sharpening's
     // strength, limit and Masking (adjust.wgsl).
     local_detail: vec4f,
 }
@@ -114,7 +115,8 @@ fn standard_render(@builtin(global_invocation_id) gid: vec3u) {
     if (params.flags.z != 0u) {
         var local = 1.0;
         if (params.flags.z > 1u) {
-            local = adjust::local_tone(textureLoad(local_planes, at, 0), params.local_tone, params.local_detail, params.flags.z);
+            let planes = textureLoad(local_planes, vec2i(gid.xy + place.size.zw), 0);
+            local = adjust::local_tone(planes, params.local_tone, params.local_detail, params.flags.z);
         }
         prophoto = adjust::exposure(prophoto, params.exposure_gain_knee, local);
     }

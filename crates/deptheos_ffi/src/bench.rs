@@ -126,7 +126,7 @@ impl Engine {
         .await
     }
 
-    /// What Highlights and Shadows cost in memory on this device
+    /// What the sliders that read neighbors cost in memory on this device
     /// (`deptheos_app::runs::probe`): `draw` is `without`, `whole` or
     /// `bands`, on a synthetic `width`×`height` stack, bands of `band`
     /// rows. One draw per launch. The line it returns is also logged.

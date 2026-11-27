@@ -6,7 +6,7 @@ use std::sync::{Arc, Mutex};
 use deptheos_app::Adjustments;
 use deptheos_app::engine::work::Lane;
 use deptheos_app::library::history::{
-    Batch, History, PaintClosed, Render, RenderId, StackId, StoreError, Unsaved,
+    Batch, History, Made, PaintClosed, Render, RenderId, StackId, StoreError, Unsaved,
 };
 use deptheos_app::library::stacks::{self, Compared, StackInfo, StackReads, Working};
 use deptheos_app::preferences::AlignmentPreferences;
@@ -153,8 +153,8 @@ impl Engine {
 
     /// Keep `result` as a new render, the next number in `stack` (the
     /// working version's, or a batch stack's [`new_stack_id`]). `frames` is
-    /// every file listed when it ran, in list order; `batch` the run it is
-    /// part of. The thumbnail comes from the display; then the result lets
+    /// every file listed when it ran, in list order; `made` what it was
+    /// stacked from, which says what adjustments it starts with. The thumbnail comes from the display; then the result lets
     /// go of its map's levels, so the encode holds only the display (the map
     /// picture is remade when asked). Saved as the desktop does
     /// ([`History::save`]): encoded on the pool, written on the store
@@ -164,9 +164,15 @@ impl Engine {
         frames: Vec<PathBuf>,
         result: Arc<StackResult>,
         stack: String,
-        batch: Option<Batch>,
+        made: crate::RenderMade,
     ) -> Result<RenderInfo> {
         let of = self.stack_id(&stack)?;
+        let made = match made {
+            crate::RenderMade::Stacked { base } => {
+                Made::Stacked { base: base.as_deref().map(|id| self.render_id(id)).transpose()? }
+            }
+            crate::RenderMade::Batch { batch } => Made::Batch(batch),
+        };
         let words = self.engine.words();
         let thumbnail = result.thumbnail().ok_or_else(|| {
             EngineError::fault(
@@ -178,7 +184,7 @@ impl Engine {
         // Not shown until asked for (later, or never), so not held through
         // the encode.
         result.release_map();
-        let saving = self.history.save(frames, result.stack.clone(), thumbnail, of, batch);
+        let saving = self.history.save(frames, result.stack.clone(), thumbnail, of, made);
         let render = match saving.await {
             Ok(render) => render,
             Err(Unsaved::Failed(e)) => return self.told(Err(e)),

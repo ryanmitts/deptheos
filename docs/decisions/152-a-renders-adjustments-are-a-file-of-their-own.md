@@ -45,6 +45,6 @@ Simplest, but a release that changes a law changes every saved picture, which a 
 
 ## Code
 
-- `crates/deptheos_app/src/library/adjustments.rs`, `crates/deptheos_app/src/library/history.rs`, `crates/deptheos_app/src/frames/sources/mod.rs`, `crates/deptheos_app/src/fsutil.rs`.
+- `crates/deptheos_app/src/library/adjustments.rs`, `crates/deptheos_app/src/library/adjustments/rules.rs` (inherit, paste and reset, ADR-142 and ADR-144), `crates/deptheos_app/src/library/history.rs`, `crates/deptheos_app/src/frames/sources/mod.rs`, `crates/deptheos_app/src/fsutil.rs`.
 - `crates/deptheos_adjust/src/lib.rs`, `crates/deptheos_adjust/src/slider.rs`.
 - `crates/deptheos_app/tests/integration/formats.rs`, `crates/deptheos_app/tests/fixtures/adjustments-v1`.

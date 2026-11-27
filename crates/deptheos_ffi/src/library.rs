@@ -32,6 +32,17 @@ pub struct BatchLabel {
     pub skipped: u64,
 }
 
+/// What a new render is made from, which says what it starts with
+/// (`deptheos_app::library::history::Made`).
+#[derive(Clone, Debug, PartialEq, Eq, uniffi::Enum)]
+pub enum RenderMade {
+    /// Stacked from the working version, based on render `base` (none
+    /// before the stack's first render), whose adjustments it inherits.
+    Stacked { base: Option<String> },
+    /// A batch run's stack, which starts neutral.
+    Batch { batch: Batch },
+}
+
 /// A new run of `plan`, as the Batch sheet planned it.
 #[uniffi::export]
 pub fn new_batch(plan: BatchPlan) -> Batch {

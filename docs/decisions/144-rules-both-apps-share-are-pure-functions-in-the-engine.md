@@ -51,6 +51,12 @@ Each rule is one pure function or reducer in `deptheos_app`, with table tests, r
 - **A listing is added to the list as it is when it lands**: changes made meanwhile stay, and nothing is read from disk twice. iOS lists in name order only, so adding listed files reads nothing more and is done on the main thread; the bridge has an async `list_expand` and the plan's `add_plan`.
 - **Kept per app:** what each says before the add (the desktop refuses files handed over while something runs; iOS holds the stack on screen while files picked in Files are planned and copied, `Adding`), the name the notice gives the stack, and how the notice and its New Stack Instead are shown.
 
+### Adjustments when a render is made, pasted onto or reset: `deptheos_app::library::adjustments::rules`
+
+- **Pure functions over `RenderAdjustments`**, with table tests: `inherited` (what a new render starts with, from its base's and whether the pixels line up the same, `Geometry::between`), `pasted` and `reset_all`. The version rules are ADR-152's.
+- **Paste takes every slider and the vignette, never the crop, turn or flip, nor the process version**: the target keeps its own frame and the meaning of its values. A white balance on the other kind of stack's scale (kelvins onto a standard stack, the relative scale onto a camera RAW one) would read as as shot there, so the target keeps its own.
+- **Reset all puts every slider at neutral in the latest process and keeps the reframe**, which the crop tool resets on its own.
+
 ## Alternatives considered
 
 ### Keep `Action::Save`, carrying the files recorded
@@ -98,4 +104,5 @@ One call would list, check and add, but the checks need the stack on screen when
 - The Library's tiles: `crates/deptheos_app/src/library.rs`, `library/tests.rs`, `library/history/strip.rs`; desktop `crates/deptheos_gpui/src/renders/library_layout.rs`, `renders/library.rs`; iOS `crates/deptheos_ffi/src/library.rs`, `ios/DeptheosMobile/Model/AppModel+Library.swift`, `Views/LibraryView.swift`.
 - Render thumbnails: `crates/deptheos_app/src/library/thumbnails.rs`, `library/thumbnails/tests.rs`; desktop `crates/deptheos_gpui/src/renders/thumbnails.rs`, `renders/mod.rs`; iOS `crates/deptheos_ffi/src/library.rs`, `ios/DeptheosMobile/Model/HistoryModel.swift`, `Views/LibraryTiles.swift`.
 - Adding frames: `crates/deptheos_app/src/frames/list/add.rs`, `list/add/tests.rs`; desktop `crates/deptheos_gpui/src/app/list.rs`; iOS `crates/deptheos_ffi/src/list.rs`, `ios/DeptheosMobile/Model/AppModel+Adding.swift`.
+- Adjustments: `crates/deptheos_app/src/library/adjustments/rules.rs`, `crates/deptheos_app/src/library/history.rs` (`Made`).
 - The messages: `crates/deptheos_app/i18n/en-US/deptheos_app.ftl`.

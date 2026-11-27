@@ -5,6 +5,8 @@
 //! the next write. Writes run on the store thread, one per finished
 //! change; a write a later one overtakes is skipped ([`Write::save`]).
 
+pub mod rules;
+
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 use std::sync::atomic::{AtomicU64, Ordering};

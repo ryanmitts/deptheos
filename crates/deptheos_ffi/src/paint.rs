@@ -999,8 +999,12 @@ pub(crate) mod tests {
         let presented =
             engine.engine.present_stack(stack, &deptheos_app::Adjustments::NEUTRAL).unwrap();
         let result = StackResult::new(engine.engine.clone(), presented);
-        let saving =
-            engine.clone().save_render(frames.clone(), result.clone(), crate::new_stack_id(), None);
+        let saving = engine.clone().save_render(
+            frames.clone(),
+            result.clone(),
+            crate::new_stack_id(),
+            crate::RenderMade::Stacked { base: None },
+        );
         let render = now(saving).unwrap();
         // Saved and shown, the result lets go of its display; painting and
         // exporting read the stack's pixels.
@@ -1197,8 +1201,12 @@ pub(crate) mod tests {
         let presented =
             engine.engine.present_stack(stack, &deptheos_app::Adjustments::NEUTRAL).unwrap();
         let result = StackResult::new(engine.engine.clone(), presented);
-        let saving =
-            engine.clone().save_render(vec![frame], result.clone(), crate::new_stack_id(), None);
+        let saving = engine.clone().save_render(
+            vec![frame],
+            result.clone(),
+            crate::new_stack_id(),
+            crate::RenderMade::Stacked { base: None },
+        );
         let render = now(saving).unwrap();
         let (tx, heard) = channel();
         let session = engine.paint_session(Arc::new(Recorder(Mutex::new(tx))), 1024);
@@ -1241,7 +1249,7 @@ pub(crate) mod tests {
             vec![frame.clone()],
             result.clone(),
             crate::new_stack_id(),
-            None,
+            crate::RenderMade::Stacked { base: None },
         ))
         .unwrap();
         let (tx, heard) = channel();

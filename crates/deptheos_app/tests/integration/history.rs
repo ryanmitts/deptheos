@@ -3,7 +3,7 @@
 
 use std::path::{Path, PathBuf};
 
-use deptheos_app::library::history::{Batch, BatchLabel, History, StackId};
+use deptheos_app::library::history::{Batch, BatchLabel, History, Made, StackId};
 use deptheos_app::runs::batch::Split;
 use deptheos_app::{
     AlignMode, AlignSettings, Alignment, CompletedStack, Gray16Image, GridConfig, SessionOptions,
@@ -96,8 +96,9 @@ fn a_batch_keeps_its_plan_and_words_it_when_shown() {
     let plan = Plan { split: Split::AutoSort, skipped: 2, ..Plan::default() };
     let batch = Batch::of_plan(&plan);
     let stack = srgb_stack(listed.clone());
-    let render =
-        history.save_render(&listed, &stack, &thumbnail(), &StackId::new(), Some(&batch)).unwrap();
+    let render = history
+        .save_render(&listed, &stack, &thumbnail(), &StackId::new(), &Made::Batch(batch.clone()))
+        .unwrap();
     let file =
         std::fs::read_to_string(history.render_path(&render.id).join("render.json")).unwrap();
     let file: serde_json::Value = serde_json::from_str(&file).unwrap();
@@ -117,8 +118,9 @@ fn a_render_round_trips_with_its_list() {
     // Frame b left out.
     let stack = srgb_stack(vec![listed[0].clone(), listed[2].clone()]);
     let batch = Batch::new(BatchLabel { split: Split::AutoSort, skipped: 0 });
-    let render =
-        history.save_render(&listed, &stack, &thumbnail(), &StackId::new(), Some(&batch)).unwrap();
+    let render = history
+        .save_render(&listed, &stack, &thumbnail(), &StackId::new(), &Made::Batch(batch.clone()))
+        .unwrap();
     assert_eq!(render.included, [true, false, true]);
 
     let renders = history.list().unwrap();
@@ -179,7 +181,9 @@ fn a_render_keeps_the_frames_its_stack_left_out() {
     stack.geometry.transforms[1] = None;
     stack.geometry.left_out =
         vec![deptheos_app::LeftOut { index: 1, reason: "alignment failed: too far".into() }];
-    let render = history.save_render(&listed, &stack, &thumbnail(), &StackId::new(), None).unwrap();
+    let render = history
+        .save_render(&listed, &stack, &thumbnail(), &StackId::new(), &Made::Stacked { base: None })
+        .unwrap();
     let saved = &history.list().unwrap()[0];
     for r in [&render, saved] {
         assert_eq!(r.included, [true, true, true, false], "b keeps its place in the stack");
@@ -217,7 +221,9 @@ fn encoded_pictures_wait_in_their_partial_folder() {
     assert_eq!(folders(), 0);
 
     let pictures = history.encode_render(&stack, &thumbnail()).unwrap();
-    let render = history.save_encoded(&listed, &stack, pictures, &StackId::new(), None).unwrap();
+    let render = history
+        .save_encoded(&listed, &stack, pictures, &StackId::new(), &Made::Stacked { base: None })
+        .unwrap();
     let names: Vec<_> =
         std::fs::read_dir(&renders).unwrap().map(|e| e.unwrap().file_name()).collect();
     assert_eq!(names, [std::ffi::OsString::from(render.id.as_str())]);
@@ -231,7 +237,13 @@ fn a_save_dropped_at_once_still_lands() {
     let history = std::sync::Arc::new(History::open(dir.path().join("store")).unwrap());
     let listed = paths(dir.path(), &["a.png", "b.png"]);
     let stack = std::sync::Arc::new(srgb_stack(listed.clone()));
-    drop(history.save(listed, stack.clone(), thumbnail(), StackId::new(), None));
+    drop(history.save(
+        listed,
+        stack.clone(),
+        thumbnail(),
+        StackId::new(),
+        Made::Stacked { base: None },
+    ));
     let start = std::time::Instant::now();
     let render = loop {
         if let Some(render) = history.list().unwrap().pop() {
@@ -250,7 +262,13 @@ fn a_render_opened_within_canceled_work_is_canceled() {
     let history = History::open(dir.path().join("store")).unwrap();
     let listed = paths(dir.path(), &["a.png", "b.png", "c.png"]);
     let render = history
-        .save_render(&listed, &srgb_stack(listed.clone()), &thumbnail(), &StackId::new(), None)
+        .save_render(
+            &listed,
+            &srgb_stack(listed.clone()),
+            &thumbnail(),
+            &StackId::new(),
+            &Made::Stacked { base: None },
+        )
         .unwrap();
     let canceled = deptheos_app::Cancel::root();
     canceled.cancel();
@@ -271,7 +289,13 @@ fn editing_a_saved_render_leaves_no_temporary_file() {
     let history = History::open(dir.path()).unwrap();
     let listed = paths(dir.path(), &["a.png", "b.png"]);
     let render = history
-        .save_render(&listed, &srgb_stack(listed.clone()), &thumbnail(), &StackId::new(), None)
+        .save_render(
+            &listed,
+            &srgb_stack(listed.clone()),
+            &thumbnail(),
+            &StackId::new(),
+            &Made::Stacked { base: None },
+        )
         .unwrap();
 
     history.rename_render(&render.id, Some("Bee")).unwrap();
@@ -293,7 +317,13 @@ fn the_listing_skips_half_written_and_unreadable_renders() {
     let history = History::open(dir.path()).unwrap();
     let listed = paths(dir.path(), &["a.png", "b.png"]);
     let kept = history
-        .save_render(&listed, &srgb_stack(listed.clone()), &thumbnail(), &StackId::new(), None)
+        .save_render(
+            &listed,
+            &srgb_stack(listed.clone()),
+            &thumbnail(),
+            &StackId::new(),
+            &Made::Stacked { base: None },
+        )
         .unwrap();
     let renders = dir.path().join("Renders");
     // A render being written, one with no manifest, one of a newer format.
@@ -313,7 +343,15 @@ fn renders_are_numbered_in_their_stack_and_numbers_never_shift() {
     let history = History::open(dir.path()).unwrap();
     let listed = paths(dir.path(), &["a.png", "b.png"]);
     let save = |of: &StackId| {
-        history.save_render(&listed, &srgb_stack(listed.clone()), &thumbnail(), of, None).unwrap()
+        history
+            .save_render(
+                &listed,
+                &srgb_stack(listed.clone()),
+                &thumbnail(),
+                of,
+                &Made::Stacked { base: None },
+            )
+            .unwrap()
     };
     let (bee, ant) = (StackId::new(), StackId::new());
     let first = save(&bee);
@@ -357,7 +395,9 @@ fn deleting_the_library_deletes_what_it_lists() {
     }
     let bee = StackId::new();
     let stack = srgb_stack(listed.clone());
-    let render = history.save_render(&listed, &stack, &thumbnail(), &bee, None).unwrap();
+    let render = history
+        .save_render(&listed, &stack, &thumbnail(), &bee, &Made::Stacked { base: None })
+        .unwrap();
     history.rename_stack(&bee, Some("Bee")).unwrap();
     // A stack named and never stacked.
     history.rename_stack(&StackId::new(), Some("Wasp")).unwrap();
@@ -392,7 +432,9 @@ fn deleting_the_library_deletes_what_it_lists() {
     drop(history);
     let reopened = History::open(&root).unwrap();
     assert!(reopened.read_working().unwrap().list.is_empty());
-    let again = reopened.save_render(&listed, &stack, &thumbnail(), &bee, None).unwrap();
+    let again = reopened
+        .save_render(&listed, &stack, &thumbnail(), &bee, &Made::Stacked { base: None })
+        .unwrap();
     assert_eq!(again.number, 1);
     // An empty Library deletes as well.
     let empty = History::open(dir.path().join("empty")).unwrap();
@@ -418,7 +460,9 @@ fn a_batch_records_its_jobs_as_it_starts() {
     history.record_unstacked(&jobs, &settings, &batch, why).unwrap();
     assert!(history.failures().unwrap().is_empty(), "hidden while the run lasts");
 
-    history.save_render(&listed[..2], &stack, &thumbnail(), &of[0], Some(&batch)).unwrap();
+    history
+        .save_render(&listed[..2], &stack, &thumbnail(), &of[0], &Made::Batch(batch.clone()))
+        .unwrap();
     history.save_failure("b", &listed[2..4], &settings, &of[1], &batch, "boom").unwrap();
     let shown = history.failures().unwrap();
     assert_eq!(shown.len(), 1, "a's went as it saved; b's is shown, reworded in place");
@@ -452,7 +496,9 @@ fn a_batch_numbers_its_renders_in_the_order_they_save() {
     let stack = srgb_stack(listed.clone());
     let batch = Batch::new(BatchLabel::default());
     let bee = StackId::new();
-    history.save_render(&listed, &stack, &thumbnail(), &bee, None).unwrap();
+    history
+        .save_render(&listed, &stack, &thumbnail(), &bee, &Made::Stacked { base: None })
+        .unwrap();
 
     // Three encoded side by side, then saved last first.
     let encoded: Vec<_> = std::thread::scope(|scope| {
@@ -465,7 +511,10 @@ fn a_batch_numbers_its_renders_in_the_order_they_save() {
         .into_iter()
         .rev()
         .map(|pictures| {
-            history.save_encoded(&listed, &stack, pictures, &bee, Some(&batch)).unwrap().number
+            history
+                .save_encoded(&listed, &stack, pictures, &bee, &Made::Batch(batch.clone()))
+                .unwrap()
+                .number
         })
         .collect();
     assert_eq!(numbers, [2, 3, 4]);
@@ -473,11 +522,16 @@ fn a_batch_numbers_its_renders_in_the_order_they_save() {
     let fresh: Vec<u32> = (0..2)
         .map(|_| {
             let of = StackId::new();
-            history.save_render(&listed, &stack, &thumbnail(), &of, Some(&batch)).unwrap().number
+            history
+                .save_render(&listed, &stack, &thumbnail(), &of, &Made::Batch(batch.clone()))
+                .unwrap()
+                .number
         })
         .collect();
     assert_eq!(fresh, [1, 1], "each new stack starts at #1");
-    let after = history.save_render(&listed, &stack, &thumbnail(), &bee, None).unwrap();
+    let after = history
+        .save_render(&listed, &stack, &thumbnail(), &bee, &Made::Stacked { base: None })
+        .unwrap();
     assert_eq!(after.number, 5);
 }
 
@@ -496,7 +550,7 @@ fn a_restored_render_keeps_its_adjustments() {
         &srgb_stack(listed.clone()),
         &thumbnail(),
         &StackId::new(),
-        None,
+        &Made::Stacked { base: None },
     );
     let render = render.unwrap();
     assert_eq!(history.adjustments(&render), Ok(RenderAdjustments::NONE));
@@ -515,4 +569,59 @@ fn a_restored_render_keeps_its_adjustments() {
     history.restore(&deletion.ids()).unwrap();
     let back = history.render(&render.id).unwrap();
     assert_eq!(history.adjustments(&back), Ok(value));
+}
+
+/// A new render starts with its base render's adjustments, and its
+/// reframe while the pixels line up the same; a batch's and a first
+/// render start neutral, and so does one whose base is damaged.
+#[test]
+fn a_new_render_inherits_its_base_renders_adjustments() {
+    use deptheos_app::library::adjustments::{ADJUSTMENTS_FILE, RenderAdjustments};
+    use deptheos_app::reframe::{Rect, Turn};
+    use deptheos_app::{Adjustments, Reframe};
+    let dir = tempfile::tempdir().unwrap();
+    let history = History::open(dir.path()).unwrap();
+    let listed = paths(dir.path(), &["a.png", "b.png", "c.png"]);
+    let bee = StackId::new();
+    let save = |stack: &CompletedStack, made: Made| {
+        history.save_render(&listed, stack, &thumbnail(), &bee, &made).unwrap()
+    };
+    let base = save(&srgb_stack(listed.clone()), Made::Stacked { base: None });
+    assert_eq!(history.adjustments(&base), Ok(RenderAdjustments::NONE));
+    let value = RenderAdjustments {
+        adjustments: Adjustments { exposure: 0.5, contrast: 12.0, ..Adjustments::NEUTRAL },
+        reframe: Reframe {
+            crop: Some(Rect { x: 1, y: 2, width: 20, height: 10 }),
+            turn: Turn::Quarter,
+            ..Reframe::NONE
+        },
+    };
+    history.adjustment_writes(&base.id).send(value.clone()).save().unwrap();
+    let from = Made::Stacked { base: Some(base.id.clone()) };
+
+    let again = save(&srgb_stack(listed.clone()), from.clone());
+    assert_eq!(history.adjustments(&again), Ok(value.clone()));
+
+    // Two frames of the three, one of them realigned: still lined up
+    // through the frame they share the same way.
+    let mut fewer = srgb_stack(listed[..2].to_vec());
+    fewer.geometry.transforms[1] = Some(shift(9.0, 9.0));
+    let fewer = save(&fewer, from.clone());
+    assert_eq!(history.adjustments(&fewer), Ok(value.clone()));
+
+    // Moved by a pixel: the sliders come, the reframe doesn't.
+    let mut moved = srgb_stack(listed.clone());
+    moved.geometry.crop = Some(image::math::Rect { x: 3, y: 1, width: W, height: H });
+    let moved = save(&moved, from.clone());
+    let sliders = RenderAdjustments { reframe: Reframe::NONE, ..value.clone() };
+    assert_eq!(history.adjustments(&moved), Ok(sliders));
+
+    let batch = Batch::new(BatchLabel { split: Split::PerFolder, skipped: 0 });
+    let batched = save(&srgb_stack(listed.clone()), Made::Batch(batch));
+    assert_eq!(history.adjustments(&batched), Ok(RenderAdjustments::NONE));
+    assert!(!history.render_path(&batched.id).join(ADJUSTMENTS_FILE).exists());
+
+    std::fs::write(history.render_path(&base.id).join(ADJUSTMENTS_FILE), b"{").unwrap();
+    let after_damage = save(&srgb_stack(listed.clone()), from);
+    assert_eq!(history.adjustments(&after_damage), Ok(RenderAdjustments::NONE));
 }

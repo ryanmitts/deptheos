@@ -478,7 +478,13 @@ fn save(engine: &Arc<Engine>, listed: &[PathBuf], stacked: &[PathBuf], stack: &s
     )
     .options();
     let result = result(engine, stacked, options);
-    now(engine.clone().save_render(listed.to_vec(), result, stack.to_string(), None)).unwrap()
+    now(engine.clone().save_render(
+        listed.to_vec(),
+        result,
+        stack.to_string(),
+        crate::RenderMade::Stacked { base: None },
+    ))
+    .unwrap()
 }
 
 /// Stacking twice in one stack gives #1 and #2, named for their folder
@@ -742,7 +748,13 @@ fn a_desktop_render_opens_unedited() {
         ..SessionOptions::default()
     };
     let result = result(&engine, &listed, options);
-    let render = now(engine.clone().save_render(listed, result, new_stack_id(), None)).unwrap();
+    let render = now(engine.clone().save_render(
+        listed,
+        result,
+        new_stack_id(),
+        crate::RenderMade::Stacked { base: None },
+    ))
+    .unwrap();
     let working = now(engine.clone().working_of_render(req(), render.id.clone())).unwrap();
     assert!(!showing(&engine, working, Some(render.id)).edited);
 }
@@ -755,7 +767,13 @@ fn a_render_loads_with_or_without_its_display() {
     let engine = engine(dir.path());
     let listed = frames(dir.path(), &["a.jpg", "b.jpg"]);
     let made = result(&engine, &listed, SessionOptions::default());
-    let render = now(engine.clone().save_render(listed, made, new_stack_id(), None)).unwrap();
+    let render = now(engine.clone().save_render(
+        listed,
+        made,
+        new_stack_id(),
+        crate::RenderMade::Stacked { base: None },
+    ))
+    .unwrap();
 
     let shown = now(engine.clone().load_render(req(), render.id.clone())).unwrap();
     assert!(shown.held(false).is_some());
@@ -768,7 +786,12 @@ fn a_render_loads_with_or_without_its_display() {
     assert_eq!(pixels.frames(), shown.frames());
     assert_eq!(pixels.export_formats(), shown.export_formats());
     // Nothing to thumbnail: it can't be kept as a new render.
-    let again = now(engine.clone().save_render(Vec::new(), pixels, new_stack_id(), None));
+    let again = now(engine.clone().save_render(
+        Vec::new(),
+        pixels,
+        new_stack_id(),
+        crate::RenderMade::Stacked { base: None },
+    ));
     assert!(again.is_err());
 }
 
@@ -1035,7 +1058,13 @@ fn left_out_frames_and_summary_line_are_reported() {
     assert_eq!(engine.words().left_out_line(1), "1 frame left out");
     assert_eq!(engine.words().left_out_line(2), "2 frames left out");
 
-    let saved = now(engine.clone().save_render(listed, res, new_stack_id(), None)).unwrap();
+    let saved = now(engine.clone().save_render(
+        listed,
+        res,
+        new_stack_id(),
+        crate::RenderMade::Stacked { base: None },
+    ))
+    .unwrap();
     let reopened = now(engine.clone().load_render(req(), saved.id)).unwrap();
     assert_eq!(reopened.left_out(), want);
 }
@@ -1414,7 +1443,13 @@ fn the_depth_map_is_lit_frame_by_frame() {
 
     // Saved, it keeps the display it thumbnailed and lets go of the map
     // before the encode; the map is remade, the same, when asked.
-    now(engine.clone().save_render(stacked.clone(), result.clone(), new_stack_id(), None)).unwrap();
+    now(engine.clone().save_render(
+        stacked.clone(),
+        result.clone(),
+        new_stack_id(),
+        crate::RenderMade::Stacked { base: None },
+    ))
+    .unwrap();
     assert!(result.held(false).is_some() && result.held(true).is_none());
     assert!(
         result.picture_of(&PictureOf::Map).unwrap().unwrap().base(64).unwrap().bgra == whole.bgra

@@ -113,6 +113,27 @@ pub struct Batch {
     pub label: BatchLabel,
 }
 
+/// What a new render is made from, which says what it starts with
+/// (ADR-142).
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub enum Made {
+    /// Stacked from a working version based on `base`; none before the
+    /// stack's first render. It inherits `base`'s adjustments.
+    Stacked { base: Option<RenderId> },
+    /// A batch run's stack, which starts neutral.
+    Batch(Batch),
+}
+
+impl Made {
+    /// The batch run it is part of, if any.
+    pub fn batch(&self) -> Option<&Batch> {
+        match self {
+            Self::Stacked { .. } => None,
+            Self::Batch(batch) => Some(batch),
+        }
+    }
+}
+
 /// What a batch run's header is worded from when shown: how it split its
 /// folders and how many frames it skipped.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash)]
@@ -510,7 +531,7 @@ impl History {
         stack: Arc<CompletedStack>,
         thumbnail: RgbImage,
         of: StackId,
-        batch: Option<Batch>,
+        made: Made,
     ) -> impl std::future::Future<Output = std::result::Result<Render, Unsaved>> + Send + 'static
     {
         let (tx, rx) = futures::channel::oneshot::channel();
@@ -523,8 +544,7 @@ impl History {
             Ok(pictures) => {
                 // Not awaited: its result goes to `tx`.
                 let _written = crate::engine::store::store().write(move || {
-                    let saved =
-                        history.save_encoded(&frames, &stack, pictures, &of, batch.as_ref());
+                    let saved = history.save_encoded(&frames, &stack, pictures, &of, &made);
                     let _ = tx.send(saved.map_err(Unsaved::Failed));
                 });
             }
@@ -554,10 +574,10 @@ impl History {
         stack: &CompletedStack,
         thumbnail: &RgbImage,
         of: &StackId,
-        batch: Option<&Batch>,
+        made: &Made,
     ) -> Result<Render> {
         let pictures = self.encode_render(stack, thumbnail)?;
-        self.save_encoded(frames, stack, pictures, of, batch)
+        self.save_encoded(frames, stack, pictures, of, made)
     }
 
     /// The pool half of [`Self::save`]: the pictures encoded into a
@@ -579,7 +599,7 @@ impl History {
         stack: &CompletedStack,
         pictures: EncodedPictures,
         of: &StackId,
-        batch: Option<&Batch>,
+        made: &Made,
     ) -> Result<Render> {
         let included = included_frames(frames, &stack.paths)?;
         if stack.geometry.transforms.len() != stack.paths.len() {
@@ -595,7 +615,12 @@ impl History {
         let created = SystemTime::now();
         let dir = self.render_path(&id);
         let partial = &pictures.partial;
-        let place = Place { stack: of.clone(), number, batch: batch.map(BatchFile::from) };
+        let place = Place { stack: of.clone(), number, batch: made.batch().map(BatchFile::from) };
+        if let Some(inherited) = self.inherited_by(stack, made)
+            && let Err(e) = crate::library::adjustments::write(partial, &inherited)
+        {
+            tracing::warn!("the new render's inherited adjustments weren't written: {e}");
+        }
         // Failed, the folder goes with `pictures`.
         let built = write_render(partial, &named, &included, stack, created, place)
             .and_then(|file| rename(partial, &dir).map(|()| file));
@@ -605,6 +630,41 @@ impl History {
             tracing::warn!("could not clear the failure of a stack now stacked: {e}");
         }
         Render::of(file, id, &self.frames)
+    }
+
+    /// What a render of `stack` made as `made` starts with, when not
+    /// neutral: its base render's adjustments, and its reframe when the
+    /// pixels line up the same ([`rules::inherited`]). A base gone or
+    /// unreadable starts it neutral, logged.
+    ///
+    /// [`rules::inherited`]: crate::library::adjustments::rules::inherited
+    fn inherited_by(&self, stack: &CompletedStack, made: &Made) -> Option<RenderAdjustments> {
+        use crate::library::adjustments::rules::{Geometry, inherited};
+        let Made::Stacked { base: Some(base) } = made else { return None };
+        let render = self
+            .render(base)
+            .inspect_err(|e| tracing::debug!("base render {} not read: {e}", base.as_str()))
+            .ok()?;
+        let adjustments = match self.adjustments(&render) {
+            Ok(a) if a == RenderAdjustments::NONE => return None,
+            Ok(a) => a,
+            Err(e) => {
+                tracing::warn!("base render {}'s adjustments {e}: starting neutral", base.as_str());
+                return None;
+            }
+        };
+        let geometry = match self.load_settings(base) {
+            Ok(from) => Geometry::between(stack, &from),
+            Err(e) => {
+                tracing::warn!("base render {} not read for its geometry: {e}", base.as_str());
+                Geometry::Differs
+            }
+        };
+        tracing::debug!(
+            "a new render inherits #{}'s adjustments, geometry {geometry:?}",
+            render.number
+        );
+        Some(inherited(Some(&adjustments), geometry)).filter(|a| *a != RenderAdjustments::NONE)
     }
 
     /// Rebuild the stack a render was saved from: pixels, map, color

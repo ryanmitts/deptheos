@@ -70,7 +70,15 @@ mod tests {
         let pixels = (0..w * h * 3).map(|i| (i * 13 % 65_536) as u16).collect();
         let stack = CompletedStack::srgb(w, h, pixels, frames.clone());
         let thumb = RgbImage::new(w, h);
-        let render = history.save_render(&frames, &stack, &thumb, &StackId::new(), None).unwrap();
+        let render = history
+            .save_render(
+                &frames,
+                &stack,
+                &thumb,
+                &StackId::new(),
+                &crate::library::history::Made::Stacked { base: None },
+            )
+            .unwrap();
         let folder = history.render_path(&render.id);
 
         let unpainted = RenderFolder::read(&folder).unwrap();

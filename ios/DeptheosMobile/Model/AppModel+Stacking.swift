@@ -301,10 +301,13 @@ extension AppModel {
                 "Stacking \(name)",
                 comment: "Title of the system's progress for a stack running in the background. The placeholder is the stack's name.")))
         let outcome: StackOutcome
+        // The render it starts from, whose adjustments it inherits.
+        let from = base
         switch await runStack(paths: paths, settings: settings, continued: continued) {
         case .made(let made, let generation):
             if let error = await keep(
-                made, listed: listed, into: stackID, batch: nil, generation: generation)
+                made, listed: listed, into: stackID, made: .stacked(base: from),
+                generation: generation)
             {
                 outcome = .failed(error)
             } else {
@@ -446,10 +449,10 @@ extension AppModel {
         }
     }
 
-    /// Keep `stack` as a render in stack `into` and show it; why not, if it
-    /// couldn't be kept.
+    /// Keep `stack` as a render in stack `into`, made as `made`, and show
+    /// it; why not, if it couldn't be kept.
     func keep(
-        _ stack: StackResult, listed: [String], into: String, batch: Batch?,
+        _ stack: StackResult, listed: [String], into: String, made: RenderMade,
         generation: Int
     ) async -> UserText? {
         guard let engine else {
@@ -460,8 +463,9 @@ extension AppModel {
         let background = BackgroundTask("Save render")
         defer { background.end() }
         let render: RenderInfo
+        let batch: Batch? = if case .batch(let batch) = made { batch } else { nil }
         do {
-            render = try await engine.saveRender(frames: listed, result: stack, stack: into, batch: batch)
+            render = try await engine.saveRender(frames: listed, result: stack, stack: into, made: made)
         } catch {
             stackEnded()
             return Self.message(error)

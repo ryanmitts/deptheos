@@ -86,7 +86,7 @@ extension AppModel {
                         // the record.
                         if let error = await keep(
                             result, listed: save.listed, into: run.stacks[Int(save.job)],
-                            batch: run.batch, generation: generation)
+                            made: .batch(batch: run.batch), generation: generation)
                         {
                             saved = run.queue.saveFailed(stack: save.stack, error: error.string)
                         } else {

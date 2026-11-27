@@ -5,6 +5,7 @@ use std::path::PathBuf;
 use std::sync::Arc;
 use std::sync::atomic::Ordering;
 
+use deptheos_app::library::history::Made;
 use deptheos_app::{
     Adjustments, AlignMode, AlignSettings, Alignment, FrameKind, GridConfig, Look, SaveOptions,
     SessionEvent, SessionOptions, SessionOutput, StackerConfig, StackingSession,
@@ -1238,7 +1239,13 @@ fn a_wide_gamut_stack_keeps_its_profile() {
 
     let history = History::open(dir.path().join("store")).unwrap();
     let render = history
-        .save_render(&paths, &stack, &image::RgbImage::new(8, 8), &StackId::new(), None)
+        .save_render(
+            &paths,
+            &stack,
+            &image::RgbImage::new(8, 8),
+            &StackId::new(),
+            &Made::Stacked { base: None },
+        )
         .unwrap();
     let loaded = history.load_render(&render.id).unwrap();
     assert!(matches!(&loaded.color, StackColor::Srgb { profile: Some(p), .. } if *p == adobe));

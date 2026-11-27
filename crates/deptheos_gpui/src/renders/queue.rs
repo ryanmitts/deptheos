@@ -8,7 +8,7 @@ use std::sync::Arc;
 
 use deptheos_app::frames::sources::Matched;
 use deptheos_app::library::history::{
-    self, Batch, DeletedId, Deletion, Failure, History, Render as Saved, RenderId, StackId,
+    self, Batch, DeletedId, Deletion, Failure, History, Made, Render as Saved, RenderId, StackId,
     StoreError, Unsaved,
 };
 use deptheos_app::library::stacks::Settings;
@@ -160,7 +160,11 @@ impl Renders {
                     let strip = thumbnail.clone();
                     let strip =
                         work::background("strip-thumbnail", move || strip_thumbnail(&strip));
-                    match store.save(frames, stack.clone(), thumbnail, of, batch).await {
+                    let made = match batch {
+                        Some(batch) => Made::Batch(batch),
+                        None => Made::Stacked { base: from.clone() },
+                    };
+                    match store.save(frames, stack.clone(), thumbnail, of, made).await {
                         Ok(render) => strip
                             .await
                             .map(|strip| Ok(Done::Saved(Box::new((render, strip, stack, from))))),

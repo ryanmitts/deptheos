@@ -13,7 +13,7 @@ use std::sync::Arc;
 
 use deptheos_app::frames::list::List;
 use deptheos_app::library::adjustments::{ADJUSTMENTS_FILE, RenderAdjustments};
-use deptheos_app::library::history::{Batch, BatchLabel, History, StackId, Took};
+use deptheos_app::library::history::{Batch, BatchLabel, History, Made, StackId, Took};
 use deptheos_app::library::stacks::Settings;
 use deptheos_app::library::stacks::Working;
 use deptheos_app::paint::store;
@@ -151,7 +151,13 @@ fn write_fixtures() {
     let listed = make_frames(dir.path());
     let batch = Batch::new(auto_sort());
     let render = history
-        .save_render(&listed, &render_stack(dir.path()), &thumb, &StackId::new(), Some(&batch))
+        .save_render(
+            &listed,
+            &render_stack(dir.path()),
+            &thumb,
+            &StackId::new(),
+            &Made::Batch(batch.clone()),
+        )
         .unwrap();
     history.rename_render(&render.id, Some("Bee")).unwrap();
     let manifest = history.render_path(&render.id).join("render.json");
@@ -162,7 +168,13 @@ fn write_fixtures() {
     let history = History::open(dir.path()).unwrap();
     let listed = make_frames(dir.path());
     let render = history
-        .save_render(&listed, &render_stack(dir.path()), &thumb, &StackId::new(), None)
+        .save_render(
+            &listed,
+            &render_stack(dir.path()),
+            &thumb,
+            &StackId::new(),
+            &Made::Stacked { base: None },
+        )
         .unwrap();
     history.adjustment_writes(&render.id).send(every_adjustment_set()).save().unwrap();
     let file = history.render_path(&render.id).join(ADJUSTMENTS_FILE);
@@ -236,18 +248,21 @@ fn write_library_fixture() {
     let bees = make_frames(library);
     let bee = StackId::new();
     let batch = Batch::new(auto_sort());
-    let first =
-        history.save_render(&bees, &render_stack(library), &thumb, &bee, Some(&batch)).unwrap();
+    let first = history
+        .save_render(&bees, &render_stack(library), &thumb, &bee, &Made::Batch(batch.clone()))
+        .unwrap();
     history.rename_render(&first.id, Some("Bee")).unwrap();
     history.set_render_picked(&first.id, true).unwrap();
     let pyramid = CompletedStack {
         config: StackerConfig::Pyramid(PyramidConfig::default()),
         ..render_stack(library)
     };
-    history.save_render(&bees, &pyramid, &thumb, &bee, None).unwrap();
+    history.save_render(&bees, &pyramid, &thumb, &bee, &Made::Stacked { base: None }).unwrap();
     history.rename_stack(&bee, Some("Bees")).unwrap();
     // A third Bees render, in Recently Deleted.
-    let third = history.save_render(&bees, &render_stack(library), &thumb, &bee, None).unwrap();
+    let third = history
+        .save_render(&bees, &render_stack(library), &thumb, &bee, &Made::Stacked { base: None })
+        .unwrap();
     let closed = history.close_paint(std::slice::from_ref(&third.id));
     let deletion = history.delete_renders(std::slice::from_ref(&third.id), closed).unwrap();
     assert_eq!(deletion.0.len(), 1);
@@ -266,7 +281,8 @@ fn write_library_fixture() {
     let ant = StackId::new();
     let base = paint_base_of(&ants);
     let ant_thumb = RgbImage::from_pixel(PAINT_W, PAINT_H, image::Rgb([90, 90, 90]));
-    let painted = history.save_render(&ants, &base, &ant_thumb, &ant, None).unwrap();
+    let painted =
+        history.save_render(&ants, &base, &ant_thumb, &ant, &Made::Stacked { base: None }).unwrap();
     {
         let render = history.render_path(&painted.id);
         let mut doc = store::open_doc(&render, PAINT_W, PAINT_H);

@@ -7,7 +7,7 @@ use std::sync::Arc;
 use std::sync::mpsc::{Receiver, channel};
 use std::time::Duration;
 
-use deptheos_app::library::history::History;
+use deptheos_app::library::history::{History, Made};
 use deptheos_app::paint::{
     Brush, Command, Dab, Output, PaintState, PaintWorker, SourceKind, SourceLoader,
 };
@@ -34,7 +34,13 @@ fn a_frame_outside_the_render_lines_up_through_a_render_listed_once() {
     let thumbnail = image::RgbImage::from_pixel(1000, 750, image::Rgb([9, 9, 9]));
     let save = |paths: Vec<PathBuf>| {
         let stack = CompletedStack::srgb(width, height, vec![30000; 3 * 64 * 48], paths.clone());
-        let render = history.save_render(&paths, &stack, &thumbnail, &StackId::new(), None);
+        let render = history.save_render(
+            &paths,
+            &stack,
+            &thumbnail,
+            &StackId::new(),
+            &Made::Stacked { base: None },
+        );
         (render.unwrap().id, Arc::new(stack))
     };
     let (painted, stack) = save(vec![a.clone()]);
@@ -77,7 +83,9 @@ fn a_scrubbed_frame_is_shown_from_half_size_and_a_picked_one_whole() {
     let stack = Arc::new(CompletedStack::srgb(width, height, pixels, vec![path.clone()]));
     let thumbnail = image::RgbImage::from_pixel(1000, 750, image::Rgb([9, 9, 9]));
     let paths = vec![path.clone()];
-    let render = history.save_render(&paths, &stack, &thumbnail, &StackId::new(), None).unwrap();
+    let render = history
+        .save_render(&paths, &stack, &thumbnail, &StackId::new(), &Made::Stacked { base: None })
+        .unwrap();
     let siblings = Siblings::listed_once(history.clone(), render.id);
     let told: Told = Arc::new(|e| Failure::user(e.to_string()));
     let load = frame_loader(engine.clone(), stack.clone(), paths, path, siblings, told);

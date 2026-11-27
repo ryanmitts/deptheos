@@ -22,7 +22,7 @@ A strip of bars giving each frame's share of the in-focus detail (ADR-121) mostl
 
 ### One view, one reducer
 
-- **The view is one pure reducer in the engine**, `deptheos_app::view::View`, pulled on the UI thread: `on(event) -> Answer { actions, now }`. Its state is the `Mode` (the result alone; a frame alone with its overlay; a comparison with its layout, sides and target; the depth map with its `Back` and its `Light`), the comparison last shown and, while Retouch is open, Retouch's layout. It holds no time, no pixels and no load status: ids only. The frame on screen is the app's selection; the view says when that changes (`Action::Show`).
+- **The view is one pure reducer in the engine**, `deptheos_app::view::View`, pulled on the UI thread: `on(event) -> Answer { actions, now }`. Its state is the `Mode` (the result alone; a frame alone with its overlay; a comparison with its layout, sides and target; the depth map with its `Back` and its `Light`), the comparison last shown and, while Retouch or Adjust is open, that place's own state. It holds no time, no pixels and no load status: ids only. The frame on screen is the app's selection; the view says when that changes (`Action::Show`).
 - **Load status is beside the view, each app's** (the desktop's `Loads`, iOS's `LatestLoad`s), which read the view to know what is wanted. A load landing never changes the view, so a late one can't reopen a comparison left. The lit map's loads carry a token, and a failure applies only while the map still waits for that token.
 - **Both apps drive it**: the desktop through `Viewer::on`, Retouch included; iOS through the bridge's `ViewControl`, kept as `viewState` and changed only by `view(_:)`. iOS's Retouch keeps its own `PaintView` (ADR-163).
 - **The cases it decides are its table tests** (`view.rs`), the same on both apps. Three carry a reason worth stating:
@@ -73,6 +73,14 @@ A strip of bars giving each frame's share of the in-focus detail (ADR-121) mostl
 - **The desktop's Retouch bar is built as Stacking's**, with Paint From in the home control's place, joined to the rail so the two read as one control: the pop-up picks the kind of source, the rail which frame. Compare's layouts there are Painted, Split, Side by Side and Top and Bottom, with no Flicker or Swap, and Retouch's layout memory is its own. Retouch's layouts have no keys, since 1 to 0 and `\` set the brush's opacity and hold the source in view.
 - **The desktop draws its Renders strip only outside Retouch and Focus Mode** (`AppView::strip_shown`): in Retouch a render is listed once, on the Renders side of Paint From, and a click on it always means paint from it. Outside Retouch the desktop keeps the strip, since a desktop window doesn't lack the height a phone does.
 
+### Adjust and the reframe
+
+- **Adjust is a place of the view, as Retouch is** (`view::Adjusting`): opened on the result shown, never over Retouch or with no result, and it shows the result alone, so a layout, a frame or the map picked there does nothing. It opens with the sliders and the settled picture each time; nothing of it is kept between opens.
+- **A drag's preview is one flat picture over the settled one** (`Picture::Preview`), so the viewer builds no tile pyramid per tick; the settled picture replaces it as it lands (`Event::Settled`). The view says which shows; the pictures are each app's, from the Adjust session (ADR-153).
+- **Holding a key or button shows the render without its adjustments** (`Hold::Before`) in the picture's place, at the same framing, and letting go shows whatever landed meanwhile.
+- **Each view draws one pane of the render** (`view::Pane`, `view/framing.rs`): the result alone, reframed; a comparison's sides and Adjust's crop tool, adjusted and uncropped with the crop marked; Retouch's canvas, the stored picture with paint, uncropped, the crop marked; a frame and the depth map, the stored picture. Every pane is flipped and turned as the result is, at the hand-off; only the crop is the result's alone.
+- **Pointers map back to stored pixels through the pane's `Framing`**, so Sharpest Frame, the frame map and paint stay in stored coordinates whatever the turn. Switching between a reframed and an uncropped pane keeps the stored point under the pointer at the same zoom (`Placement::keeping`), where the viewer would otherwise reset to fit as the picture's size changes.
+
 ## Alternatives considered
 
 ### Keep the chip, its menu and its arrows, or controls on each pane
@@ -113,7 +121,7 @@ Lighting on the CPU would need the lit picture built into every display level an
 
 ## Code
 
-- Engine: `crates/deptheos_app/src/view.rs`, `crates/deptheos_app/src/runs/session/contributions.rs`, `crates/deptheos_app/src/runs/session/stack.rs`, `crates/deptheos_app/src/engine/present.rs`.
+- Engine: `crates/deptheos_app/src/view.rs`, `crates/deptheos_app/src/view/framing.rs`, `crates/deptheos_app/src/runs/session/contributions.rs`, `crates/deptheos_app/src/runs/session/stack.rs`, `crates/deptheos_app/src/engine/present.rs`.
 - Stackers and shaders: `crates/deptheos_core/src/map.rs`, `crates/deptheos_core/src/plane.rs`, `crates/deptheos_core/src/contribution.rs`, `crates/deptheos_core/src/wavelet/wavelet.wgsl`.
 - Bridge: `crates/deptheos_ffi/src/view.rs`, `crates/deptheos_ffi/src/result.rs`, `crates/deptheos_ffi/src/picture.rs`.
 - Desktop: `crates/deptheos_gpui/src/viewer/`, `crates/deptheos_gpui/src/app/view_bar.rs`, `crates/deptheos_gpui/src/app/scrubber.rs`, `crates/deptheos_gpui/src/app/chrome.rs`, `crates/deptheos_gpui/src/paint.rs`.

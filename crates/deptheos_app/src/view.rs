@@ -7,6 +7,10 @@
 //! over it ([`Action::Show`]). The frame lit on the depth map is the view's
 //! own, since it differs from the selection until the map is left.
 
+pub mod framing;
+
+pub use framing::{Framing, Pane, Placement};
+
 use crate::Overlay;
 
 /// The overlay chosen, kept from frame to frame, and whether this frame
@@ -342,6 +346,65 @@ pub enum Event<F, R> {
     Shown { result: Option<Facts>, keep: bool, supplied: bool },
     /// Retouch opened with what it was left showing, or closed (`None`).
     Retouch(Option<Retouched<R>>),
+    /// Adjust opened on the result shown, or closed (`false`).
+    Adjust(bool),
+    /// In Adjust: a drag's preview landed, shown over the settled picture.
+    Previewed,
+    /// In Adjust: the settled picture landed; the preview goes.
+    Settled,
+    /// In Adjust: the render without its adjustments held up (`true`)
+    /// or let go.
+    HoldBefore(bool),
+    /// In Adjust: a tool picked.
+    Tool(Tool),
+}
+
+/// Adjust's tools.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub enum Tool {
+    /// The sliders, over the result reframed.
+    #[default]
+    Sliders,
+    /// The crop tool, over the whole picture with the crop marked.
+    Crop,
+}
+
+/// The picture Adjust shows.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub enum Picture {
+    /// The render drawn under its adjustments, as tiles.
+    #[default]
+    Settled,
+    /// A drag's preview, one flat picture over the settled one.
+    Preview,
+}
+
+/// Whether the render without its adjustments is held up.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub enum Hold {
+    #[default]
+    Released,
+    /// Held: the stored picture shows in the picture's place.
+    Before,
+}
+
+/// What Adjust shows, inside its place.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub struct Adjusting {
+    pub tool: Tool,
+    pub picture: Picture,
+    pub hold: Hold,
+}
+
+impl Adjusting {
+    /// The pane the result is drawn as.
+    pub fn pane(&self) -> Pane {
+        match (self.hold, self.tool) {
+            (Hold::Before, _) => Pane::Stored,
+            (Hold::Released, Tool::Sliders) => Pane::Result,
+            (Hold::Released, Tool::Crop) => Pane::Uncropped,
+        }
+    }
 }
 
 /// What Retouch was left showing and its last layout, kept by the desktop's
@@ -384,7 +447,12 @@ pub struct Answer<F, R> {
 /// The viewer, or the desktop's Retouch, which shows its canvas and source
 /// through the same view.
 ///
-/// `Viewer` → `Retouch`: opened; `Retouch` → `Viewer`: closed, to the result.
+/// `Viewer` → `Retouch` or `Adjust`: opened; either → `Viewer`: closed,
+/// to the result. Adjust shows the result alone: no comparison, frame or
+/// map.
+///
+/// In `Adjust`: `Settled` → `Preview` as a drag's preview lands, back as
+/// the settled picture does; `Hold` held and let go; `Tool` picked.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 enum Place {
     Viewer,
@@ -392,12 +460,14 @@ enum Place {
     Retouch {
         layout: Layout,
     },
+    Adjust(Adjusting),
 }
 
 /// The viewer's view and its memories.
 ///
 /// Lifecycle: its [`Mode`] (result, frame, comparison, depth map) with its
-/// [`Back`], [`Light`] and [`Overlaid`]; changed only by [`View::on`], whose
+/// [`Back`], [`Light`] and [`Overlaid`], in a place (the viewer, Retouch,
+/// Adjust with its [`Adjusting`]); changed only by [`View::on`], whose
 /// table tests are the behavior (ADR-149).
 #[derive(Clone, Debug)]
 pub struct View<F, R> {
@@ -443,7 +513,7 @@ impl<F: Clone + PartialEq + std::fmt::Debug, R: Clone + PartialEq + std::fmt::De
     /// The layout Compare turns on next.
     pub fn next_layout(&self) -> Layout {
         let layout = match self.place {
-            Place::Viewer => self.last.0,
+            Place::Viewer | Place::Adjust(_) => self.last.0,
             Place::Retouch { layout } => layout,
         };
         Layout::first(layout.look()).unwrap_or(layout)
@@ -455,13 +525,36 @@ impl<F: Clone + PartialEq + std::fmt::Debug, R: Clone + PartialEq + std::fmt::De
             Place::Retouch { layout } => {
                 Some(Retouched { back: self.leave_map().back().unwrap_or(Back::Result), layout })
             }
-            Place::Viewer => None,
+            Place::Viewer | Place::Adjust(_) => None,
+        }
+    }
+
+    /// In Adjust, what it shows.
+    pub fn adjusting(&self) -> Option<Adjusting> {
+        match self.place {
+            Place::Adjust(adjusting) => Some(adjusting),
+            Place::Viewer | Place::Retouch { .. } => None,
+        }
+    }
+
+    /// The pane the result is drawn as: reframed alone in the viewer,
+    /// uncropped compared or in Retouch, as Adjust says in Adjust. A frame
+    /// or the map shows the stored picture.
+    pub fn pane(&self) -> Pane {
+        match (self.place, &self.now) {
+            (Place::Adjust(adjusting), _) => adjusting.pane(),
+            (Place::Retouch { .. }, Mode::Frame { .. } | Mode::Map { .. }) => Pane::Stored,
+            (Place::Retouch { .. }, _) => Pane::Retouch,
+            (Place::Viewer, Mode::Result) => Pane::Result,
+            (Place::Viewer, Mode::Compare(_)) => Pane::Uncropped,
+            (Place::Viewer, Mode::Frame { .. } | Mode::Map { .. }) => Pane::Stored,
         }
     }
 
     /// Take `event`: the view changes, and the answer says what to do.
     pub fn on(&mut self, event: Event<F, R>) -> Answer<F, R> {
         let before = self.now.clone();
+        let place = self.place;
         let mut actions = Vec::new();
         self.step(event, &mut actions);
         if let Some(overlay) = self.now.overlays_mut() {
@@ -472,6 +565,7 @@ impl<F: Clone + PartialEq + std::fmt::Debug, R: Clone + PartialEq + std::fmt::De
             match &mut self.place {
                 Place::Viewer => self.last = (c.layout, c.swapped),
                 Place::Retouch { layout } => *layout = c.layout,
+                Place::Adjust(_) => {}
             }
         }
         // The lit picture follows the light: asked for as a frame is lit,
@@ -488,11 +582,38 @@ impl<F: Clone + PartialEq + std::fmt::Debug, R: Clone + PartialEq + std::fmt::De
         if self.now != before {
             tracing::debug!("view: {} -> {}", before.name(), self.now.name());
         }
+        if self.place != place {
+            tracing::debug!("view: {place:?} -> {:?}", self.place);
+        }
         Answer { actions, now: self.now.clone() }
     }
 
     fn step(&mut self, event: Event<F, R>, actions: &mut Vec<Action<F>>) {
         let retouch = matches!(self.place, Place::Retouch { .. });
+        if let Place::Adjust(adjusting) = &mut self.place {
+            return match event {
+                Event::Adjust(false) => {
+                    self.place = Place::Viewer;
+                    self.now = Mode::Result;
+                }
+                Event::Previewed => adjusting.picture = Picture::Preview,
+                Event::Settled => adjusting.picture = Picture::Settled,
+                Event::HoldBefore(held) => {
+                    adjusting.hold = if held { Hold::Before } else { Hold::Released };
+                }
+                Event::Tool(tool) => adjusting.tool = tool,
+                Event::Shown { result, supplied, .. } => {
+                    self.result = result;
+                    self.supplied = supplied && result.is_some_and(|r| r.lights);
+                    if result.is_none() {
+                        self.place = Place::Viewer;
+                        self.now = Mode::Frame { overlay: Overlaid::plain() };
+                    }
+                }
+                // Adjust shows the result alone.
+                _ => {}
+            };
+        }
         match event {
             Event::Look(look) => {
                 if self.result.is_none() || (retouch && look == Look::Flicker) {
@@ -668,7 +789,16 @@ impl<F: Clone + PartialEq + std::fmt::Debug, R: Clone + PartialEq + std::fmt::De
                     self.last.1 = false;
                 }
                 (Place::Viewer, None) | (Place::Retouch { .. }, Some(_)) => {}
+                (Place::Adjust(_), _) => {}
             },
+            Event::Adjust(open) => {
+                if open && self.place == Place::Viewer && self.result.is_some() {
+                    self.place = Place::Adjust(Adjusting::default());
+                    self.now = Mode::Result;
+                }
+            }
+            // Adjust's own, outside it.
+            Event::Previewed | Event::Settled | Event::HoldBefore(_) | Event::Tool(_) => {}
         }
     }
 
@@ -739,7 +869,7 @@ impl<F: Clone + PartialEq + std::fmt::Debug, R: Clone + PartialEq + std::fmt::De
     /// A comparison in `layout` from `from`, the sides as last left.
     fn compare(&self, from: Mode<F, R>, layout: Layout) -> Compare<R> {
         let swapped = match self.place {
-            Place::Viewer => self.last.1,
+            Place::Viewer | Place::Adjust(_) => self.last.1,
             Place::Retouch { .. } => false,
         };
         match from {
@@ -1532,6 +1662,133 @@ mod tests {
                 vec![],
             ),
         ]);
+    }
+
+    #[test]
+    fn adjust_shows_the_result_alone() {
+        let open = Event::Adjust(true);
+        check(vec![
+            ("opens on the result", vec![show("a")], open.clone(), Mode::Result, vec![]),
+            (
+                "from a comparison",
+                vec![Event::Look(Look::Split)],
+                open.clone(),
+                Mode::Result,
+                vec![],
+            ),
+            ("no layout", vec![open.clone()], Event::Look(Look::Split), Mode::Result, vec![]),
+            ("no Compare", vec![open.clone()], E::ToggleCompare, Mode::Result, vec![]),
+            ("no frame", vec![open.clone()], show("b"), Mode::Result, vec![]),
+            ("no map", vec![open.clone()], map_on(None), Mode::Result, vec![]),
+            ("closed, the result", vec![open.clone()], Event::Adjust(false), Mode::Result, vec![]),
+        ]);
+        // Never with no result, nor over Retouch.
+        let mut bare = V::new();
+        bare.on(open.clone());
+        assert_eq!(bare.adjusting(), None);
+        let mut retouching = after(&[Event::Retouch(Some(Retouched::default()))]);
+        retouching.on(open.clone());
+        assert_eq!(retouching.adjusting(), None);
+        let mut adjusting = after(std::slice::from_ref(&open));
+        adjusting.on(Event::Retouch(Some(Retouched::default())));
+        assert_eq!(adjusting.retouched(), None, "Retouch doesn't open over Adjust");
+        // A result gone leaves it.
+        adjusting.on(Event::Shown { result: None, keep: false, supplied: false });
+        assert_eq!(adjusting.adjusting(), None);
+        assert_eq!(adjusting.now(), &Mode::Frame { overlay: PLAIN });
+    }
+
+    #[test]
+    fn adjusts_pictures() {
+        let adjusting = |tool, picture, hold| Some(Adjusting { tool, picture, hold });
+        use Hold::{Before, Released};
+        use Picture::{Preview, Settled};
+        let rows: Vec<(&str, Vec<E>, Option<Adjusting>, Pane)> = vec![
+            ("opens settled", vec![], adjusting(Tool::Sliders, Settled, Released), Pane::Result),
+            (
+                "a preview over it",
+                vec![Event::Previewed],
+                adjusting(Tool::Sliders, Preview, Released),
+                Pane::Result,
+            ),
+            (
+                "settled again",
+                vec![Event::Previewed, Event::Settled],
+                adjusting(Tool::Sliders, Settled, Released),
+                Pane::Result,
+            ),
+            (
+                "held: the stored picture, the preview kept under it",
+                vec![Event::Previewed, Event::HoldBefore(true)],
+                adjusting(Tool::Sliders, Preview, Before),
+                Pane::Stored,
+            ),
+            (
+                "let go",
+                vec![Event::HoldBefore(true), Event::Settled, Event::HoldBefore(false)],
+                adjusting(Tool::Sliders, Settled, Released),
+                Pane::Result,
+            ),
+            (
+                "the crop tool: uncropped",
+                vec![Event::Tool(Tool::Crop)],
+                adjusting(Tool::Crop, Settled, Released),
+                Pane::Uncropped,
+            ),
+            (
+                "the sliders again: reframed",
+                vec![Event::Tool(Tool::Crop), Event::Tool(Tool::Sliders)],
+                adjusting(Tool::Sliders, Settled, Released),
+                Pane::Result,
+            ),
+            (
+                "opens again with the sliders, settled",
+                vec![
+                    Event::Tool(Tool::Crop),
+                    Event::Previewed,
+                    Event::Adjust(false),
+                    Event::Adjust(true),
+                ],
+                adjusting(Tool::Sliders, Settled, Released),
+                Pane::Result,
+            ),
+            ("closed", vec![Event::Adjust(false)], None, Pane::Result),
+            (
+                "Adjust's events outside it",
+                vec![Event::Adjust(false), Event::Previewed, Event::Tool(Tool::Crop)],
+                None,
+                Pane::Result,
+            ),
+        ];
+        for (name, events, adjusting, pane) in rows {
+            let mut view = after(&[Event::Adjust(true)]);
+            for event in events {
+                view.on(event);
+            }
+            assert_eq!(view.adjusting(), adjusting, "{name}");
+            assert_eq!(view.pane(), pane, "{name}");
+        }
+    }
+
+    #[test]
+    fn each_view_draws_its_pane() {
+        let retouch = Event::Retouch(Some(Retouched::default()));
+        let rows: Vec<(&str, Vec<E>, Pane)> = vec![
+            ("the result alone: reframed", vec![], Pane::Result),
+            ("a comparison: uncropped", vec![Event::Look(Look::Split)], Pane::Uncropped),
+            ("a frame: stored", vec![show("a")], Pane::Stored),
+            ("the map: stored", vec![map_on(None)], Pane::Stored),
+            ("Retouch's canvas", vec![retouch.clone()], Pane::Retouch),
+            (
+                "Retouch's comparison",
+                vec![retouch.clone(), Event::Look(Look::Split)],
+                Pane::Retouch,
+            ),
+            ("Retouch's map", vec![retouch, map_on(None)], Pane::Stored),
+        ];
+        for (name, events, pane) in rows {
+            assert_eq!(after(&events).pane(), pane, "{name}");
+        }
     }
 
     fn split_side() -> Back<&'static str> {

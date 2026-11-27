@@ -70,6 +70,16 @@ pub(crate) struct RedrawArgs {
           value_parser = |s: &str| parse_slider(s, &slider::CONTRAST), help_heading = "Adjust")]
     contrast: Option<f64>,
 
+    /// Highlights, -100 to 100
+    #[arg(long, value_name = "N", allow_hyphen_values = true,
+          value_parser = |s: &str| parse_slider(s, &slider::HIGHLIGHTS), help_heading = "Adjust")]
+    highlights: Option<f64>,
+
+    /// Shadows, -100 to 100
+    #[arg(long, value_name = "N", allow_hyphen_values = true,
+          value_parser = |s: &str| parse_slider(s, &slider::SHADOWS), help_heading = "Adjust")]
+    shadows: Option<f64>,
+
     /// Whites, -100 to 100
     #[arg(long, value_name = "N", allow_hyphen_values = true,
           value_parser = |s: &str| parse_slider(s, &slider::WHITES), help_heading = "Adjust")]
@@ -192,6 +202,8 @@ impl RedrawArgs {
             exposure: self.exposure.unwrap_or(neutral.exposure),
             white_balance: self.white_balance(scale)?,
             contrast: self.contrast.unwrap_or(neutral.contrast),
+            highlights: self.highlights.unwrap_or(neutral.highlights),
+            shadows: self.shadows.unwrap_or(neutral.shadows),
             whites: self.whites.unwrap_or(neutral.whites),
             blacks: self.blacks.unwrap_or(neutral.blacks),
             vibrance: self.vibrance.unwrap_or(neutral.vibrance),
@@ -252,6 +264,8 @@ impl RedrawArgs {
         let off = |v: Option<f64>| v.is_some_and(|v| v != 0.0);
         off(self.exposure)
             || off(self.contrast)
+            || off(self.highlights)
+            || off(self.shadows)
             || off(self.whites)
             || off(self.blacks)
             || off(self.vibrance)
@@ -434,12 +448,15 @@ mod tests {
             Adjustments { contrast: 20.0, whites: -5.0, blacks: 10.0, ..Adjustments::NEUTRAL };
         let flags = ["--contrast", "20", "--whites", "-5", "--blacks", "10"];
         assert_eq!(parsed(&flags), Ok((curve, true)));
+        let tone = Adjustments { highlights: -40.0, shadows: 35.0, ..Adjustments::NEUTRAL };
+        assert_eq!(parsed(&["--highlights", "-40", "--shadows", "35"]), Ok((tone, true)));
         assert_eq!(parsed(&["--process", "1"]).map(|(_, passes)| passes), Ok(false));
-        let bad: [&[&str]; 4] = [
+        let bad: [&[&str]; 5] = [
             &["--exposure", "6"],
             &["--exposure", "nan"],
             &["--process", "0"],
             &["--blacks", "101"],
+            &["--shadows", "-101"],
         ];
         for bad in bad {
             assert!(parsed(bad).is_err(), "{bad:?}");

@@ -9,6 +9,7 @@ use glam::Vec4;
 use super::standard;
 use crate::chroma::{self, Chroma};
 use crate::curve::{self, Curve};
+use crate::local_tone;
 use crate::white;
 
 /// What the resolve step works out from the sliders for the shaders
@@ -19,6 +20,8 @@ pub(crate) struct Stages {
     /// A standard stack's white balance, in linear ProPhoto.
     pub(crate) white_balance: Option<crate::white::Mat3>,
     pub(crate) exposure: Option<Exposure>,
+    /// Highlights and Shadows.
+    pub(crate) local_tone: Option<LocalTone>,
     /// Contrast, Whites and Blacks.
     pub(crate) curve: Option<Curve>,
     /// Vibrance and Saturation.
@@ -55,6 +58,21 @@ impl Exposure {
     }
 }
 
+/// Highlights and Shadows' numbers: each one's strength
+/// ([`crate::local_tone`]), and the stops exposure shifts the base by.
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub(crate) struct LocalTone {
+    pub(crate) highlights: f32,
+    pub(crate) shadows: f32,
+    pub(crate) ev: f32,
+}
+
+impl LocalTone {
+    pub(super) fn packed(self) -> Vec4 {
+        Vec4::new(self.highlights, self.shadows, self.ev, 0.0)
+    }
+}
+
 /// The import path of [`constants_module`].
 pub(super) const CONSTANTS_MODULE: &str = "deptheos::render_constants";
 
@@ -69,6 +87,11 @@ pub(super) fn constants_module() -> String {
     u32_const("TONE_N", curve::TONE_N);
     u32_const("OP_N", curve::OP_N);
     for (name, value) in [
+        ("STRENGTH", local_tone::STRENGTH),
+        ("SHADOW_LOW", local_tone::SHADOW_EDGES[0]),
+        ("SHADOW_HIGH", local_tone::SHADOW_EDGES[1]),
+        ("HIGHLIGHT_LOW", local_tone::HIGHLIGHT_EDGES[0]),
+        ("HIGHLIGHT_HIGH", local_tone::HIGHLIGHT_EDGES[1]),
         ("GREY", curve::GREY),
         ("TONE_MIN_EV", curve::TONE_MIN_EV),
         ("TONE_MAX_EV", curve::TONE_MAX_EV),

@@ -3,9 +3,12 @@
 //! pixel's neighbors. A region draws as that region of the whole picture.
 
 use deptheos_gpu::GpuContext;
-use deptheos_gpu::gpu_utils::{WORKGROUP_SIZE, create_bind_group, dispatch_compute_with, tex};
+use deptheos_gpu::gpu_utils::{
+    WORKGROUP_SIZE, create_bind_group, dispatch_compute_with, download_texture_with, tex,
+};
 
 use super::{DngRenderPipeline, Prepared, PreparedRender, place};
+use crate::local_tone::{Base, Patch, Plane, Rect};
 
 /// The side of a tile, in pixels: one dispatch and one submit each, so no
 /// single GPU command runs long on a large picture.
@@ -24,6 +27,16 @@ impl Region {
     /// All of a `width`×`height` frame.
     pub fn whole(width: u32, height: u32) -> Self {
         Self { x: 0, y: 0, width, height }
+    }
+
+    fn rect(self) -> Rect {
+        let n = |v: u32| v as usize;
+        Rect { x: n(self.x), y: n(self.y), width: n(self.width), height: n(self.height) }
+    }
+
+    fn of(rect: Rect) -> Self {
+        let n = |v: usize| u32::try_from(v).expect("a frame's pixels");
+        Self { x: n(rect.x), y: n(rect.y), width: n(rect.width), height: n(rect.height) }
     }
 
     fn end(self) -> [u32; 2] {
@@ -170,6 +183,153 @@ impl DngRenderPipeline {
         self.draw_with_tiled(ctx, prepared, source, region, stage, frame_input, output, TILE);
     }
 
+    /// The log brightness Highlights and Shadows' base is taken of, over
+    /// frame `region` of `source`.
+    fn log_brightness(
+        &self,
+        ctx: &GpuContext,
+        prepared: &PreparedRender,
+        source: Source<'_>,
+        region: Region,
+    ) -> Plane {
+        assert!(source.covers.contains(region), "{region:?} outside {:?}", source.covers);
+        let output = ctx.create_texture(
+            region.width,
+            region.height,
+            wgpu::TextureFormat::R32Float,
+            wgpu::TextureUsages::STORAGE_BINDING | wgpu::TextureUsages::COPY_SRC,
+            "log_brightness",
+        );
+        let (in_view, out_view) = (
+            source.texture.create_view(&Default::default()),
+            output.create_view(&Default::default()),
+        );
+        for tile in region.tiles(TILE) {
+            let [sx, sy] = source.texel(tile.x, tile.y);
+            let placement = place::Placement {
+                origins: glam::UVec4::new(sx, sy, tile.x - region.x, tile.y - region.y),
+                size: glam::UVec4::new(tile.width, tile.height, 0, 0),
+            };
+            let placement = ctx.create_uniform_buffer(&placement, "log_brightness_place");
+            let (shader, entries): (_, Vec<wgpu::BindingResource>) = match &prepared.buffers {
+                Prepared::Linear { params, hsm, look, .. } => (
+                    &self.linear,
+                    vec![
+                        tex(&in_view),
+                        params.as_entire_binding(),
+                        hsm.as_entire_binding(),
+                        look.as_entire_binding(),
+                        placement.as_entire_binding(),
+                        tex(&out_view),
+                    ],
+                ),
+                Prepared::Standard { params, decode, .. } => (
+                    &self.standard,
+                    vec![
+                        tex(&in_view),
+                        params.as_entire_binding(),
+                        decode.as_entire_binding(),
+                        placement.as_entire_binding(),
+                        tex(&out_view),
+                    ],
+                ),
+            };
+            let bindings: &[u32] = match &prepared.buffers {
+                Prepared::Linear { .. } => &[0, 2, 4, 5, 6, 9],
+                Prepared::Standard { .. } => &[0, 2, 3, 4, 7],
+            };
+            let layout = shader.brightness.get_bind_group_layout(0);
+            let entries: Vec<wgpu::BindGroupEntry> = bindings
+                .iter()
+                .zip(entries)
+                .map(|(&binding, resource)| wgpu::BindGroupEntry { binding, resource })
+                .collect();
+            let group = ctx.device.create_bind_group(&wgpu::BindGroupDescriptor {
+                label: Some("log_brightness"),
+                layout: &layout,
+                entries: &entries,
+            });
+            let mut encoder = ctx.encoder("log_brightness");
+            dispatch_compute_with(
+                &mut encoder,
+                &shader.brightness,
+                &[&group],
+                "log_brightness",
+                tile.width,
+                tile.height,
+                WORKGROUP_SIZE,
+            );
+            ctx.submit(encoder);
+        }
+        let mut data = Vec::with_capacity(region.width as usize * region.height as usize);
+        download_texture_with(ctx, &output, [0, 0], [region.width, region.height], |row| {
+            data.extend(row.as_chunks::<4>().0.iter().map(|b| f32::from_ne_bytes(*b)));
+        })
+        .expect("read back log brightness");
+        Plane { width: region.width as usize, height: region.height as usize, data }
+    }
+
+    /// `prepared` with Highlights and Shadows' base of `source`'s whole
+    /// frame, read `band` rows at a time. Without them it is returned as
+    /// it is.
+    pub fn with_base(
+        &self,
+        ctx: &GpuContext,
+        mut prepared: PreparedRender,
+        source: Source<'_>,
+        band: u32,
+    ) -> PreparedRender {
+        if !prepared.local_tone {
+            return prepared;
+        }
+        let frame = [source.frame[0] as usize, source.frame[1] as usize];
+        let base = Base::new(frame, band as usize, |rect| {
+            self.log_brightness(ctx, &prepared, source, Region::of(rect))
+        });
+        prepared.base = Some(base);
+        prepared
+    }
+
+    /// Highlights and Shadows' base over frame `region`, as a texture the
+    /// draw reads at output texels; a placeholder without them.
+    fn local_base(
+        &self,
+        ctx: &GpuContext,
+        prepared: &PreparedRender,
+        source: Source<'_>,
+        region: Region,
+    ) -> wgpu::Texture {
+        let plane = match (&prepared.base, prepared.local_tone) {
+            (_, false) => Plane::new(1, 1),
+            (None, true) => panic!("Highlights and Shadows draw with a base (`with_base`)"),
+            (Some(base), true) => {
+                let frame = [source.frame[0] as usize, source.frame[1] as usize];
+                let around = region.rect().grown(base.margin(), frame);
+                let plane = self.log_brightness(ctx, prepared, source, Region::of(around));
+                base.base(&Patch { rect: around, plane }, region.rect())
+            }
+        };
+        let (width, height) = (plane.width as u32, plane.height as u32);
+        let texture = ctx.create_texture(
+            width,
+            height,
+            wgpu::TextureFormat::R32Float,
+            wgpu::TextureUsages::TEXTURE_BINDING | wgpu::TextureUsages::COPY_DST,
+            "local_base",
+        );
+        ctx.queue.write_texture(
+            texture.as_image_copy(),
+            bytemuck::cast_slice(&plane.data),
+            wgpu::TexelCopyBufferLayout {
+                offset: 0,
+                bytes_per_row: Some(width * 4),
+                rows_per_image: Some(height),
+            },
+            wgpu::Extent3d { width, height, depth_or_array_layers: 1 },
+        );
+        texture
+    }
+
     pub(super) fn draw_tiled(
         &self,
         ctx: &GpuContext,
@@ -181,9 +341,11 @@ impl DngRenderPipeline {
     ) {
         assert!(source.covers.contains(region), "{region:?} outside {:?}", source.covers);
         assert!(region.width <= output.width() && region.height <= output.height());
-        let (in_view, out_view) = (
+        let base = self.local_base(ctx, prepared, source, region);
+        let (in_view, out_view, base_view) = (
             source.texture.create_view(&Default::default()),
             output.create_view(&Default::default()),
+            base.create_view(&Default::default()),
         );
         for tile in region.tiles(side) {
             let [sx, sy] = source.texel(tile.x, tile.y);
@@ -192,7 +354,7 @@ impl DngRenderPipeline {
                 size: glam::UVec4::new(tile.width, tile.height, 0, 0),
             };
             let placement = ctx.create_uniform_buffer(&placement, "dng_render_place");
-            let (shader, entries): (_, Vec<wgpu::BindingResource>) = match &prepared.0 {
+            let (shader, entries): (_, Vec<wgpu::BindingResource>) = match &prepared.buffers {
                 Prepared::Linear { params, tone, hsm, look, curve } => (
                     &self.linear,
                     vec![
@@ -204,6 +366,7 @@ impl DngRenderPipeline {
                         look.as_entire_binding(),      // look_lut
                         placement.as_entire_binding(), // place
                         curve.as_entire_binding(),     // curve_luts
+                        tex(&base_view),               // local_base
                     ],
                 ),
                 Prepared::Standard { params, decode, curve } => (
@@ -215,6 +378,7 @@ impl DngRenderPipeline {
                         decode.as_entire_binding(),    // decode
                         placement.as_entire_binding(), // place
                         curve.as_entire_binding(),     // curve_luts
+                        tex(&base_view),               // local_base
                     ],
                 ),
             };

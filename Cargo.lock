@@ -1914,6 +1914,7 @@ dependencies = [
  "glam 0.29.3",
  "image",
  "moxcms",
+ "rayon",
  "tracing",
  "wgpu",
 ]

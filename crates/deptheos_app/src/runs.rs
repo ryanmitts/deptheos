@@ -5,6 +5,7 @@
 pub(crate) mod aligned;
 pub mod batch;
 pub mod bench;
+pub mod probe;
 pub mod sequence;
 pub mod session;
 pub(crate) mod stacker;

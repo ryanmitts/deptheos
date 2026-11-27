@@ -17,6 +17,10 @@ private nonisolated let log = AppLog(category: "files")
 /// - `DEPTHEOS_E2E_EXPORTS`: a folder on the Mac. The Export sheet gains
 ///   Save to Test Folder, writing the export there with a note of what was
 ///   asked (`e2e-check notes` reads them), standing in for Save to Files….
+/// - `DEPTHEOS_PROBE_LOCAL_TONE`: `without`, `whole` or `bands`. At launch
+///   the engine measures that draw of a synthetic 45 MP stack, Highlights
+///   and Shadows' memory probe (`deptheos_app::runs::probe`), and logs its
+///   line; `DEPTHEOS_PROBE_BAND` sets the band's rows (512).
 nonisolated enum E2E {
     static let frames: URL? = folder("DEPTHEOS_E2E_FRAMES")
     static let exports: URL? = folder("DEPTHEOS_E2E_EXPORTS")
@@ -176,6 +180,18 @@ extension AppModel {
             slideIn(then: .closed)
             await loadSourcePreview()
         }
+    }
+
+    /// The memory probe the launch environment names, logged.
+    func probeLocalTone() async {
+        let environment = ProcessInfo.processInfo.environment
+        guard let draw = environment["DEPTHEOS_PROBE_LOCAL_TONE"] else { return }
+        let band = environment["DEPTHEOS_PROBE_BAND"].flatMap { UInt32($0) } ?? 512
+        let line = await ask { engine, request in
+            try await engine.probeLocalTone(
+                draw: draw, width: 8192, height: 5464, band: band, request: request)
+        }
+        log.info("\(line ?? "local tone probe failed", privacy: .public)")
     }
 
     /// Blocks: off the main actor.

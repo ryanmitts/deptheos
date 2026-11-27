@@ -164,6 +164,24 @@ fn main() {
             });
             println!("  the pyramid holds {}", mb(shown.bytes()));
         }
+        "local-tone" => {
+            let ctx = deptheos_gpu::GpuContext::new().expect("a GPU");
+            use deptheos_app::runs::probe::{Draw, local_tone_memory};
+            let band = std::env::var("PROBE_BAND").ok().and_then(|s| s.parse().ok()).unwrap_or(512);
+            let name = std::env::var("PROBE_DRAW").unwrap_or_else(|_| "whole".into());
+            let draw = Draw::named(&name, band).expect("PROBE_DRAW: without, whole or bands");
+            let s = local_tone_memory(&ctx, width, height, draw).expect("the probe runs");
+            let (before, peak) = (s.before as usize, s.peak as usize);
+            println!(
+                "{} in {} ms: footprint {} -> peak {} (+{}) -> {}",
+                s.what,
+                s.millis,
+                mb(before),
+                mb(peak),
+                mb(peak.saturating_sub(before)),
+                mb(s.after as usize)
+            );
+        }
         "thumbnail" => {
             let path = std::env::temp_dir().join("memory_probe.jpg");
             image::RgbImage::from_fn(width, height, |x, y| image::Rgb([x as u8, y as u8, 7]))

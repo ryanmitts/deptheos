@@ -13,9 +13,13 @@ CRAFT_LIBS_REV=b2d2a1e948c43d95aa769d4f0a06fe6b869edc39
 LIGHTCRAFT_FILES=(
   crates/develop/src/controls.rs
   crates/ui-egui/src/panels/edit/sliders.rs
+  crates/pipeline/src/finish.rs
 )
 CRAFT_LIBS_FILES=(
   crates/develop/src/tone.rs
+  crates/develop/src/local.rs
+  crates/develop/src/raster/resample.rs
+  crates/develop/src/raster/blur.rs
   crates/develop/src/colorops.rs
   crates/develop/src/light_v3.rs
   crates/develop/src/light_v3_params.rs

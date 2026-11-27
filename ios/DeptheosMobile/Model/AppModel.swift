@@ -517,6 +517,7 @@ final class AppModel {
             await loadSourcePreview()
             #if DEBUG
             await openTestFrames()
+            await probeLocalTone()
             #endif
         } catch {
             engineState = .failed(Self.message(error).string)

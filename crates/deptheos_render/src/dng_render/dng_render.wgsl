@@ -32,6 +32,8 @@
 @group(0) @binding(4) var<storage, read> hsm_lut: array<f32>;
 @group(0) @binding(5) var<storage, read> look_lut: array<f32>;
 @group(0) @binding(6) var<uniform> place: Placement;
+// Highlights and Shadows' base over the region drawn, at output texels.
+@group(0) @binding(8) var local_base: texture_2d<f32>;
 
 struct Placement {
     // xy = the tile's first source texel, zw = its first output texel.
@@ -59,7 +61,8 @@ struct DngColorParams {
     // Max-normalized camera white (clip ceiling).
     camera_white: vec4f,
     // x = HueSatMap present, y = LookTable present, z = the exposure stage
-    // in place of the ramp's clamp, w = the stages after the tone
+    // in place of the ramp's clamp (1) and Highlights and Shadows in it
+    // (2), w = the stages after the tone
     // curve: 1, 2 and 4 the curve's (curve.wgsl), 8 chroma (adjust.wgsl).
     flags: vec4u,
     // Hue, sat and val divisions; w = 1 for an sRGB-encoded table.
@@ -70,15 +73,21 @@ struct DngColorParams {
     // The curve's operators' weights (curve.wgsl), then Vibrance and
     // Saturation (adjust.wgsl).
     late: vec4f,
+    // Highlights' and Shadows' strengths and exposure's stops (adjust.wgsl).
+    local_tone: vec4f,
+    // The ramp's constants at the baseline exposure, as `exposure`: what
+    // the base is taken of.
+    base_exposure: vec4f,
 }
 
-// Clamped at white unless the exposure stage takes what passes it.
-fn exposure_ramp(x: f32, black: f32, slope: f32, radius: f32, q_scale: f32) -> f32 {
+// Clamped at white unless `open`, when the exposure stage takes what
+// passes it.
+fn exposure_ramp(x: f32, black: f32, slope: f32, radius: f32, q_scale: f32, open: bool) -> f32 {
     if (x <= black - radius) {
         return 0.0;
     }
     if (x >= black + radius) {
-        if (params.flags.z != 0u) {
+        if (open) {
             return max((x - black) * slope, 0.0);
         }
         return clamp((x - black) * slope, 0.0, 1.0);
@@ -282,15 +291,24 @@ fn hue_sat_map(prophoto: vec3f) -> vec3f {
     return prophoto;
 }
 
-fn exposure(prophoto: vec3f) -> vec3f {
-    let e = params.exposure;
-    let ramped = vec3f(
-        exposure_ramp(prophoto.r, e.x, e.y, e.z, e.w),
-        exposure_ramp(prophoto.g, e.x, e.y, e.z, e.w),
-        exposure_ramp(prophoto.b, e.x, e.y, e.z, e.w),
+fn ramp(prophoto: vec3f, e: vec4f, open: bool) -> vec3f {
+    return vec3f(
+        exposure_ramp(prophoto.r, e.x, e.y, e.z, e.w, open),
+        exposure_ramp(prophoto.g, e.x, e.y, e.z, e.w, open),
+        exposure_ramp(prophoto.b, e.x, e.y, e.z, e.w, open),
     );
+}
+
+// The ramp, then the exposure stage with Highlights and Shadows' gain at
+// the output texel `at`.
+fn exposure(prophoto: vec3f, at: vec2i) -> vec3f {
+    let ramped = ramp(prophoto, params.exposure, params.flags.z != 0u);
     if (params.flags.z != 0u) {
-        return adjust::exposure(ramped, params.exposure_gain_knee);
+        var local = 1.0;
+        if ((params.flags.z & 2u) != 0u) {
+            local = adjust::local_tone(textureLoad(local_base, at, 0).r, params.local_tone);
+        }
+        return adjust::exposure(ramped, params.exposure_gain_knee, local);
     }
     return ramped;
 }
@@ -331,10 +349,11 @@ fn dng_render(@builtin(global_invocation_id) gid: vec3u) {
         return;
     }
     let camera = textureLoad(in_tex, vec2i(gid.xy + place.origins.xy), 0).rgb;
+    let at = vec2i(gid.xy + place.origins.zw);
 
     var prophoto = camera_to_prophoto(normalize_camera(camera));
     prophoto = hue_sat_map(prophoto);
-    prophoto = exposure(prophoto);
+    prophoto = exposure(prophoto, at);
     prophoto = look_table(prophoto);
     prophoto = hue_preserving_tone_curve(prophoto);
     if ((params.flags.w & 7u) != 0u) {
@@ -345,10 +364,27 @@ fn dng_render(@builtin(global_invocation_id) gid: vec3u) {
     }
     let srgb = encode_output(prophoto_to_output(prophoto));
 
-    let at = vec2i(gid.xy + place.origins.zw);
 #ifdef SOURCE_RGBA16UNORM
     textureStore(out_tex, at, vec4f(quantize_rgb_u16(srgb), 1.0));
 #else
     textureStore(out_tex, at, vec4f(srgb, 1.0));
 #endif
+}
+
+@group(0) @binding(9) var brightness_out: texture_storage_2d<r32float, write>;
+
+// What Highlights and Shadows' base is taken of: log2 of each pixel's
+// brightness over middle gray before exposure (Rec. 2020's luminance, at
+// the baseline exposure, unclipped), as lightcraft's `log_lum`.
+@compute @workgroup_size(16, 16)
+fn log_brightness(@builtin(global_invocation_id) gid: vec3u) {
+    if (gid.x >= place.size.x || gid.y >= place.size.y) {
+        return;
+    }
+    let camera = textureLoad(in_tex, vec2i(gid.xy + place.origins.xy), 0).rgb;
+    var prophoto = camera_to_prophoto(normalize_camera(camera));
+    prophoto = hue_sat_map(prophoto);
+    prophoto = ramp(prophoto, params.base_exposure, true);
+    let y = log2(max(dot(TONE_Y, prophoto), 1e-7) / GREY);
+    textureStore(brightness_out, vec2i(gid.xy + place.origins.zw), vec4f(y, 0.0, 0.0, 0.0));
 }

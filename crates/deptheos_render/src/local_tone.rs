@@ -1,0 +1,721 @@
+//! Highlights and Shadows: each pixel's gain in stops is read from a base,
+//! an edge-aware filter of the picture's log brightness. The base and the
+//! law are lightcraft's as they stand (MIT OR Apache-2.0): the base is
+//! craft-libs b2d2a1e94 `crates/develop/src/local.rs` (`tone_base`,
+//! `detail_free`, `median_hv`, `guided_fast`) with its resampling and blur
+//! (`crates/develop/src/raster/resample.rs`,
+//! `crates/develop/src/raster/blur.rs`); the law is
+//! lightcraft 5bdb4e7a6 `crates/pipeline/src/finish.rs`
+//! (`local_tone_delta`, `tone_slider`).
+//!
+//! The base is computed for a rectangle at a time from the log brightness
+//! around it and from planes of the whole frame far smaller than it
+//! ([`Base`]), each value from the same inputs in the same order as the
+//! whole plane's, so a region, a band and the whole picture agree bit for
+//! bit.
+
+use std::collections::HashMap;
+use std::ops::Range;
+
+use rayon::prelude::*;
+
+/// The base's reach, as a fraction of the long edge (at least 1 px).
+pub const BASE_SIGMA: f32 = 0.015;
+/// The radius of the median the base is taken of, as a fraction of the
+/// long edge.
+pub const BASE_DETAIL: f64 = 0.0015;
+/// The largest median radius, in pixels.
+pub const BASE_DETAIL_MAX: usize = 24;
+/// The guided filter's epsilon, in stops squared.
+pub const BASE_EPS: f32 = 0.35;
+/// The coarse median's downscale.
+pub const BASE_COARSE_STEP: usize = 3;
+/// How much a full Shadows eases off: it acts at `1 / (1 + SHADOWS_EASE)`.
+pub const SHADOWS_EASE: f64 = 1.33;
+/// The law's numbers: each slider's gain in stops at full weight, and
+/// where Shadows' and Highlights' weights rise over the base (stops from
+/// middle gray). The shaders take them from here.
+pub const STRENGTH: f32 = 1.7;
+pub const SHADOW_EDGES: [f32; 2] = [-4.8, 0.3];
+pub const HIGHLIGHT_EDGES: [f32; 2] = [-1.0, 2.8];
+
+/// Shadows (-100 to 100) as the strength the law takes: eased as the amount
+/// grows, `a / (1 + 1.33·|a|)` for `a` the slider over 100.
+pub fn shadows_strength(value: f64) -> f32 {
+    let a = (value / 100.0).clamp(-1.0, 1.0);
+    if !a.is_finite() {
+        return 0.0;
+    }
+    (a / (1.0 + SHADOWS_EASE * a.abs())) as f32
+}
+
+/// Highlights (-100 to 100) as the strength the law takes: linear.
+pub fn highlights_strength(value: f64) -> f32 {
+    (value / 100.0) as f32
+}
+
+/// The base's reach and median radius on a picture whose long edge is
+/// `long` pixels.
+pub fn base_sizes(long: usize) -> (f32, usize) {
+    let sigma = (BASE_SIGMA * long as f32).max(1.0);
+    let detail = ((BASE_DETAIL * long as f64).round().max(0.0) as usize).min(BASE_DETAIL_MAX);
+    (sigma, detail)
+}
+
+/// A plane of f32 values, row by row.
+#[derive(Clone, Debug, PartialEq)]
+pub struct Plane {
+    pub width: usize,
+    pub height: usize,
+    pub data: Vec<f32>,
+}
+
+impl Plane {
+    pub fn new(width: usize, height: usize) -> Self {
+        Self { width, height, data: vec![0.0; width * height] }
+    }
+
+    fn row(&self, y: usize) -> &[f32] {
+        &self.data[y * self.width..(y + 1) * self.width]
+    }
+}
+
+/// A rectangle of the frame, in its pixels.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct Rect {
+    pub x: usize,
+    pub y: usize,
+    pub width: usize,
+    pub height: usize,
+}
+
+impl Rect {
+    pub fn rows(self) -> Range<usize> {
+        self.y..self.y + self.height
+    }
+
+    pub fn columns(self) -> Range<usize> {
+        self.x..self.x + self.width
+    }
+
+    /// Grown by `margin` on every side, within a `frame`.
+    pub fn grown(self, margin: usize, frame: [usize; 2]) -> Self {
+        let x = self.x.saturating_sub(margin);
+        let y = self.y.saturating_sub(margin);
+        let x1 = (self.x + self.width + margin).min(frame[0]);
+        let y1 = (self.y + self.height + margin).min(frame[1]);
+        Self { x, y, width: x1 - x, height: y1 - y }
+    }
+}
+
+/// Values of the frame over a rectangle.
+pub struct Patch {
+    pub rect: Rect,
+    pub plane: Plane,
+}
+
+impl Patch {
+    fn at(&self, x: usize, y: usize) -> f32 {
+        self.plane.data[(y - self.rect.y) * self.plane.width + (x - self.rect.x)]
+    }
+}
+
+/// The planes of a whole frame the base needs, far smaller than it: the
+/// coarse median and the guided filter's coefficients. With them and the
+/// log brightness around a rectangle, [`Base::base`] gives the base there.
+pub struct Base {
+    frame: [usize; 2],
+    detail: usize,
+    /// The coarse median, its enlargement's weights to the frame
+    /// (horizontal, then the vertical pass at its own height, then
+    /// vertical to the frame).
+    coarse: Option<Coarse>,
+    /// The guided filter's blurred coefficients, at the frame's size or
+    /// reduced.
+    mean_a: Plane,
+    mean_b: Plane,
+}
+
+struct Coarse {
+    plane: Plane,
+    across: Vec<(usize, Vec<f32>)>,
+    own_rows: Vec<(usize, Vec<f32>)>,
+    down: Vec<(usize, Vec<f32>)>,
+}
+
+impl Base {
+    /// The whole frame's planes for a `frame`-sized picture, reading its log
+    /// brightness a band of `band` rows at a time from `log_brightness`,
+    /// which gives the values over a rectangle of the frame.
+    pub fn new(
+        frame: [usize; 2],
+        band: usize,
+        mut log_brightness: impl FnMut(Rect) -> Plane,
+    ) -> Self {
+        let [w, h] = frame;
+        let (sigma, detail) = base_sizes(w.max(h));
+        let band = band.max(1);
+        let coarse = (detail > 0).then(|| {
+            let (lw, lh) =
+                (w.div_ceil(BASE_COARSE_STEP).max(1), h.div_ceil(BASE_COARSE_STEP).max(1));
+            ((lw, lh) != (w, h)).then(|| {
+                let small = shrink(frame, [lw, lh], band, &mut |rows| {
+                    log_brightness(Rect { x: 0, y: rows.start, width: w, height: rows.len() })
+                });
+                let whole = Rect { x: 0, y: 0, width: lw, height: lh };
+                let patch = Patch { rect: whole, plane: small };
+                Coarse {
+                    plane: median_hv(&patch, [lw, lh], whole, detail),
+                    across: weights(lw, w, Filter::Bilinear),
+                    own_rows: weights(lh, lh, Filter::Bilinear),
+                    down: weights(lh, h, Filter::Bilinear),
+                }
+            })
+        });
+        let mut base = Self {
+            frame,
+            detail,
+            coarse: coarse.flatten(),
+            mean_a: Plane::new(0, 0),
+            mean_b: Plane::new(0, 0),
+        };
+        let s = guided_fast_step(sigma);
+        let (lw, lh) = (w.div_ceil(s).max(1), h.div_ceil(s).max(1));
+        let small = shrink(frame, [lw, lh], band, &mut |rows| {
+            let rect = Rect { x: 0, y: rows.start, width: w, height: rows.len() };
+            let around = rect.grown(detail, frame);
+            base.detail_free(&Patch { rect: around, plane: log_brightness(around) }, rect)
+        });
+        (base.mean_a, base.mean_b) = guided_coeffs(&small, sigma / s as f32, BASE_EPS);
+        base
+    }
+
+    /// How far around a rectangle [`Self::base`] reads log brightness.
+    pub fn margin(&self) -> usize {
+        self.detail
+    }
+
+    /// The base over `rect`, from the log brightness over `rect` grown by
+    /// [`Self::margin`] within the frame.
+    pub fn base(&self, around: &Patch, rect: Rect) -> Plane {
+        let p = self.detail_free(around, rect);
+        guided_apply(&p, rect, self.frame, &self.mean_a, &self.mean_b)
+    }
+
+    /// The log brightness over `rect` without detail finer than the median
+    /// radius: each value clamped between its median and the coarse
+    /// median's.
+    fn detail_free(&self, around: &Patch, rect: Rect) -> Plane {
+        let r = self.detail;
+        if r == 0 {
+            return crop(around, rect);
+        }
+        let median = median_hv(around, self.frame, rect, r);
+        let Some(coarse) = &self.coarse else { return median };
+        let mut wide_rows = HashMap::new();
+        let mut out = median;
+        for (i, y) in rect.rows().enumerate() {
+            let (y0, ws) = &coarse.down[y];
+            let mut c = vec![0.0f32; rect.width];
+            for (k, &wt) in ws.iter().enumerate() {
+                let wide = wide_rows.entry(y0 + k).or_insert_with(|| coarse.wide_row(y0 + k, rect));
+                for (c, &v) in c.iter_mut().zip(wide.iter()) {
+                    *c += v * wt;
+                }
+            }
+            let row = &mut out.data[i * rect.width..(i + 1) * rect.width];
+            for ((o, x), c) in row.iter_mut().zip(rect.columns()).zip(c) {
+                *o = clamp_between(around.at(x, y), *o, c);
+            }
+        }
+        out
+    }
+}
+
+impl Coarse {
+    /// Row `y` of the coarse median enlarged across to the frame's width
+    /// and passed through its own height, over `rect`'s columns.
+    fn wide_row(&self, y: usize, rect: Rect) -> Vec<f32> {
+        let (y0, ws) = &self.own_rows[y];
+        let mut out = vec![0.0f32; rect.width];
+        for (k, &wt) in ws.iter().enumerate() {
+            let src = self.plane.row(y0 + k);
+            for (o, x) in out.iter_mut().zip(rect.columns()) {
+                let (left, xs) = &self.across[x];
+                let mut acc = 0.0f32;
+                for (j, &xw) in xs.iter().enumerate() {
+                    acc += src[left + j] * xw;
+                }
+                *o += acc * wt;
+            }
+        }
+        out
+    }
+}
+
+/// `around`'s values over `rect`.
+fn crop(around: &Patch, rect: Rect) -> Plane {
+    let mut out = Plane::new(rect.width, rect.height);
+    for (i, y) in rect.rows().enumerate() {
+        for (j, x) in rect.columns().enumerate() {
+            out.data[i * rect.width + j] = around.at(x, y);
+        }
+    }
+    out
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+enum Filter {
+    Box,
+    Bilinear,
+}
+
+impl Filter {
+    fn support(self) -> f32 {
+        match self {
+            Filter::Box => 0.5,
+            Filter::Bilinear => 1.0,
+        }
+    }
+
+    fn eval(self, x: f32) -> f32 {
+        let x = x.abs();
+        match self {
+            Filter::Box => {
+                if x <= 0.5 {
+                    1.0
+                } else {
+                    0.0
+                }
+            }
+            Filter::Bilinear => (1.0 - x).max(0.0),
+        }
+    }
+}
+
+/// Each output coordinate's first source index and weights.
+fn weights(src: usize, dst: usize, filter: Filter) -> Vec<(usize, Vec<f32>)> {
+    let scale = src as f32 / dst as f32;
+    let fscale = scale.max(1.0);
+    let support = filter.support() * fscale;
+    (0..dst)
+        .map(|i| {
+            let center = (i as f32 + 0.5) * scale;
+            let lo = ((center - support).floor() as isize).max(0) as usize;
+            let hi = ((center + support).ceil() as usize).min(src);
+            let mut w: Vec<f32> =
+                (lo..hi).map(|j| filter.eval((j as f32 + 0.5 - center) / fscale)).collect();
+            let sum: f32 = w.iter().sum();
+            if sum.abs() > 1e-8 {
+                w.iter_mut().for_each(|v| *v /= sum);
+            } else if !w.is_empty() {
+                let n = w.len() as f32;
+                w.iter_mut().for_each(|v| *v = 1.0 / n);
+            }
+            (lo, w)
+        })
+        .collect()
+}
+
+/// A box-filtered copy of a `frame`-sized plane at `size`, made a band of
+/// output rows at a time from the rows `rows` gives: across, then down.
+fn shrink(
+    frame: [usize; 2],
+    size: [usize; 2],
+    band: usize,
+    rows: &mut dyn FnMut(Range<usize>) -> Plane,
+) -> Plane {
+    let ([w, h], [lw, lh]) = (frame, size);
+    // A resize this small is horizontal first.
+    assert!(lw * h <= w * lh * 4, "{frame:?} to {size:?}");
+    let same = (w, h) == (lw, lh);
+    let across = weights(w, lw, Filter::Box);
+    let down = weights(h, lh, Filter::Box);
+    let mut out = Plane::new(lw, lh);
+    let mut top = 0;
+    while top < lh {
+        let end = (top + band).min(lh);
+        let first = down[top].0;
+        let last = (top..end).map(|y| down[y].0 + down[y].1.len()).max().unwrap_or(first);
+        let source = rows(first..last);
+        if same {
+            out.data[top * lw..end * lw]
+                .copy_from_slice(&source.data[(top - first) * w..(end - first) * w]);
+            top = end;
+            continue;
+        }
+        let narrow: Vec<Vec<f32>> = (0..source.height)
+            .into_par_iter()
+            .map(|y| {
+                let src = source.row(y);
+                across
+                    .iter()
+                    .map(|(lo, ws)| {
+                        let mut acc = 0.0f32;
+                        for (k, wt) in ws.iter().enumerate() {
+                            acc += src[lo + k] * wt;
+                        }
+                        acc
+                    })
+                    .collect()
+            })
+            .collect();
+        for (y, (lo, ws)) in down.iter().enumerate().take(end).skip(top) {
+            let row = &mut out.data[y * lw..(y + 1) * lw];
+            for (k, wt) in ws.iter().enumerate() {
+                for (o, s) in row.iter_mut().zip(&narrow[lo + k - first]) {
+                    *o += s * wt;
+                }
+            }
+        }
+        top = end;
+    }
+    out
+}
+
+/// `v` clamped between `a` and `b`, in either order; a NaN bound is
+/// ignored.
+fn clamp_between(v: f32, a: f32, b: f32) -> f32 {
+    let (lo, hi) = (a.min(b), a.max(b));
+    if v < lo {
+        lo
+    } else if v > hi {
+        hi
+    } else {
+        v
+    }
+}
+
+/// The fast guided filter's subsampling for `sigma` (1: none).
+fn guided_fast_step(sigma: f32) -> usize {
+    (sigma / 3.0).floor().clamp(1.0, 16.0) as usize
+}
+
+/// `v`'s bits as an `i32` that orders as [`f32::total_cmp`] does.
+fn total_key(v: f32) -> i32 {
+    let b = v.to_bits() as i32;
+    b ^ (((b >> 31) as u32) >> 1) as i32
+}
+
+fn total_key_inv(k: i32) -> f32 {
+    f32::from_bits((k ^ (((k >> 31) as u32) >> 1) as i32) as u32)
+}
+
+/// `out[j]` the median of `src[j..=j + 2r]`: a sorted window that drops the
+/// leaving value and inserts the entering one.
+fn running_median(src: &[f32], r: usize, out: &mut [f32]) {
+    let n = 2 * r + 1;
+    debug_assert_eq!(src.len(), out.len() + 2 * r);
+    let mut win: Vec<i32> = src[..n].iter().map(|&v| total_key(v)).collect();
+    win.sort_unstable();
+    for (j, o) in out.iter_mut().enumerate() {
+        *o = total_key_inv(win[r]);
+        let Some(&entering) = src.get(j + n) else { break };
+        let (old, new) = (total_key(src[j]), total_key(entering));
+        if old != new {
+            let (mut i, mut k) = (0u32, 0u32);
+            for &v in &win {
+                i += u32::from(v < old);
+                k += u32::from(v < new);
+            }
+            let (i, k) = (i as usize, k as usize);
+            if k > i {
+                win.copy_within(i + 1..k, i);
+                win[k - 1] = new;
+            } else {
+                win.copy_within(k..i, k + 1);
+                win[k] = new;
+            }
+        }
+    }
+}
+
+/// The separable median (`2r + 1` along each row, then each column, edges
+/// clamped to the `frame`) over `rect`, from values over `rect` grown by
+/// `r` within the frame.
+fn median_hv(around: &Patch, frame: [usize; 2], rect: Rect, r: usize) -> Plane {
+    if r == 0 {
+        return crop(around, rect);
+    }
+    let [w, h] = frame;
+    let clamp = |v: isize, n: usize| v.clamp(0, n as isize - 1) as usize;
+    // Rows first, over the rows the columns' pass reads.
+    let rows = rect.grown(r, frame).rows();
+    let first = rows.start;
+    let across: Vec<Vec<f32>> = rows
+        .into_par_iter()
+        .map(|y| {
+            let src: Vec<f32> = (0..rect.width + 2 * r)
+                .map(|i| around.at(clamp(rect.x as isize + i as isize - r as isize, w), y))
+                .collect();
+            let mut out = vec![0.0; rect.width];
+            running_median(&src, r, &mut out);
+            out
+        })
+        .collect();
+    let columns: Vec<Vec<f32>> = (0..rect.width)
+        .into_par_iter()
+        .map(|x| {
+            let src: Vec<f32> = (0..rect.height + 2 * r)
+                .map(|i| across[clamp(rect.y as isize + i as isize - r as isize, h) - first][x])
+                .collect();
+            let mut out = vec![0.0; rect.height];
+            running_median(&src, r, &mut out);
+            out
+        })
+        .collect();
+    let mut out = Plane::new(rect.width, rect.height);
+    for (x, column) in columns.iter().enumerate() {
+        for (y, v) in column.iter().enumerate() {
+            out.data[y * rect.width + x] = *v;
+        }
+    }
+    out
+}
+
+/// Box radii approximating a Gaussian of `sigma` in three passes.
+fn box_radii(sigma: f32) -> [usize; 3] {
+    const MAX_SIGMA: f32 = 65_536.0;
+    let sigma = if sigma.is_nan() { 0.0 } else { sigma.clamp(0.0, MAX_SIGMA) };
+    let n = 3.0f32;
+    let w_ideal = (12.0 * sigma * sigma / n + 1.0).sqrt();
+    let mut wl = w_ideal.floor() as i32;
+    if wl % 2 == 0 {
+        wl -= 1;
+    }
+    let wu = wl + 2;
+    let m_ideal = (12.0 * sigma * sigma
+        - n * (i64::from(wl) * i64::from(wl)) as f32
+        - 4.0 * n * wl as f32
+        - 3.0 * n)
+        / (-4.0 * wl as f32 - 4.0);
+    let m = m_ideal.round() as i32;
+    std::array::from_fn(|i| (((if (i as i32) < m { wl } else { wu }) - 1) / 2).max(0) as usize)
+}
+
+/// One box pass along `row`, edges clamped.
+fn box_row(row: &mut [f32], tmp: &mut Vec<f32>, r: usize) {
+    let w = row.len();
+    if r == 0 || w == 0 {
+        return;
+    }
+    tmp.clear();
+    tmp.extend_from_slice(row);
+    let s = &tmp[..];
+    let last = w - 1;
+    let inv = 1.0 / (2 * r + 1) as f32;
+    let mut acc = 0.0f32;
+    acc += s[0] * r as f32;
+    for v in &s[..=r.min(last)] {
+        acc += *v;
+    }
+    if r > last {
+        acc += s[last] * (r - last) as f32;
+    }
+    for x in 0..w {
+        row[x] = 0.0 + acc * inv;
+        acc = acc + s[(x + r + 1).min(last)] - s[x.saturating_sub(r)];
+    }
+}
+
+/// Rows per band of the vertical box pass, each band starting its running
+/// sums afresh.
+const BOX_BAND: usize = 32;
+
+/// One box pass down the columns of `src` into `dst`, edges clamped.
+fn box_v(src: &Plane, dst: &mut Plane, r: usize) {
+    let (w, h) = (src.width, src.height);
+    let inv = 1.0 / (2 * r + 1) as f32;
+    let last = h - 1;
+    dst.data.par_chunks_mut(w * BOX_BAND).enumerate().for_each(|(band, out)| {
+        let y0 = band * BOX_BAND;
+        let mut acc = vec![0.0f32; w];
+        for i in 0..=2 * r {
+            let yy = (y0 + i).saturating_sub(r).min(last);
+            for (a, v) in acc.iter_mut().zip(src.row(yy)) {
+                *a += *v * 1.0;
+            }
+        }
+        for (k, o) in out.chunks_mut(w).enumerate() {
+            let y = y0 + k;
+            for (d, a) in o.iter_mut().zip(&acc) {
+                *d = 0.0 + *a * inv;
+            }
+            let (add, sub) = (src.row((y + r + 1).min(last)), src.row(y.saturating_sub(r)));
+            for ((a, p), m) in acc.iter_mut().zip(add).zip(sub) {
+                *a = *a + *p * 1.0 + *m * -1.0;
+            }
+        }
+    });
+}
+
+/// A Gaussian-like blur of `sigma` px by three box passes, rows then
+/// columns.
+fn gaussian(p: &Plane, sigma: f32) -> Plane {
+    if sigma.is_nan() || sigma <= 0.3 || p.width == 0 || p.height == 0 {
+        return p.clone();
+    }
+    let cap = (p.width.max(p.height) as f32 * 2.0).max(1.0);
+    let radii = box_radii(sigma.min(cap));
+    let mut a = p.clone();
+    a.data.par_chunks_mut(p.width).for_each(|row| {
+        let mut tmp = Vec::with_capacity(row.len());
+        for r in radii {
+            box_row(row, &mut tmp, r);
+        }
+    });
+    let mut b = Plane::new(p.width, p.height);
+    for r in radii {
+        if r == 0 {
+            continue;
+        }
+        box_v(&a, &mut b, r);
+        std::mem::swap(&mut a, &mut b);
+    }
+    a
+}
+
+fn map(p: &Plane, f: impl Fn(f32) -> f32) -> Plane {
+    Plane { width: p.width, height: p.height, data: p.data.iter().map(|&v| f(v)).collect() }
+}
+
+fn zip_map(a: &Plane, b: &Plane, f: impl Fn(f32, f32) -> f32) -> Plane {
+    let data = a.data.iter().zip(&b.data).map(|(&a, &b)| f(a, b)).collect();
+    Plane { width: a.width, height: a.height, data }
+}
+
+/// The guided filter's blurred coefficients (mean a, mean b) of `p`.
+fn guided_coeffs(p: &Plane, sigma: f32, eps: f32) -> (Plane, Plane) {
+    let mean = gaussian(p, sigma);
+    let corr = gaussian(&map(p, |v| v * v), sigma);
+    let a = zip_map(&corr, &mean, |c, m| {
+        let var = (c - m * m).max(0.0);
+        var / (var + eps)
+    });
+    let b = zip_map(&mean, &a, |m, a| m - a * m);
+    (gaussian(&a, sigma), gaussian(&b, sigma))
+}
+
+/// `a·p + b` over `rect` of a `frame`, `p` its values there, the
+/// coefficients sampled bilinearly when reduced.
+fn guided_apply(p: &Plane, rect: Rect, frame: [usize; 2], a: &Plane, b: &Plane) -> Plane {
+    let [w, h] = frame;
+    let mut q = Plane::new(rect.width, rect.height);
+    if (a.width, a.height) == (w, h) {
+        for (i, y) in rect.rows().enumerate() {
+            for (j, x) in rect.columns().enumerate() {
+                let k = i * rect.width + j;
+                q.data[k] = a.data[y * w + x] * p.data[k] + b.data[y * w + x];
+            }
+        }
+        return q;
+    }
+    let wx = weights(a.width, w, Filter::Bilinear);
+    let wy = weights(a.height, h, Filter::Bilinear);
+    let wx = &wx[rect.columns()];
+    q.data.par_chunks_mut(rect.width).enumerate().for_each(|(i, row)| {
+        let y = rect.y + i;
+        let (top, ys) = &wy[y];
+        let mut bias = vec![0.0f32; rect.width];
+        for (dy, yw) in ys.iter().enumerate() {
+            let (ar, br) = (a.row(top + dy), b.row(top + dy));
+            for ((v, bv), (left, xs)) in row.iter_mut().zip(bias.iter_mut()).zip(wx) {
+                let (mut av, mut bx) = (0.0f32, 0.0f32);
+                for (dx, xw) in xs.iter().enumerate() {
+                    av += ar[left + dx] * xw;
+                    bx += br[left + dx] * xw;
+                }
+                *v += av * yw;
+                *bv += bx * yw;
+            }
+        }
+        for ((v, pv), bv) in row.iter_mut().zip(p.row(i)).zip(&bias) {
+            *v = *v * pv + bv;
+        }
+    });
+    q
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// Log brightness with edges, gradients and fine texture.
+    fn scene(w: usize, h: usize) -> Plane {
+        let mut p = Plane::new(w, h);
+        for y in 0..h {
+            for x in 0..w {
+                let hash = (x.wrapping_mul(73_856_093) ^ y.wrapping_mul(19_349_663)) % 1000;
+                let step = if (x / 37 + y / 23) % 3 == 0 { -3.0 } else { 0.5 };
+                p.data[y * w + x] = step + x as f32 / w as f32 * 2.0 + hash as f32 / 1000.0;
+            }
+        }
+        p
+    }
+
+    fn reader(p: &Plane) -> impl FnMut(Rect) -> Plane + '_ {
+        move |rect| {
+            let mut out = Plane::new(rect.width, rect.height);
+            for (i, y) in rect.rows().enumerate() {
+                out.data[i * rect.width..(i + 1) * rect.width]
+                    .copy_from_slice(&p.row(y)[rect.columns()]);
+            }
+            out
+        }
+    }
+
+    fn base_of(p: &Plane, base: &Base, rect: Rect) -> Plane {
+        let around = rect.grown(base.margin(), [p.width, p.height]);
+        base.base(&Patch { rect: around, plane: reader(p)(around) }, rect)
+    }
+
+    /// The whole frame's planes and every region's base are the same
+    /// whatever the band, and a region's base is that region of the whole.
+    #[test]
+    fn a_region_and_a_band_give_the_whole_planes_values() {
+        for (w, h) in [(1300, 700), (200, 520), (61, 40)] {
+            let p = scene(w, h);
+            let whole = Rect { x: 0, y: 0, width: w, height: h };
+            let one = Base::new([w, h], h, reader(&p));
+            let full = base_of(&p, &one, whole);
+            for band in [1, 7, 64] {
+                let banded = Base::new([w, h], band, reader(&p));
+                assert_eq!(banded.mean_a, one.mean_a, "{w}x{h} band {band}");
+                assert_eq!(banded.mean_b, one.mean_b, "{w}x{h} band {band}");
+            }
+            for rect in [
+                Rect { x: 0, y: 0, width: w.min(33), height: h.min(17) },
+                Rect { x: w / 3, y: h / 4, width: w / 2, height: h / 3 },
+                Rect { x: w - 9, y: h - 5, width: 9, height: 5 },
+            ] {
+                let part = base_of(&p, &one, rect);
+                for (i, y) in rect.rows().enumerate() {
+                    let row = &full.data[y * w + rect.x..y * w + rect.x + rect.width];
+                    assert_eq!(&part.data[i * rect.width..(i + 1) * rect.width], row, "{rect:?}");
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn the_running_median_is_the_windows_median() {
+        let src: Vec<f32> = (0..50).map(|i| ((i * 37) % 23) as f32 - 7.5).collect();
+        let r = 4;
+        let mut out = vec![0.0; src.len() - 2 * r];
+        running_median(&src, r, &mut out);
+        for (j, o) in out.iter().enumerate() {
+            let mut w = src[j..=j + 2 * r].to_vec();
+            w.sort_by(f32::total_cmp);
+            assert_eq!(*o, w[r]);
+        }
+    }
+
+    #[test]
+    fn shadows_ease_off() {
+        assert_eq!(shadows_strength(0.0), 0.0);
+        assert!((shadows_strength(100.0) - 1.0 / 2.33).abs() < 1e-6);
+        assert!((shadows_strength(-100.0) + 1.0 / 2.33).abs() < 1e-6);
+        assert_eq!(shadows_strength(f64::NAN), 0.0);
+        assert_eq!(highlights_strength(-50.0), -0.5);
+    }
+}

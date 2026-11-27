@@ -6,6 +6,7 @@ mod chroma;
 mod curve;
 mod curve_fits;
 pub mod dng_render;
+pub mod local_tone;
 mod resolve;
 mod white;
 

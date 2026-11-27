@@ -19,3 +19,7 @@ crates/develop/src/light_v3.rs
 crates/develop/src/light_v3_params.rs
 crates/develop/src/colorops.rs
 crates/color-transform/src/oklab.rs
+crates/pipeline/src/finish.rs
+crates/develop/src/local.rs
+crates/develop/src/raster/resample.rs
+crates/develop/src/raster/blur.rs

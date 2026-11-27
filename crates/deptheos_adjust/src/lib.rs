@@ -41,8 +41,11 @@ pub struct Adjustments {
     /// Stops ([`slider::EXPOSURE`]).
     pub exposure: f64,
     pub white_balance: WhiteBalance,
-    /// [`slider::CONTRAST`], [`slider::WHITES`], [`slider::BLACKS`].
+    /// [`slider::CONTRAST`], [`slider::HIGHLIGHTS`], [`slider::SHADOWS`],
+    /// [`slider::WHITES`], [`slider::BLACKS`].
     pub contrast: f64,
+    pub highlights: f64,
+    pub shadows: f64,
     pub whites: f64,
     pub blacks: f64,
     /// [`slider::VIBRANCE`], [`slider::SATURATION`].
@@ -91,6 +94,8 @@ impl Adjustments {
         exposure: 0.0,
         white_balance: WhiteBalance::AsShot,
         contrast: 0.0,
+        highlights: 0.0,
+        shadows: 0.0,
         whites: 0.0,
         blacks: 0.0,
         vibrance: 0.0,
@@ -113,6 +118,8 @@ impl Adjustments {
             exposure,
             white_balance,
             contrast,
+            highlights,
+            shadows,
             whites,
             blacks,
             vibrance,
@@ -121,6 +128,8 @@ impl Adjustments {
         at_default(&slider::EXPOSURE, *exposure)
             && white_balance.is_as_shot()
             && at_default(&slider::CONTRAST, *contrast)
+            && at_default(&slider::HIGHLIGHTS, *highlights)
+            && at_default(&slider::SHADOWS, *shadows)
             && at_default(&slider::WHITES, *whites)
             && at_default(&slider::BLACKS, *blacks)
             && at_default(&slider::VIBRANCE, *vibrance)

@@ -41,6 +41,7 @@ A stack's stored pixels become colors on screen, in compares, Retouch, exports, 
 
 - **`DngRenderPipeline::draw` takes a `Source` and a `Region`** (`crates/deptheos_render/src/dng_render/draw.rs`). The source is a whole texture or a part of the frame, such as paint's rectangle; the region is in frame pixels. It draws in tiles of 2048 pixels, a dispatch and a submit each, so no GPU command runs long.
 - **`draw_with` adds a stage that reads neighbors.** The per-pixel pass draws the region grown by the stage's margin, kept within what the source covers. The stage then writes the region, reading a whole-frame input at frame coordinates. A 3×3 median test stage proves that a region drawn this way equals that region of the whole picture, bit for bit, across tile edges.
+- **Highlights and Shadows read a base of the whole frame** (ADR-137). `DngRenderPipeline::with_base` reads the frame's log brightness a band at a time (each shader's `log_brightness` entry) into planes far smaller than the frame (`local_tone::Base`); each draw then takes the base over its region from the log brightness around it, grown by the base's median radius, and binds it for the per-pixel pass. A region draws as that region of the whole picture, bit for bit. `render_bands` draws a whole picture a band at a time, for a device that can't hold it twice.
 - **The shader's stages are functions**, run as one fused pass with f32 values between them.
 
 ### The draw sites
@@ -84,12 +85,12 @@ A long dispatch on a large picture risks the operating system's GPU watchdog, an
 
 - Unadjusted standard stacks keep the CPU display and the export pass-through.
 - The front ends pass neutral adjustments until renders store their own.
-- A stage that reads neighbors must keep its reach within its margin. A rectangle source's margin must lie inside the rectangle.
+- A stage that reads neighbors must keep its reach within its margin. A rectangle source's margin must lie inside the rectangle; so must Highlights and Shadows' around a region.
 - `just handoff-check` compares every draw site's pixels with a capture written before the change, bit for bit.
 
 ## Code
 
 - `crates/deptheos_adjust/src/lib.rs`.
-- `crates/deptheos_render/src/resolve.rs`, `crates/deptheos_render/src/dng_render/mod.rs`, `crates/deptheos_render/src/dng_render/draw.rs`, `crates/deptheos_render/src/dng_render/standard.rs`, `crates/deptheos_render/src/dng_render/standard.wgsl`.
+- `crates/deptheos_render/src/resolve.rs`, `crates/deptheos_render/src/local_tone.rs`, `crates/deptheos_render/src/dng_render/mod.rs`, `crates/deptheos_render/src/dng_render/draw.rs`, `crates/deptheos_render/src/dng_render/standard.rs`, `crates/deptheos_render/src/dng_render/standard.wgsl`.
 - `crates/deptheos_app/src/engine/look.rs`, `crates/deptheos_app/src/engine.rs`, `crates/deptheos_app/src/runs/session/stack.rs`, `crates/deptheos_app/src/paint/render.rs`.
 - `crates/deptheos_render/tests/integration/regions.rs`, `crates/deptheos_render/tests/integration/standard.rs`, `crates/deptheos_render/src/dng_render/reference.rs`, `crates/deptheos_app/src/engine/handoff_tests.rs`.

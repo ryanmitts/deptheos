@@ -12,7 +12,7 @@ use deptheos_core::pipelines::COLOR_MODULE;
 
 pub use deptheos_dng::{HueSatMap, RenderParams};
 pub use draw::{NeighborStage, Region, Source, TILE};
-pub(crate) use stages::{Exposure, Stages};
+pub(crate) use stages::{Exposure, LocalTone, Stages};
 pub use standard::Linearizer;
 
 mod draw;
@@ -58,6 +58,8 @@ mod params {
         pub(super) lt_dims: UVec4,
         pub(super) exposure_gain_knee: Vec4,
         pub(super) late: Vec4,
+        pub(super) local_tone: Vec4,
+        pub(super) base_exposure: Vec4,
     }
 }
 
@@ -75,6 +77,9 @@ struct Shader {
     pipeline: wgpu::ComputePipeline,
     /// Only the quantizing (16-bit) variant reads the threshold table.
     thresholds: Option<wgpu::BindGroup>,
+    /// The pass that writes log brightness before exposure, which
+    /// Highlights and Shadows' base is taken of.
+    brightness: wgpu::ComputePipeline,
 }
 
 impl Shader {
@@ -98,7 +103,12 @@ impl Shader {
             deptheos_gpu::gpu_utils::create_compute_pipeline(&ctx.device, &module, entry);
         let thresholds =
             ctx.format_support.rgba16unorm_storage.then(|| threshold_bind_group(ctx, &pipeline));
-        Self { pipeline, thresholds }
+        let brightness = deptheos_gpu::gpu_utils::create_compute_pipeline(
+            &ctx.device,
+            &module,
+            "log_brightness",
+        );
+        Self { pipeline, thresholds, brightness }
     }
 }
 
@@ -122,9 +132,33 @@ impl DngRenderPipeline {
     ) -> wgpu::Texture {
         let (width, height) = (input.width(), input.height());
         let output = Self::create_output(ctx, width, height);
-        let prepared = PreparedRender::new(ctx, constants);
-        self.draw(ctx, &prepared, Source::whole(input), Region::whole(width, height), &output);
+        let source = Source::whole(input);
+        let prepared = self.with_base(ctx, PreparedRender::new(ctx, constants), source, height);
+        self.draw(ctx, &prepared, source, Region::whole(width, height), &output);
         output
+    }
+
+    /// [`Self::render`] a band of `band` rows at a time, each handed to
+    /// `sink` with its region, its texture reused for the next: what a
+    /// whole picture needs on a device that can't hold it twice.
+    pub fn render_bands(
+        &self,
+        ctx: &GpuContext,
+        input: &wgpu::Texture,
+        constants: &Constants,
+        band: u32,
+        mut sink: impl FnMut(Region, &wgpu::Texture),
+    ) {
+        let (width, height) = (input.width(), input.height());
+        let band = band.clamp(1, height);
+        let source = Source::whole(input);
+        let prepared = self.with_base(ctx, PreparedRender::new(ctx, constants), source, band);
+        let output = Self::create_output(ctx, width, band);
+        for y in (0..height).step_by(band as usize) {
+            let region = Region { x: 0, y, width, height: band.min(height - y) };
+            self.draw(ctx, &prepared, source, region, &output);
+            sink(region, &output);
+        }
     }
 
     /// A texture [`Self::draw`] can write: `ctx.source_format()`,
@@ -183,6 +217,11 @@ impl Constants {
             uniform.flags.z = 1;
             uniform.exposure_gain_knee = exposure.gain_knee();
         }
+        if let Some(local_tone) = stages.local_tone {
+            uniform.flags.z |= 2;
+            uniform.local_tone = local_tone.packed();
+            uniform.base_exposure = pack_params(rp, rp.baseline_exposure, to_output).exposure;
+        }
         (uniform.flags.w, uniform.late) = stages.late();
         Self(Kind::Linear {
             output,
@@ -224,6 +263,16 @@ impl Constants {
         }
     }
 
+    /// Whether the draw has Highlights or Shadows, so it needs a base
+    /// ([`PreparedRender::with_base`]).
+    pub fn has_local_tone(&self) -> bool {
+        let z = match &self.0 {
+            Kind::Linear { uniform, .. } => uniform.flags.z,
+            Kind::Standard(standard) => standard.uniform.flags.z,
+        };
+        z & 2 != 0
+    }
+
     /// How the stored pixels go to the GPU for this draw: as they are
     /// (`None`), or linearized on the CPU first, uploaded as Rgba32Float.
     pub fn linearizer(&self) -> Option<&Linearizer> {
@@ -235,8 +284,15 @@ impl Constants {
 }
 
 /// One [`Constants`]' GPU buffers, built once and reused by every render
-/// with those constants.
-pub struct PreparedRender(Prepared);
+/// with those constants, and Highlights and Shadows' base of the whole
+/// frame when they have them.
+pub struct PreparedRender {
+    buffers: Prepared,
+    /// Whether the constants have Highlights or Shadows, which draw only
+    /// with a base.
+    local_tone: bool,
+    base: Option<crate::local_tone::Base>,
+}
 
 enum Prepared {
     Linear {
@@ -255,7 +311,12 @@ enum Prepared {
 
 impl PreparedRender {
     pub fn new(ctx: &GpuContext, constants: &Constants) -> Self {
-        Self(match &constants.0 {
+        let buffers = Self::buffers(ctx, constants);
+        Self { buffers, local_tone: constants.has_local_tone(), base: None }
+    }
+
+    fn buffers(ctx: &GpuContext, constants: &Constants) -> Prepared {
+        match &constants.0 {
             Kind::Linear { uniform, tone, hsm, look, curve, output: _ } => Prepared::Linear {
                 params: ctx.create_uniform_buffer(uniform, "dng_color_params"),
                 tone: storage_buffer(ctx, tone, "dng_tone_curve"),
@@ -272,7 +333,7 @@ impl PreparedRender {
                     "standard_curve",
                 ),
             },
-        })
+        }
     }
 }
 
@@ -326,6 +387,8 @@ fn pack_params(rp: &RenderParams, ramp: f64, to_output: (Mat3, f32)) -> params::
         lt_dims,
         exposure_gain_knee: Vec4::new(1.0, 1.0, 0.0, 0.0),
         late: Vec4::ZERO,
+        local_tone: Vec4::ZERO,
+        base_exposure: Vec4::ZERO,
     }
 }
 

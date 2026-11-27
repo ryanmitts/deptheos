@@ -20,6 +20,7 @@ glam = { workspace = true }
 bytemuck = { workspace = true }
 moxcms = { workspace = true }
 tracing = { workspace = true }
+rayon = { workspace = true }
 
 [dev-dependencies]
 deptheos_raw = { workspace = true, features = ["test-support"] }

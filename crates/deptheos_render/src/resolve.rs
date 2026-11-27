@@ -9,7 +9,7 @@ use deptheos_dng::RenderParams;
 
 use crate::chroma::Chroma;
 use crate::curve::Curve;
-use crate::dng_render::{Constants, Exposure, Stages};
+use crate::dng_render::{Constants, Exposure, LocalTone, Stages};
 
 /// Where a draw's colors go. The screen is sRGB, or a standard stack's
 /// own profile while Color Management is off.
@@ -112,6 +112,11 @@ pub fn resolve_adjusted(
     let contrast = slider::CONTRAST.clamp(adjustments.contrast);
     let whites = slider::WHITES.clamp(adjustments.whites);
     let blacks = slider::BLACKS.clamp(adjustments.blacks);
+    let local_tone = local_tone(
+        slider::HIGHLIGHTS.clamp(adjustments.highlights),
+        slider::SHADOWS.clamp(adjustments.shadows),
+        exposure,
+    );
     let chroma = Chroma::new(
         slider::VIBRANCE.clamp(adjustments.vibrance),
         slider::SATURATION.clamp(adjustments.saturation),
@@ -119,16 +124,25 @@ pub fn resolve_adjusted(
     Box::new(match color {
         Color::Linear(params) => {
             // A camera RAW stack's white is in `params` (the SDK's white point).
-            let exposure = linear_exposure(exposure, params.baseline_exposure);
+            let baseline = params.baseline_exposure;
+            let exposure = linear_exposure(exposure, baseline).or(local_tone.map(|_| Exposure {
+                ramp: baseline,
+                gain: 1.0,
+                knee: 1.0,
+            }));
             let curve = Curve::raw(contrast, whites, blacks);
-            let stages = Stages { white_balance: None, exposure, curve, chroma };
+            let stages = Stages { white_balance: None, exposure, local_tone, curve, chroma };
             Constants::linear(params, &stages, output)
         }
         Color::Standard(profile) => {
             let white_balance = relative_white_balance(adjustments.white_balance);
             let curve = Curve::standard(contrast, whites, blacks);
-            let exposure = standard_exposure(exposure);
-            let stages = Stages { white_balance, exposure, curve, chroma };
+            let exposure = standard_exposure(exposure).or(local_tone.map(|_| Exposure {
+                ramp: 0.0,
+                gain: 1.0,
+                knee: 1.0,
+            }));
+            let stages = Stages { white_balance, exposure, local_tone, curve, chroma };
             Constants::standard(profile, output, &stages)
         }
     })
@@ -143,6 +157,19 @@ fn relative_white_balance(white_balance: WhiteBalance) -> Option<crate::white::M
     let temperature = slider::TEMPERATURE_RELATIVE.clamp(temperature);
     let tint = slider::TINT_RELATIVE.clamp(tint);
     (temperature != 0.0 || tint != 0.0).then(|| crate::white::relative_matrix(temperature, tint))
+}
+
+/// Highlights and Shadows, lightcraft's law as it stands (lightcraft
+/// 5bdb4e7a6 `crates/pipeline/src/finish.rs`, `tone_slider`): Highlights
+/// linear, Shadows eased. The base is the picture's before exposure, so
+/// exposure's stops shift it. Both at 0: none, and exposure's ramp keeps
+/// its clamp.
+fn local_tone(highlights: f64, shadows: f64, exposure: f64) -> Option<LocalTone> {
+    (highlights != 0.0 || shadows != 0.0).then(|| LocalTone {
+        highlights: crate::local_tone::highlights_strength(highlights),
+        shadows: crate::local_tone::shadows_strength(shadows),
+        ev: exposure as f32,
+    })
 }
 
 /// Stops below white where the shoulder starts once exposure has raised

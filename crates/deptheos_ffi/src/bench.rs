@@ -125,4 +125,38 @@ impl Engine {
         })
         .await
     }
+
+    /// What Highlights and Shadows cost in memory on this device
+    /// (`deptheos_app::runs::probe`): `draw` is `without`, `whole` or
+    /// `bands`, on a synthetic `width`×`height` stack, bands of `band`
+    /// rows. One draw per launch. The line it returns is also logged.
+    pub async fn probe_local_tone(
+        &self,
+        draw: String,
+        width: u32,
+        height: u32,
+        band: u32,
+        request: Arc<Request>,
+    ) -> Result<String> {
+        use deptheos_app::runs::probe::{Draw, local_tone_memory};
+        let engine = self.engine.clone();
+        on_thread(self.engine.words(), "local tone probe", &request, move |_| {
+            let Some(which) = Draw::named(&draw, band) else {
+                return Err(EngineError::Failed { message: format!("no draw named {draw}") });
+            };
+            let left = deptheos_app::engine::memory::left();
+            let step = local_tone_memory(engine.gpu(), width, height, which)
+                .map_err(|e| EngineError::explained(&e, engine.words()))?;
+            Ok(format!(
+                "local tone probe, {width}x{height}: {} in {} ms, footprint {} MB, peak {} MB, after {} MB; {} MB left at the start",
+                step.what,
+                step.millis,
+                step.before >> 20,
+                step.peak >> 20,
+                step.after >> 20,
+                left.map_or("?".into(), |b| (b >> 20).to_string()),
+            ))
+        })
+        .await
+    }
 }

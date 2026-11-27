@@ -22,6 +22,8 @@
 @group(0) @binding(2) var<uniform> params: StandardParams;
 @group(0) @binding(3) var<storage, read> decode: array<f32>;
 @group(0) @binding(4) var<uniform> place: Placement;
+// Highlights and Shadows' base over the region drawn, at output texels.
+@group(0) @binding(6) var local_base: texture_2d<f32>;
 
 struct StandardParams {
     // Column-major: the input's linear RGB to linear ProPhoto.
@@ -33,8 +35,8 @@ struct StandardParams {
     from_prophoto_c1: vec4f,
     from_prophoto_c2: vec4f,
     // x = 1 when the input is already linear; y = 1 to encode through the
-    // profile's curves, 0 through sRGB's; z = 1 for the exposure stage;
-    // w the stages after the tone curve:
+    // profile's curves, 0 through sRGB's; z the exposure stage (1) and
+    // Highlights and Shadows in it (2); w the stages after the tone curve:
     // 1, 2 and 4 the curve's (curve.wgsl), 8 chroma (adjust.wgsl).
     flags: vec4u,
     // Exposure's gain and the shoulder's knee (adjust.wgsl).
@@ -42,6 +44,8 @@ struct StandardParams {
     // The curve's operators' weights (curve.wgsl), then Vibrance and
     // Saturation (adjust.wgsl).
     late: vec4f,
+    // Highlights' and Shadows' strengths and exposure's stops (adjust.wgsl).
+    local_tone: vec4f,
 }
 
 struct Placement {
@@ -101,9 +105,14 @@ fn standard_render(@builtin(global_invocation_id) gid: vec3u) {
         return;
     }
     let stored = textureLoad(in_tex, vec2i(gid.xy + place.origins.xy), 0).rgb;
+    let at = vec2i(gid.xy + place.origins.zw);
     var prophoto = to_prophoto(decoded(stored));
     if (params.flags.z != 0u) {
-        prophoto = adjust::exposure(prophoto, params.exposure_gain_knee);
+        var local = 1.0;
+        if ((params.flags.z & 2u) != 0u) {
+            local = adjust::local_tone(textureLoad(local_base, at, 0).r, params.local_tone);
+        }
+        prophoto = adjust::exposure(prophoto, params.exposure_gain_knee, local);
     }
     if ((params.flags.w & 7u) != 0u) {
         prophoto = curve(prophoto, params.flags.w, params.late);
@@ -112,7 +121,6 @@ fn standard_render(@builtin(global_invocation_id) gid: vec3u) {
         prophoto = adjust::chroma(prophoto, params.late.z, params.late.w);
     }
     let out = from_prophoto(prophoto);
-    let at = vec2i(gid.xy + place.origins.zw);
     if (params.flags.y != 0u) {
         let codes = vec3f(encode_code(0u, out.r), encode_code(1u, out.g), encode_code(2u, out.b));
         textureStore(out_tex, at, vec4f(codes, 1.0));
@@ -128,4 +136,20 @@ fn standard_render(@builtin(global_invocation_id) gid: vec3u) {
 #else
     textureStore(out_tex, at, vec4f(srgb, 1.0));
 #endif
+}
+
+@group(0) @binding(7) var brightness_out: texture_storage_2d<r32float, write>;
+
+// What Highlights and Shadows' base is taken of: log2 of each pixel's
+// brightness over middle gray before exposure (Rec. 2020's luminance), as
+// lightcraft's `log_lum`.
+@compute @workgroup_size(16, 16)
+fn log_brightness(@builtin(global_invocation_id) gid: vec3u) {
+    if (gid.x >= place.size.x || gid.y >= place.size.y) {
+        return;
+    }
+    let stored = textureLoad(in_tex, vec2i(gid.xy + place.origins.xy), 0).rgb;
+    let prophoto = to_prophoto(decoded(stored));
+    let y = log2(max(dot(TONE_Y, prophoto), 1e-7) / GREY);
+    textureStore(brightness_out, vec2i(gid.xy + place.origins.zw), vec4f(y, 0.0, 0.0, 0.0));
 }

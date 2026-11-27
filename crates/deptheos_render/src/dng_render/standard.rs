@@ -34,6 +34,7 @@ pub(super) mod params {
         pub(crate) flags: UVec4,
         pub(crate) exposure_gain_knee: Vec4,
         pub(crate) late: Vec4,
+        pub(crate) local_tone: Vec4,
     }
 }
 
@@ -104,13 +105,15 @@ impl StandardConstants {
             flags: UVec4::new(
                 u32::from(decode.is_empty()),
                 u32::from(own_curves),
-                u32::from(stages.exposure.is_some()),
+                u32::from(stages.exposure.is_some())
+                    | (u32::from(stages.local_tone.is_some()) << 1),
                 late_stages,
             ),
             exposure_gain_knee: stages
                 .exposure
                 .map_or(Vec4::new(1.0, 1.0, 0.0, 0.0), |exposure| exposure.gain_knee()),
             late,
+            local_tone: stages.local_tone.map_or(Vec4::ZERO, |l| l.packed()),
         };
         let linearizer = match input {
             Input::Linearized(linearizer) => Some(linearizer),

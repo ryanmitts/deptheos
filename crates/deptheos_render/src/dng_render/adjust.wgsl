@@ -5,6 +5,7 @@
 
 #import deptheos::render_constants::{PRO_TO_LMS, LMS_TO_PRO, LMS_TO_LAB, LAB_TO_LMS}
 #import deptheos::render_constants::{SKIN_HUE, SKIN_PROTECTION, SKIN_WIDTH, VIBRANCE_REACH, VIBRANCE_GAIN}
+#import deptheos::render_constants::{STRENGTH, SHADOW_LOW, SHADOW_HIGH, HIGHLIGHT_LOW, HIGHLIGHT_HIGH}
 
 // Identity up to `knee`, then the gap to white closes in stops, halving
 // each stop in the end and joined at slope 1: lightcraft's roll-off (MIT
@@ -18,12 +19,31 @@ fn shoulder(v: f32, knee: f32) -> f32 {
     return 1.0 - gap * gap / (gap + v - knee);
 }
 
-// The gain (`gain_knee.x`), then the shoulder (knee `gain_knee.y`) that
-// brings what passes white back under it.
-fn exposure(prophoto: vec3f, gain_knee: vec4f) -> vec3f {
-    let v = prophoto * gain_knee.x;
+// The gain (`gain_knee.x`), then Highlights and Shadows' gain at the
+// pixel (`local`, 1 without them), then the shoulder (knee `gain_knee.y`)
+// that brings what passes white back under it.
+fn exposure(prophoto: vec3f, gain_knee: vec4f, local: f32) -> vec3f {
+    let v = prophoto * gain_knee.x * local;
     let knee = gain_knee.y;
     return vec3f(shoulder(v.r, knee), shoulder(v.g, knee), shoulder(v.b, knee));
+}
+
+fn rise(e0: f32, e1: f32, x: f32) -> f32 {
+    let t = clamp((x - e0) / (e1 - e0), 0.0, 1.0);
+    return t * t * (3.0 - 2.0 * t);
+}
+
+// Highlights and Shadows' gain, as a factor, at a pixel whose base (log2
+// of brightness over middle gray, before exposure) is `base`; `amounts`
+// holds Highlights' and Shadows' strengths and exposure's stops:
+// lightcraft's law (MIT OR Apache-2.0, lightcraft 5bdb4e7a6
+// `crates/pipeline/src/finish.rs`, `local_tone_delta`).
+fn local_tone(base: f32, amounts: vec4f) -> f32 {
+    let at = base + amounts.z;
+    let shadow = 1.0 - rise(SHADOW_LOW, SHADOW_HIGH, at);
+    let highlight = rise(HIGHLIGHT_LOW, HIGHLIGHT_HIGH, at);
+    let stops = amounts.y * STRENGTH * shadow * sqrt(shadow) + amounts.x * STRENGTH * highlight;
+    return exp2(stops);
 }
 
 // A cube root that keeps the sign.

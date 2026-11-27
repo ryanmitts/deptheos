@@ -27,7 +27,7 @@ pub use deptheos_core::dcp::DcpPreference;
 mod alignment;
 mod contributions;
 mod progress;
-mod readback;
+pub(crate) mod readback;
 mod reading;
 mod stack;
 

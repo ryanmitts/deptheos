@@ -105,7 +105,7 @@ impl AppView {
 
     /// Revert may run: nothing runs, Retouch closed, Stacking on screen.
     fn can_revert(&self, cx: &App) -> bool {
-        !self.is_processing(cx) && !self.paint.read(cx).is_open() && self.on_stacking()
+        !self.is_processing(cx) && !self.is_retouching() && self.on_stacking()
     }
 
     /// Ask before a lossy Revert: destructive "Revert", and "Cancel" for
@@ -170,7 +170,7 @@ impl AppView {
             text: text.into(),
             edited: matches!(showing, Showing::Base { .. }),
             revert: showing.revert().map(|r| r.number()),
-            retouching: self.paint.read(cx).is_open(),
+            retouching: self.is_retouching(),
         });
         let settings = |r: &Render| Settings { config: r.config, options: r.options };
         (line, showing.base().map(settings), showing.shown().map(settings))
@@ -272,18 +272,18 @@ impl AppView {
 
     /// The working version on screen for the strip
     /// ([`crate::renders::Renders::set_on_screen`]).
-    pub(crate) fn on_screen_in(&self, now: &Snapshot, cx: &App) -> crate::renders::OnScreen {
+    pub(crate) fn on_screen_in(&self, now: &Snapshot) -> crate::renders::OnScreen {
         crate::renders::OnScreen {
             working: now.working.clone(),
             compared: now.compared,
-            retouching: self.paint.read(cx).is_open(),
+            retouching: self.is_retouching(),
         }
     }
 
     /// Hand the strip the working version, on each change and as Retouch
     /// toggles, so a menu opened before the next frame reads it current.
     pub(crate) fn sync_on_screen(&self, cx: &mut Context<Self>) {
-        let on_screen = self.on_screen_in(&self.snapshot(cx), cx);
+        let on_screen = self.on_screen_in(&self.snapshot(cx));
         self.renders.update(cx, |r, _| r.set_on_screen(on_screen));
     }
 

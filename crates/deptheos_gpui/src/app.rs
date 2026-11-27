@@ -16,7 +16,7 @@
 //!
 //! Its work is split into `impl AppView` blocks by subject in `app/`: `list`,
 //! `run`, `batch_run`, `batch_after`, `sequence`, `navigate`, `export`,
-//! `exporting`, `library_export`, `paint_mode`, `retouch`, `view`,
+//! `exporting`, `library_export`, `mode`, `paint_mode`, `retouch`, `view`,
 //! `view_bar`, `actions`, `bindings`, `menu`, `window_menu`, `toolbar`,
 //! `welcome`, `quit`, `update_check`, `diagnostics`, `chrome`, `sidebar`,
 //! `sheet`, `scrubber`, `working`, `sample`, `library_delete`, `away` and
@@ -36,6 +36,7 @@ pub(crate) mod library_delete;
 mod library_export;
 mod list;
 mod menu;
+mod mode;
 mod navigate;
 mod paint_mode;
 pub(crate) mod quit;
@@ -190,6 +191,10 @@ pub struct AppView {
     /// How the last stack ended, for the inspector.
     last_stack: run::LastStack,
     pub(crate) paint: Entity<Paint>,
+    /// Viewing, Retouch or Adjust. Changed only by [`Self::set_mode`].
+    mode: mode::Mode,
+    /// The window's Adjust session.
+    adjust: mode::AdjustHandle,
     /// What is running, if anything: a stack, a sequence or a batch.
     running: Running,
     /// The stack on screen, which Stack adds its next render to.
@@ -291,6 +296,7 @@ impl AppView {
             cx.new(|cx| Renders::new(engine.clone(), store.clone(), stacking.clone(), window, cx));
         let library = cx.new(|cx| Library::new(renders.clone(), window, cx));
         let viewer = cx.new(|cx| Viewer::new(engine_loader(engine.clone()), cx));
+        let adjust = mode::AdjustHandle::new(engine.clone(), store.clone(), window, cx);
         let paint = cx.new(|cx| Paint::new(engine.clone(), viewer.clone(), store, cx));
         engine.set_camera_profile(prefs(cx).camera_profile);
         let zoom_input = cx.new(|cx| {
@@ -374,6 +380,8 @@ impl AppView {
             screen: Screen::Library,
             last_stack: run::LastStack::Nothing,
             paint,
+            mode: mode::Mode::Viewing,
+            adjust,
             running: Running::Idle,
             stack,
             base,
@@ -641,15 +649,16 @@ impl AppView {
             PaintEvent::Notice(text) => {
                 self.post(Kind::Info, Subject::Alone, text.clone(), Vec::new(), window, cx)
             }
-            PaintEvent::Painted { render, stack, flattened } => {
-                let (render, stack, flattened) = (render.clone(), stack.clone(), flattened.take());
-                self.renders.update(cx, |r, cx| r.rewrite_thumbnail(render, stack, flattened, cx));
+            PaintEvent::Source { key, image } => {
+                if let Some(image) = image.take() {
+                    self.show_source(key, image, cx);
+                }
             }
             // No display: the render shows its plain result, as it does.
             PaintEvent::Presented { key, display } => {
                 let current = self.result_doc(cx).is_some_and(|(_, k)| k == *key);
                 if current
-                    && !self.paint.read(cx).is_open()
+                    && !self.is_retouching()
                     && !self.is_processing(cx)
                     && let Some(display) = display.take()
                 {
@@ -681,7 +690,7 @@ impl AppView {
         self.sync_menus(now, window, cx);
         // The strip's marks follow the working version, also set on each
         // change to it ([`Self::sync_on_screen`]).
-        let on_screen = self.on_screen_in(now, cx);
+        let on_screen = self.on_screen_in(now);
         self.renders.update(cx, |r, _| r.set_on_screen(on_screen));
         let (line, base, shown) = self.compared_in(now, cx);
         self.params.update(cx, |p, _| p.set_compared(line, base, shown));
@@ -762,7 +771,7 @@ impl AppView {
     /// In Retouch, hand the list the frames painted from.
     fn sync_painted(&self, cx: &mut Context<Self>) {
         let paint = self.paint.read(cx);
-        let painted = paint.is_open().then(|| {
+        let painted = self.is_retouching().then(|| {
             let frames = paint.painted_from().iter().filter_map(|k| match k {
                 deptheos_app::paint::SourceKind::Frame { path } => Some(path.clone()),
                 _ => None,
@@ -791,7 +800,7 @@ impl Render for AppView {
             false => self.render_stacking_screen(&now, window, cx),
         };
         let toolbar = self.render_toolbar(parts, cx);
-        let painting = self.paint.read(cx).is_open();
+        let painting = self.is_retouching();
         // Undo and Redo exist only while paint mode has a step to take.
         let [can_undo, can_redo] = self.paint.read(cx).steps().map(|n| n > 0);
         let root = div()

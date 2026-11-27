@@ -84,7 +84,10 @@ impl AppView {
                 }
             }
             Some(SourceKind::Original) => say!(cx, "paint-source-original").into(),
-            Some(SourceKind::Render { .. }) => paint.source_name(cx).unwrap_or_default(),
+            Some(SourceKind::Render { .. }) => self
+                .painting()
+                .and_then(|painting| paint.source_name(painting, cx))
+                .unwrap_or_default(),
             None => say!(cx, "retouch-source-none").into(),
         }
     }
@@ -207,10 +210,7 @@ impl AppView {
             })
             .on_click(move |ix, _, cx| {
                 let tab = if *ix == 0 { SourcesTab::Frames } else { SourcesTab::Renders };
-                weak.update(cx, |this, cx| {
-                    this.paint.update(cx, |p, cx| p.set_sources_tab(tab, cx))
-                })
-                .ok();
+                weak.update(cx, |this, cx| this.set_sources_tab(tab, cx)).ok();
             });
         v_flex()
             .gap_1p5()
@@ -338,7 +338,7 @@ impl AppView {
     pub(super) fn render_retouch_labels(&self, cx: &mut Context<Self>) -> Option<gpui::Div> {
         let viewer = self.viewer.read(cx);
         let peeking = viewer.peeking();
-        if !self.paint.read(cx).is_open() || (viewer.mode() != ViewMode::Result && !peeking) {
+        if !self.is_retouching() || (viewer.mode() != ViewMode::Result && !peeking) {
             return None;
         }
         let what: SharedString = if peeking {
@@ -386,7 +386,7 @@ impl AppView {
         window: &mut Window,
         cx: &mut Context<Self>,
     ) {
-        if !self.paint.read(cx).is_open() {
+        if !self.is_retouching() {
             return;
         }
         // One the render can't tell is said by the session.
@@ -413,7 +413,7 @@ impl AppView {
 
     /// Hold \: the source in place of the painted result.
     pub(super) fn peek_source(&mut self, peek: bool, cx: &mut Context<Self>) {
-        let peek = peek && self.paint.read(cx).is_open();
+        let peek = peek && self.is_retouching();
         self.viewer.update(cx, |v, cx| v.set_peek(peek, cx));
     }
 

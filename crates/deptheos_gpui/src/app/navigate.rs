@@ -273,9 +273,13 @@ impl AppView {
         self.stacking.update(cx, |s, cx| s.restore(shown, render.id.clone(), stacked, cx));
         self.viewer.update(cx, |v, cx| v.show_result(display, map, Some(&stack), cx));
         self.log_shown(cx);
-        // Painting carries over to the render opened.
-        if self.paint.read(cx).is_open() {
+        // Painting carries over to the render opened, and so does Adjust.
+        if self.is_retouching() {
             self.enter_paint(cx);
+            return;
+        }
+        if self.adjusting().is_some() {
+            self.adjust_shown(cx);
             return;
         }
         // Its paint is part of the result: shown once the worker has it.

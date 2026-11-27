@@ -67,7 +67,7 @@ impl AppView {
         // macOS has the menu bar; elsewhere the ≡ menu holds it.
         let window_menu = HAS_WINDOW_MENU.then(|| self.render_window_menu(cx));
         let library = self.screen == Screen::Library;
-        let painting = self.paint.read(cx).is_open();
+        let painting = self.is_retouching();
         let (title, actions) = if library {
             (
                 self.render_library_title(cx).into_any_element(),
@@ -244,7 +244,7 @@ impl AppView {
         ctx: Option<&'static str>,
         cx: &mut Context<Self>,
     ) -> impl IntoElement + use<> {
-        let painting = self.paint.read(cx).is_open();
+        let painting = self.is_retouching();
         let blocked = self.paint_blocked(cx);
         let button = Button::new("retouch")
             .icon(IconName::Brush)

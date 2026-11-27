@@ -98,7 +98,8 @@ names its states and what changes it, followed by its transitions.
   a pure reducer whose table tests are the behavior (ADR-149).
 - Desktop: `Screen` and `Running` in `crates/deptheos_gpui/src/app.rs`,
   changed only by `set_screen` (`app/navigate.rs`) and `set_running`
-  (`app/run.rs`).
+  (`app/run.rs`), and `Mode` (viewing, Retouch or Adjust) in
+  `app/mode.rs`, changed only by `set_mode`.
 - iOS: `Running` in `ios/DeptheosMobile/Model/AppModel.swift` and `Panel`
   in `ios/DeptheosMobile/Model/Panel.swift`, changed only by `setRunning`
   and `setPanel` and their kin in `AppModel.swift` (ADR-163).

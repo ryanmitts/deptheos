@@ -417,6 +417,12 @@ impl Viewer {
         self.state.retouched()
     }
 
+    /// In Adjust, what it shows.
+    #[cfg(test)]
+    pub fn adjusting(&self) -> Option<view::Adjusting> {
+        self.state.adjusting()
+    }
+
     /// The one place the view changes (ADR-149). Lit pictures are made off
     /// this thread, the current one kept until the new lands; a frame no
     /// longer shown is not loaded. Returns the app's actions.

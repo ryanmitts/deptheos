@@ -310,10 +310,8 @@ impl AppView {
 
     /// Paint From's title (`None` outside Retouch), derived each time.
     pub(super) fn paint_from(&self, cx: &App) -> Option<PaintFrom> {
+        let painting = self.painting()?;
         let paint = self.paint.read(cx);
-        if !paint.is_open() {
-            return None;
-        }
         Some(match paint.source() {
             None | Some(SourceKind::Frame { .. }) => PaintFrom::Frames,
             Some(SourceKind::Original) => PaintFrom::Original,
@@ -330,9 +328,10 @@ impl AppView {
                             )
                         },
                     );
-                PaintFrom::Render(
-                    name.map_or_else(|| paint.source_name(cx).unwrap_or_default(), Into::into),
-                )
+                PaintFrom::Render(name.map_or_else(
+                    || paint.source_name(painting, cx).unwrap_or_default(),
+                    Into::into,
+                ))
             }
         })
     }
@@ -437,14 +436,12 @@ impl AppView {
     /// Paint From's Frames: the frame last painted from, else the stack's
     /// first; the left panel lists frames and the rail marks it.
     pub(super) fn paint_from_frames(&mut self, window: &mut gpui::Window, cx: &mut Context<Self>) {
-        if !self.paint.read(cx).is_open() || self.is_processing(cx) {
+        if !self.is_retouching() || self.is_processing(cx) {
             return;
         }
         let on_frame = matches!(self.paint.read(cx).source(), Some(SourceKind::Frame { .. }));
-        self.paint.update(cx, |p, cx| {
-            p.set_sources_tab(SourcesTab::Frames, cx);
-            p.use_frames(cx);
-        });
+        self.set_sources_tab(SourcesTab::Frames, cx);
+        self.paint.update(cx, |p, cx| p.use_frames(cx));
         let Some(SourceKind::Frame { path }) = self.paint.read(cx).source().cloned() else {
             return;
         };
@@ -509,7 +506,7 @@ impl AppView {
         let map_on = mode.is_map();
         let contribution_on = self.contribution_on(cx);
         let has_contribution = self.has_contribution(cx);
-        let painting = self.paint.read(cx).is_open();
+        let painting = self.is_retouching();
         let history = self.renders.read(cx);
         let compared = history.compare().is_some() && !painting;
         let can_swap = history.active(cx).is_some() && !self.is_processing(cx);
@@ -742,7 +739,7 @@ impl AppView {
     /// The strip is under the photo: not in an empty window, Focus Mode, or
     /// Retouch (where renders are Paint From's).
     pub(crate) fn strip_shown(&self, cx: &App) -> bool {
-        !self.chrome.is_focus() && !self.is_empty(cx) && !self.paint.read(cx).is_open()
+        !self.chrome.is_focus() && !self.is_empty(cx) && !self.is_retouching()
     }
 
     /// Render Info over the photo while open and the strip isn't drawn (Focus

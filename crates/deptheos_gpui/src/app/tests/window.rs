@@ -302,7 +302,7 @@ fn the_view_bar_fits_narrow_windows(cx: &mut TestAppContext) {
     let Some(Fixture { dir: _dir, window, app, .. }) = Fixture::launch(cx, 3) else { return };
     stack(cx, window, &app);
     let fits = |cx: &mut TestAppContext, width: f32, painting: bool| {
-        assert_eq!(app.read_with(cx, |app, cx| app.paint.read(cx).is_open()), painting);
+        assert_eq!(app.read_with(cx, |app, _| app.is_retouching()), painting);
         cx.simulate_window_resize(window, gpui::size(px(width), px(800.0)));
         cx.run_until_parked();
         let bar = bar_part(cx, window, "view-bar").expect("the bar");

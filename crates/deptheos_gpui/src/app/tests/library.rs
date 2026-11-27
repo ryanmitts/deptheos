@@ -106,7 +106,7 @@ fn the_library_opens_stacks_and_renders(cx: &mut TestAppContext) {
     // The strip shows this stack only.
     let strip = |cx: &mut TestAppContext| {
         app.update(cx, |app, cx| {
-            let on_screen = app.on_screen_in(&app.snapshot(cx), cx);
+            let on_screen = app.on_screen_in(&app.snapshot(cx));
             app.renders.update(cx, |r, _| {
                 r.set_on_screen(on_screen);
                 r.strip()
@@ -1114,7 +1114,7 @@ fn deleting_the_library_leaves_a_first_launch(cx: &mut TestAppContext) {
         assert!(app.base.is_none());
         assert!(!app.has_result(cx));
         assert!(!app.viewer.read(cx).has_compare());
-        assert!(!app.paint.read(cx).is_open());
+        assert!(!app.is_retouching());
     });
     assert_eq!(cx.update(|cx| library_delete::deletable(cx)), Deletable::Empty);
     let left: Vec<_> = std::fs::read_dir(root.join("Renders")).unwrap().flatten().collect();

@@ -799,18 +799,21 @@ impl Renders {
             self.store.rewrite_thumbnail(self.engine.clone(), id.clone(), stack, flattened);
         cx.spawn(async move |this, cx| match rewrite.await {
             Ok(deptheos_app::library::thumbnails::rewrite::Rewrote::Written) => {
-                this.update(cx, |this, cx| {
-                    if let Some(read) = this.thumbnails.rewritten(&id, cx) {
-                        this.read_thumbnails(read, cx);
-                    }
-                    cx.notify();
-                })
-                .ok();
+                this.update(cx, |this, cx| this.thumbnail_rewritten(&id, cx)).ok();
             }
             Ok(deptheos_app::library::thumbnails::rewrite::Rewrote::Overtaken) => {}
             Err(e) => tracing::warn!("render {}'s thumbnail not drawn again: {e}", id.as_str()),
         })
         .detach();
+    }
+
+    /// Render `id`'s thumbnail was drawn again: the one held is dropped
+    /// and read again while it is wanted.
+    pub fn thumbnail_rewritten(&mut self, id: &RenderId, cx: &mut Context<Self>) {
+        if let Some(read) = self.thumbnails.rewritten(id, cx) {
+            self.read_thumbnails(read, cx);
+        }
+        cx.notify();
     }
 
     /// Start `read`, in the background.

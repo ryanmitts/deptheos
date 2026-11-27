@@ -43,7 +43,7 @@ Adjust moves a render's sliders and its reframe (ADR-136, ADR-137) over the stor
 
 ### What the machine doesn't own
 
-Exclusivity with Retouch is each app's mode enum, which holds either session. The reduced copy, the preview's tiers and its budgets are the session's and the renderer's (ADR-135); what the viewer shows is `View`'s (ADR-149).
+Exclusivity with Retouch is each app's mode enum, which holds either session. The desktop's is `Mode` (`crates/deptheos_gpui/src/app/mode.rs`): viewing, Retouch with paint's `Painting`, or Adjust, changed only by `AppView::set_mode`, which closes the one open before opening the next and moves the viewer's place and both sessions with it. The reduced copy, the preview's tiers and its budgets are the session's and the renderer's (ADR-135); what the viewer shows is `View`'s (ADR-149).
 
 ## Alternatives considered
 

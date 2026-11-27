@@ -339,7 +339,7 @@ impl AppView {
             Some(number) => {
                 let stacked = Stacked { stack: of, number, seconds };
                 self.set_last_stack(LastStack::Stacked(stacked), cx);
-                if self.footer_in_sight(cx) {
+                if self.footer_in_sight() {
                     crate::notices::dismiss(&subject, window, cx);
                 } else {
                     self.post(Kind::Done, subject, message, actions, window, cx);

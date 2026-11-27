@@ -18,6 +18,7 @@ impl AppView {
         cx: &mut Context<Self>,
     ) -> Stateful<Div> {
         root.on_action(cx.listener(|this, _: &TogglePaint, _, cx| this.toggle_paint(cx)))
+            .on_action(cx.listener(|this, _: &ToggleAdjust, _, cx| this.toggle_adjust(cx)))
             .on_action(cx.listener(|this, _: &AddFolder, window, cx| this.pick_folders(window, cx)))
             .on_action(cx.listener(|this, _: &OpenWindowMenu, window, cx| {
                 this.toggle_window_menu(window, cx)
@@ -207,7 +208,7 @@ impl AppView {
             )
             .on_action(cx.listener(|this, _: &ToggleFit100, _, cx| {
                 // Held while painting, space pans instead.
-                if this.paint.read(cx).is_open() {
+                if this.is_retouching() {
                     this.viewer.update(cx, |v, _| v.set_space_pan(true));
                 } else {
                     this.zoom(|v, at| v.toggle_fit_100(at), cx)
@@ -235,7 +236,7 @@ impl AppView {
                 }),
             )
             .on_action(cx.listener(|this, action: &RetouchLayout, window, cx| {
-                if this.paint.read(cx).is_open() {
+                if this.is_retouching() {
                     this.set_view(action.0, window, cx)
                 }
             }))
@@ -243,7 +244,7 @@ impl AppView {
                 this.view(ViewEvent::SwapSides, window, cx)
             }))
             .on_action(cx.listener(|this, _: &StopCompare, _, cx| {
-                if !this.paint.read(cx).is_open() && this.viewer.read(cx).has_compare() {
+                if !this.is_retouching() && this.viewer.read(cx).has_compare() {
                     this.stop_render_compare(cx);
                 }
             }))

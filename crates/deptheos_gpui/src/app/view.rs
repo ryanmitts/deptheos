@@ -105,7 +105,7 @@ impl AppView {
         }
         let Some(path) = self.files.read(cx).path(id).map(Path::to_path_buf) else { return };
         self.files.update(cx, |files, cx| files.highlight(Some(id), window, cx));
-        if self.paint.read(cx).is_open() {
+        if self.is_retouching() {
             self.paint.update(cx, |p, cx| p.pick_frame(&path, cx));
             return;
         }
@@ -179,7 +179,7 @@ impl AppView {
     fn find_compare_source(&mut self, window: &mut Window, cx: &mut Context<Self>) {
         let viewer = self.viewer.read(cx);
         if viewer.mode().comparing().is_none()
-            || self.paint.read(cx).is_open()
+            || self.is_retouching()
             || viewer.has_compare()
             || viewer.is_loading()
         {
@@ -251,12 +251,10 @@ impl AppView {
         window: &mut Window,
         cx: &mut Context<Self>,
     ) {
-        if self.paint.read(cx).is_open() {
+        if self.is_retouching() {
             let label = self.renders.read(cx).label(&render, cx.wording()).unwrap_or_default();
-            self.paint.update(cx, |p, cx| {
-                p.set_sources_tab(crate::paint::SourcesTab::Renders, cx);
-                p.pick_render(&render, label, cx)
-            });
+            self.set_sources_tab(crate::paint::SourcesTab::Renders, cx);
+            self.paint_from_render(&render, label, cx);
         } else {
             self.compare_render(render, window, cx);
         }
@@ -281,15 +279,14 @@ impl AppView {
     /// supplied part of the result; never in Retouch.
     pub(super) fn has_contribution(&self, cx: &App) -> bool {
         let overlaid = self.viewer.read(cx).mode().overlaid();
-        !self.paint.read(cx).is_open() && overlaid.is_some_and(|o| o.supplied)
+        !self.is_retouching() && overlaid.is_some_and(|o| o.supplied)
     }
 
     /// Contribution is chosen (outside Retouch): shown, or kept for the next
     /// frame over one that supplied nothing.
     pub(super) fn contribution_on(&self, cx: &App) -> bool {
         let overlaid = self.viewer.read(cx).mode().overlaid();
-        !self.paint.read(cx).is_open()
-            && overlaid.is_some_and(|o| o.chosen == Overlay::Contribution)
+        !self.is_retouching() && overlaid.is_some_and(|o| o.chosen == Overlay::Contribution)
     }
 
     /// Toggle the depth map, which needs a result with a map (a pyramid or
@@ -309,7 +306,7 @@ impl AppView {
             .and_then(|(index, stack)| crate::viewer::pick(stack, index));
         self.leave_map_pointer(cx);
         self.view(ViewEvent::ToggleMap { on_screen }, window, cx);
-        if self.paint.read(cx).is_open() && self.viewer.read(cx).mode().is_map() {
+        if self.is_retouching() && self.viewer.read(cx).mode().is_map() {
             self.paint.update(cx, |p, cx| p.light_map(cx));
         }
     }

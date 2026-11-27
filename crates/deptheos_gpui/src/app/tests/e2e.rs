@@ -341,7 +341,7 @@ fn run_case(
     });
     wait_up_to(cx, LONG, "the stroke", |cx| paint_state(cx, &app).undo == 1);
     cx.simulate_keystrokes(window, "escape");
-    app.read_with(cx, |app, cx| assert!(!app.paint.read(cx).is_open(), "Retouch closed"));
+    app.read_with(cx, |app, _| assert!(!app.is_retouching(), "Retouch closed"));
 
     let painted = export(cx, window, &app, ExportFormat::Tiff, sixteen, &out.join("retouched"));
     reports.push(check_paint(check, &frames, &tiff, &painted, &check.frames[source_ix]));

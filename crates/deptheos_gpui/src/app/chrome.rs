@@ -254,11 +254,11 @@ impl AppView {
 
     /// The inspector's footer is on screen: Stacking, inspector shown, out
     /// of Focus Mode and Retouch.
-    pub(super) fn footer_in_sight(&self, cx: &App) -> bool {
+    pub(super) fn footer_in_sight(&self) -> bool {
         self.screen == Screen::Stacking
             && self.inspector_visible()
             && !self.chrome.is_focus()
-            && !self.paint.read(cx).is_open()
+            && !self.is_retouching()
     }
 
     /// The inspector can toggle: not on a blank Library under the welcome.

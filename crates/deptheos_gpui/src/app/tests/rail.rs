@@ -259,8 +259,7 @@ fn the_rail_picks_the_frame_painted_from(cx: &mut TestAppContext) {
     assert!(joined.left() <= rail.left() && rail.right() <= joined.right(), "one control");
     let model = |cx: &mut TestAppContext| app.read_with(cx, |app, cx| app.rail_model(cx).unwrap());
     let frame = |i: usize| Some(SourceKind::Frame { path: stacked.paths[i].clone() });
-    let tab =
-        |cx: &mut TestAppContext| app.read_with(cx, |app, cx| app.paint.read(cx).sources_tab());
+    let tab = |cx: &mut TestAppContext| app.read_with(cx, |app, _| app.sources_tab());
 
     act(cx, window, &app, |app, window, cx| app.scrub_to(2, window, cx));
     assert_eq!(paint_state(cx, &app).source, frame(2), "picked at once");

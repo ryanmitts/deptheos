@@ -1,7 +1,8 @@
 //! Paint mode on the desktop: the brush, the panels' source names, and the
 //! shared `deptheos_app::paint::PaintSession` (open, selection, scrub timing,
 //! worker), whose reports reach the viewer here and whose status drives the
-//! panels.
+//! panels. Whether Retouch is open is `AppView`'s `Mode` (`app/mode.rs`),
+//! whose Retouch variant holds a [`Painting`].
 
 use std::cell::Cell;
 use std::ops::RangeInclusive;
@@ -71,24 +72,12 @@ pub enum PaintEvent {
         key: RenderId,
         display: Cell<Option<PresentedImage>>,
     },
-    /// Retouch left `render` after painting it: its thumbnail is drawn
-    /// again from `flattened`, the stack with its paint. Taken once.
-    Painted {
-        render: RenderId,
-        stack: Arc<CompletedStack>,
-        flattened: Cell<Option<std::sync::mpsc::Receiver<Flattened>>>,
+    /// The source painted from, for the viewer's source pane, which
+    /// names it from Retouch's picks. Taken once.
+    Source {
+        key: RenderId,
+        image: Cell<Option<TiledImage>>,
     },
-}
-
-/// What [`Paint::open`] paints.
-pub struct OpenRender {
-    pub stack: Arc<CompletedStack>,
-    /// The render `stack` was saved as.
-    pub render: RenderId,
-    /// The frames to step through, in order.
-    pub frames: Vec<PathBuf>,
-    /// The frame to paint from first.
-    pub first_source: Option<PathBuf>,
 }
 
 /// The brush sliders.
@@ -101,43 +90,31 @@ pub struct BrushControls {
     pub tolerance_on: bool,
 }
 
-/// Whether paint mode is on, and what the desktop keeps beside the session's
-/// status: the panel switch and pick names.
-///
-/// Lifecycle: `Closed` or `Open` on a render, changed only by `set_mode`;
-/// inside `Open`, [`SourcesTab`] only by [`Paint::set_sources_tab`]. The
-/// rest is the shared `PaintSession`'s `Status` (ADR-149).
-///
-/// - `Closed` → `Open`: [`Paint::open`], on [`SourcesTab::Frames`].
-/// - `Open` → `Open`: [`Paint::open`] for another render, or
-///   [`Paint::set_sources_tab`].
-/// - `Open` → `Closed`: [`Paint::close`].
-enum Mode {
-    Closed,
-    Open(Painting),
-}
-
-/// The desktop's part of the render painted.
-struct Painting {
-    render: RenderId,
-    stack: Arc<CompletedStack>,
+/// The desktop's part of the render painted: the Retouch variant of
+/// `AppView`'s `Mode`. Inside it, [`SourcesTab`] changes only by
+/// `AppView::set_sources_tab`.
+pub struct Painting {
+    pub render: RenderId,
+    pub stack: Arc<CompletedStack>,
+    /// The frames to step through, in order.
+    pub frames: Vec<PathBuf>,
+    /// The frame painted from first.
+    pub first_source: Option<PathBuf>,
     /// Its stored picture's generation as it opened: another as it closes
     /// means it was painted.
-    opened: Generation,
+    pub opened: Generation,
     /// What the left panel lists to paint from.
-    sources: SourcesTab,
+    pub sources: SourcesTab,
     /// Render source names from picks ("#3 ★"), richer than [`Paint::name_of`]'s.
-    labels: Vec<(SourceKind, SharedString)>,
-    #[cfg(test)]
-    frames: Vec<PathBuf>,
+    pub labels: Vec<(SourceKind, SharedString)>,
 }
 
-impl Mode {
-    fn name(&self) -> &'static str {
-        match self {
-            Mode::Closed => "closed",
-            Mode::Open(_) => "open",
-        }
+impl Painting {
+    /// The source name picked for `kind`, newest first, at most a few kept.
+    pub fn label(&mut self, kind: SourceKind, label: SharedString) {
+        self.labels.retain(|(k, _)| *k != kind);
+        self.labels.insert(0, (kind, label));
+        self.labels.truncate(LABELS_KEPT);
     }
 }
 
@@ -158,8 +135,6 @@ pub struct Paint {
     /// The render whose canvas is in the viewer (open, or just left while its
     /// last tiles come); only its patches apply.
     canvas: Option<RenderId>,
-    /// Changed only by [`Self::set_mode`].
-    mode: Mode,
     /// What Retouch last showed and its layout, kept as it closes for the
     /// next opening (ADR-149).
     retouched: Retouched<RenderId>,
@@ -211,7 +186,6 @@ impl Paint {
             status: None,
             viewer,
             canvas: None,
-            mode: Mode::Closed,
             retouched: Retouched::default(),
             brush,
             _reports,
@@ -269,25 +243,13 @@ impl Paint {
 
     /// Call the session while paint mode is on, then read its status.
     fn call(&mut self, cx: &mut Context<Self>, f: impl FnOnce(&PaintSession)) {
-        if !self.is_open() {
+        if self.state().is_none() {
             return;
         }
         f(&self.session);
         self.refresh();
         self.light_map(cx);
         cx.notify();
-    }
-
-    /// Paint mode is on.
-    pub fn is_open(&self) -> bool {
-        matches!(self.mode, Mode::Open(_))
-    }
-
-    fn painting(&self) -> Option<&Painting> {
-        match &self.mode {
-            Mode::Closed => None,
-            Mode::Open(painting) => Some(painting),
-        }
     }
 
     /// Whether `key` is the render painted.
@@ -297,7 +259,7 @@ impl Paint {
 
     /// The paint session's status while paint mode is on.
     pub fn state(&self) -> Option<&Status> {
-        self.status.as_ref().filter(|_| self.is_open())
+        self.status.as_ref()
     }
 
     /// The source picked, while paint mode is on.
@@ -333,27 +295,6 @@ impl Paint {
         self.state().is_some_and(|s| s.canvas == CanvasState::Opening)
     }
 
-    fn set_mode(&mut self, mode: Mode) {
-        tracing::debug!("paint: {} -> {}", self.mode.name(), mode.name());
-        self.mode = mode;
-    }
-
-    /// What the left panel lists to paint from, while paint mode is on.
-    pub fn sources_tab(&self) -> Option<SourcesTab> {
-        self.painting().map(|p| p.sources)
-    }
-
-    /// The left panel's switch: list the frames or the renders.
-    pub fn set_sources_tab(&mut self, tab: SourcesTab, cx: &mut Context<Self>) {
-        if let Mode::Open(painting) = &mut self.mode
-            && painting.sources != tab
-        {
-            tracing::debug!("paint: sources {:?} -> {tab:?}", painting.sources);
-            painting.sources = tab;
-            cx.notify();
-        }
-    }
-
     /// Light the depth map over the canvas as the session says (the frame
     /// painted from, or whole). Called on any status change and as the map
     /// opens; the viewer's view holds the light.
@@ -368,9 +309,13 @@ impl Paint {
         self.viewer.update(cx, |v, cx| v.on(event, cx));
     }
 
-    /// The source pane's name for `kind`, from its pick if any.
-    fn name_of(&self, kind: &SourceKind, cx: &App) -> SharedString {
-        let labels = self.painting().map_or(&[][..], |p| &p.labels);
+    /// The source pane's name for `kind`, from its pick in `labels` if any.
+    fn name_of(
+        &self,
+        kind: &SourceKind,
+        labels: &[(SourceKind, SharedString)],
+        cx: &App,
+    ) -> SharedString {
         if let Some((_, label)) = labels.iter().find(|(k, _)| k == kind) {
             return label.clone();
         }
@@ -381,21 +326,22 @@ impl Paint {
         }
     }
 
-    /// What the source pane shows, by name, while paint mode is on.
-    pub fn source_name(&self, cx: &App) -> Option<SharedString> {
-        self.source().map(|kind| self.name_of(kind, cx))
+    /// What the source pane shows, by name, while paint mode is on, from
+    /// Retouch's picks.
+    pub fn source_name(&self, painting: &Painting, cx: &App) -> Option<SharedString> {
+        self.source().map(|kind| self.name_of(kind, &painting.labels, cx))
     }
 
     /// The two panes' labels: the source painted from, and the canvas.
-    fn source_labels(&self, cx: &App) -> CompareLabels {
-        let name = self.source_name(cx).unwrap_or_default();
+    pub fn source_labels(&self, painting: &Painting, cx: &App) -> CompareLabels {
+        let name = self.source_name(painting, cx).unwrap_or_default();
         let source = say!(cx, "paint-source", name = name.as_ref());
         (source.into(), say!(cx, "paint-painted").into())
     }
 
-    #[cfg(test)]
-    pub fn frames(&self) -> &[PathBuf] {
-        self.painting().map_or(&[], |p| &p.frames)
+    /// The stored picture's generation of `render` now.
+    pub fn generation(&self, render: &RenderId) -> Generation {
+        self.engine.generations().of(render)
     }
 
     /// What Retouch was left showing, to open the viewer on.
@@ -408,28 +354,15 @@ impl Paint {
         self.retouched = left;
     }
 
-    /// Start painting `render`, from its first source.
-    pub fn open(&mut self, render: OpenRender, cx: &mut Context<Self>) {
-        let OpenRender { stack, render, frames, first_source } = render;
-        #[cfg(test)]
-        let kept = frames.clone();
-        self.leave(cx);
-        let opened = self.engine.generations().of(&render);
+    /// Start painting `painting`'s render, from its first source: only
+    /// `AppView::set_mode`'s.
+    pub(crate) fn open(&mut self, painting: &Painting, cx: &mut Context<Self>) {
         self.session.open(deptheos_app::paint::OpenRender {
-            key: render.clone(),
-            stack: stack.clone(),
-            frames,
-            first: first_source,
+            key: painting.render.clone(),
+            stack: painting.stack.clone(),
+            frames: painting.frames.clone(),
+            first: painting.first_source.clone(),
         });
-        self.set_mode(Mode::Open(Painting {
-            render,
-            stack,
-            opened,
-            sources: SourcesTab::Frames,
-            labels: Vec::new(),
-            #[cfg(test)]
-            frames: kept,
-        }));
         self.refresh();
         self.sync_ring(cx);
         cx.notify();
@@ -447,30 +380,12 @@ impl Paint {
         self.session.relink(moves);
     }
 
-    /// Leave paint mode; the worker's last tiles still reach the canvas left
-    /// on screen.
-    pub fn close(&mut self, cx: &mut Context<Self>) {
-        if !self.is_open() {
-            return;
-        }
+    /// Leave paint mode, only `AppView::set_mode`'s; the worker's last
+    /// tiles still reach the canvas left on screen.
+    pub(crate) fn close(&mut self, cx: &mut Context<Self>) {
         self.session.close();
-        self.leave(cx);
-        self.set_mode(Mode::Closed);
         self.refresh();
         cx.notify();
-    }
-
-    /// The render painted is being left: if it was painted, say so
-    /// ([`PaintEvent::Painted`]) with its paint, flattened after the
-    /// session's last commit.
-    fn leave(&mut self, cx: &mut Context<Self>) {
-        let Some(p) = self.painting() else { return };
-        if self.engine.generations().of(&p.render) == p.opened {
-            return;
-        }
-        let (render, stack) = (p.render.clone(), p.stack.clone());
-        let flattened = Cell::new(Some(self.session.flatten(render.clone(), stack.clone())));
-        cx.emit(PaintEvent::Painted { render, stack, flattened });
     }
 
     /// Show render `key`'s paint outside paint mode; [`PaintEvent::Presented`]
@@ -499,13 +414,7 @@ impl Paint {
     }
 
     /// Paint from another render, exposure-matched.
-    pub fn pick_render(&mut self, render: &RenderId, label: SharedString, cx: &mut Context<Self>) {
-        if let Mode::Open(painting) = &mut self.mode {
-            let kind = SourceKind::Render { render: render.as_str().to_string() };
-            painting.labels.retain(|(k, _)| *k != kind);
-            painting.labels.insert(0, (kind, label));
-            painting.labels.truncate(LABELS_KEPT);
-        }
+    pub fn pick_render(&mut self, render: &RenderId, cx: &mut Context<Self>) {
         self.call(cx, |s| s.pick_render(render));
     }
 
@@ -619,17 +528,14 @@ impl Paint {
                 }
             }
             Report::Presented { key, display } => {
-                if !self.is_open() {
-                    cx.emit(PaintEvent::Presented { key, display: Cell::new(display) });
-                }
+                cx.emit(PaintEvent::Presented { key, display: Cell::new(display) });
             }
             // Shared with the worker, which keeps it; the viewer copies only
             // the tiles it paints.
             Report::Source { key, display, .. } => {
                 if self.paints(&key) {
-                    let (image, labels) =
-                        (TiledImage::from_presented(display), self.source_labels(cx));
-                    self.viewer.update(cx, |v, cx| v.show_source(image, labels, cx));
+                    let image = Cell::new(Some(TiledImage::from_presented(display)));
+                    cx.emit(PaintEvent::Source { key, image });
                 }
             }
             Report::Failed { message, .. } => cx.emit(PaintEvent::Failed(message.into())),

@@ -62,6 +62,7 @@ gpui::actions!(
         OpenPreferences,
         Quit,
         TogglePaint,
+        ToggleAdjust,
         TogglePick,
         LeavePaint,
         Undo,

@@ -328,17 +328,15 @@ fn a_relink_opens_the_render_shown_and_retouch_again(cx: &mut TestAppContext) {
     let (window, app) = launch(cx, &engine, paths, &dir.path().join("history"));
     stack(cx, window, &app);
     act(cx, window, &app, |app, _, cx| app.toggle_paint(cx));
-    app.read_with(cx, |app, cx| assert!(app.paint.read(cx).is_open()));
+    app.read_with(cx, |app, _| assert!(app.is_retouching()));
 
     std::fs::rename(&trip, &moved).unwrap();
     act(cx, window, &app, |app, window, cx| app.relink(trip.clone(), moved.clone(), window, cx));
     wait_until(cx, "the render opened again", |cx| {
         app.read_with(cx, |app, cx| {
             let shown = app.stacking.read(cx).result().map(|s| s.paths.clone());
-            let paint = app.paint.read(cx);
             shown.is_some_and(|p| p.iter().all(|p| p.starts_with(&moved)))
-                && paint.is_open()
-                && paint.frames().iter().all(|p| p.starts_with(&moved))
+                && app.painting().is_some_and(|p| p.frames.iter().all(|p| p.starts_with(&moved)))
         })
     });
     app.read_with(cx, |app, cx| {

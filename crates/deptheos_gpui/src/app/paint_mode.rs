@@ -8,8 +8,8 @@ use deptheos_app::library::history::RenderId;
 use gpui::{App, Context};
 
 use super::AppView;
-use crate::paint::{OpenRender, Paint};
-use crate::viewer::{Tool, ViewEvent};
+use super::mode::Mode;
+use crate::paint::{Paint, Painting, SourcesTab};
 use crate::words::say;
 
 impl AppView {
@@ -43,7 +43,7 @@ impl AppView {
     }
 
     pub(super) fn toggle_paint(&mut self, cx: &mut Context<Self>) {
-        if self.paint.read(cx).is_open() {
+        if self.is_retouching() {
             self.leave_paint(cx);
         } else {
             self.enter_paint(cx);
@@ -67,42 +67,25 @@ impl AppView {
         frames.extend(outside);
         // The frame selected, if the render stacked it; else the session
         // picks the first it did.
-        let first = files.selected(cx).and_then(|id| files.path(id).map(Path::to_path_buf));
-        self.renders.update(cx, |r, cx| r.clear_compare(cx));
-        // Retouch shows what it was left showing (ADR-149).
-        let left = self.paint.read(cx).retouched();
-        self.viewer.update(cx, |v, cx| {
-            v.cancel_loads(cx);
-            v.set_tool(Tool::Paint, cx);
-            v.on(ViewEvent::Retouch(Some(left)), cx);
-        });
-        let render = OpenRender { stack, render, frames, first_source: first };
-        self.paint.update(cx, |p, cx| p.open(render, cx));
-        // Revert to #n is off in a tile's menu while Retouch is open.
-        self.sync_on_screen(cx);
-        cx.notify();
+        let first_source = files.selected(cx).and_then(|id| files.path(id).map(Path::to_path_buf));
+        let opened = self.paint.read(cx).generation(&render);
+        let painting = Painting {
+            render,
+            stack,
+            frames,
+            first_source,
+            opened,
+            sources: SourcesTab::Frames,
+            labels: Vec::new(),
+        };
+        self.set_mode(Mode::Retouch(painting), cx);
     }
 
     /// Back to stack mode, keeping the painted canvas on screen.
     pub(crate) fn leave_paint(&mut self, cx: &mut Context<Self>) {
-        if !self.paint.read(cx).is_open() {
-            return;
+        if self.is_retouching() {
+            self.set_mode(Mode::Viewing, cx);
         }
-        let left = self.viewer.read(cx).retouched();
-        self.paint.update(cx, |p, cx| {
-            if let Some(left) = left {
-                p.remember(left);
-            }
-            p.close(cx);
-        });
-        self.viewer.update(cx, |v, cx| {
-            v.release_keys(cx);
-            v.set_tool(Tool::Pan, cx);
-            v.on(ViewEvent::Retouch(None), cx);
-            v.clear_compare(cx);
-        });
-        self.sync_on_screen(cx);
-        cx.notify();
     }
 
     pub(super) fn with_paint(
@@ -110,7 +93,7 @@ impl AppView {
         cx: &mut Context<Self>,
         f: impl FnOnce(&mut Paint, &mut Context<Paint>),
     ) {
-        if self.paint.read(cx).is_open() {
+        if self.is_retouching() {
             self.paint.update(cx, f);
         }
     }

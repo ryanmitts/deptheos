@@ -39,7 +39,7 @@ impl AppView {
             Screen::Stacking => {
                 self.files.read(cx).rows().next().is_none()
                     && !self.has_result(cx)
-                    && !self.paint.read(cx).is_open()
+                    && !self.is_retouching()
             }
             Screen::Library => self.library.read(cx).is_blank(cx),
         }

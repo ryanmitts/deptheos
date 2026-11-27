@@ -241,7 +241,7 @@ impl AppView {
         let paths = stack.paths.clone();
         let left_out = (0..paths.len()).map(|i| stack.geometry.is_left_out(i)).collect();
         let paint = self.paint.read(cx);
-        let (painted, current) = if paint.is_open() {
+        let (painted, current) = if self.is_retouching() {
             let from: Vec<&PathBuf> = paint
                 .painted_from()
                 .iter()
@@ -346,7 +346,7 @@ impl AppView {
         let Some(frame) = crate::viewer::pick(&stack, index) else { return };
         let file = self.files.read(cx).row_of(&frame.id);
         self.highlight_row(file, window, cx);
-        if self.paint.read(cx).is_open() {
+        if self.is_retouching() {
             self.paint.update(cx, |p, cx| p.scrub_to(&frame.id, cx));
             return;
         }

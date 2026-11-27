@@ -25,7 +25,7 @@ impl AppView {
     /// The list: header and tools, RAW or JPEG, missing files, rows.
     pub(crate) fn render_sidebar(&mut self, cx: &mut Context<Self>) -> impl IntoElement + use<> {
         let processing = self.is_processing(cx);
-        if let Some(tab) = self.paint.read(cx).sources_tab() {
+        if let Some(tab) = self.sources_tab() {
             // Retouch: frames or renders; a click picks what to paint from.
             let list = match tab {
                 SourcesTab::Frames => self.files.clone().into_any_element(),
@@ -61,7 +61,7 @@ impl AppView {
         now: &Snapshot,
         cx: &mut Context<Self>,
     ) -> impl IntoElement + use<> {
-        let painting = self.paint.read(cx).is_open();
+        let painting = self.is_retouching();
         let settings = if painting {
             self.render_paint_panel(cx).into_any_element()
         } else {

@@ -1,6 +1,7 @@
 //! Retouch: painting, its sources and its history.
 
 use super::*;
+use crate::app::mode::Mode;
 
 /// While retouching, Revert is off everywhere (Stack ▸ Revert to #n, the
 /// change line's button, Revert itself); closing Retouch restores it.
@@ -15,7 +16,7 @@ fn revert_is_off_while_retouching(cx: &mut TestAppContext) {
     assert!(matches!(revert(cx), RevertItem::Revert { number: 1, enabled: true }));
 
     act(cx, window, &app, |app, _, cx| app.toggle_paint(cx));
-    app.read_with(cx, |app, cx| assert!(app.paint.read(cx).is_open()));
+    app.read_with(cx, |app, _| assert!(app.is_retouching()));
     assert!(matches!(revert(cx), RevertItem::Revert { number: 1, enabled: false }));
     let line = app.read_with(cx, |app, cx| app.compared(cx)).expect("edited since #1");
     assert!(line.retouching && line.revert == Some(1), "{line:?}");
@@ -43,8 +44,7 @@ fn retouch_lists_frames_or_renders(cx: &mut TestAppContext) {
         cx.run_until_parked();
         gpui::VisualTestContext::from_window(window, cx).debug_bounds(selector)
     };
-    let tab =
-        |cx: &mut TestAppContext| app.read_with(cx, |app, cx| app.paint.read(cx).sources_tab());
+    let tab = |cx: &mut TestAppContext| app.read_with(cx, |app, _| app.sources_tab());
     stack(cx, window, &app);
     let first = active(cx, &app).unwrap();
     exclude_first(cx, &app);
@@ -109,11 +109,11 @@ fn paints_and_keeps_history_across_renders(cx: &mut TestAppContext) {
         state.open.is_some() && state.source_ready
     });
     app.read_with(cx, |app, cx| {
-        assert!(app.paint.read(cx).is_open());
+        assert!(app.is_retouching());
         let viewer = app.viewer.read(cx);
         assert!(viewer.has_compare(), "the source is loaded");
         assert_eq!(viewer.mode(), ViewMode::Result, "one large view");
-        assert_eq!(app.paint.read(cx).frames().len(), 3, "it steps through the list");
+        assert_eq!(app.painting().unwrap().frames.len(), 3, "it steps through the list");
     });
     assert!(paint_state(cx, &app).open.is_some());
 
@@ -185,7 +185,7 @@ fn paints_and_keeps_history_across_renders(cx: &mut TestAppContext) {
 
     // A second render, painted twice.
     cx.simulate_keystrokes(window, "escape");
-    app.read_with(cx, |app, cx| assert!(!app.paint.read(cx).is_open()));
+    app.read_with(cx, |app, _| assert!(!app.is_retouching()));
     exclude_first(cx, &app);
     stack(cx, window, &app);
     cx.simulate_keystrokes(window, "p");
@@ -385,7 +385,7 @@ fn retouch_lays_its_source_out_from_compares_place(cx: &mut TestAppContext) {
     let order = ["view-home", "focus-rail", "view-compare", "view-layouts", "contribution"];
     let in_order = |cx: &mut TestAppContext| {
         let bar = bar_part(cx, window, "view-bar").expect("the bar");
-        let painting = app.read_with(cx, |app, cx| app.paint.read(cx).is_open());
+        let painting = app.read_with(cx, |app, _| app.is_retouching());
         let lead = if painting { "view-paint-from" } else { "view-home" };
         let parts: Vec<_> = std::iter::once(&lead)
             .chain(&order[1..])
@@ -701,7 +701,7 @@ fn retouchs_keys_work_after_the_focused_control_goes(cx: &mut TestAppContext) {
     cx.simulate_keystrokes(window, "]");
     assert!(radius(cx) > before, "] makes the brush larger");
     cx.simulate_keystrokes(window, "escape");
-    app.read_with(cx, |app, cx| assert!(!app.paint.read(cx).is_open(), "Escape leaves Retouch"));
+    app.read_with(cx, |app, _| assert!(!app.is_retouching(), "Escape leaves Retouch"));
 }
 
 /// Where the main window's quit is, by name.
@@ -764,4 +764,56 @@ fn quit_saves_the_retouching_once_then_quits(cx: &mut TestAppContext) {
     let paint = crate::test_support::library(cx, &app).render_path(&id).join("paint.sqlite");
     assert!(paint.is_file(), "the stroke is saved");
     assert!(!asking(cx, window), "nothing to ask");
+}
+
+/// Viewing, Retouch and Adjust are one mode: opening one closes the other,
+/// the viewer's place and both sessions following.
+#[gpui::test]
+fn retouch_and_adjust_are_one_mode(cx: &mut TestAppContext) {
+    let Some(Fixture { dir: _dir, window, app, .. }) = Fixture::launch(cx, 3) else { return };
+    stack(cx, window, &app);
+    let render = active(cx, &app).unwrap();
+    let seen = |cx: &mut TestAppContext| {
+        app.read_with(cx, |app, cx| {
+            let viewer = app.viewer.read(cx);
+            let place = match (viewer.retouched().is_some(), viewer.adjusting().is_some()) {
+                (false, false) => "viewer",
+                (true, false) => "retouch",
+                (false, true) => "adjust",
+                (true, true) => "both",
+            };
+            let mode = match (&app.mode, app.painting(), app.adjusting()) {
+                (Mode::Viewing, None, None) => "viewing",
+                (Mode::Retouch(_), Some(_), None) => "retouch",
+                (Mode::Adjust(_), None, Some(_)) => "adjust",
+                _ => "mixed",
+            };
+            let painting = app.paint.read(cx).state().is_some();
+            let adjusting = app.adjust.session.adjusting();
+            (mode, place, painting, adjusting)
+        })
+    };
+    assert_eq!(seen(cx), ("viewing", "viewer", false, None));
+
+    act(cx, window, &app, |app, _, cx| app.toggle_paint(cx));
+    assert_eq!(seen(cx), ("retouch", "retouch", true, None));
+
+    // Retouch closes as Adjust opens.
+    act(cx, window, &app, |app, _, cx| app.toggle_adjust(cx));
+    wait_until(cx, "the render adjusted", |cx| seen(cx).3.is_some());
+    assert_eq!(seen(cx), ("adjust", "adjust", false, Some(render.clone())));
+
+    // And Adjust as Retouch opens.
+    act(cx, window, &app, |app, _, cx| app.toggle_paint(cx));
+    wait_until(cx, "Adjust left", |cx| seen(cx).3.is_none());
+    assert_eq!(seen(cx), ("retouch", "retouch", true, None));
+
+    act(cx, window, &app, |app, _, cx| app.toggle_paint(cx));
+    assert_eq!(seen(cx), ("viewing", "viewer", false, None));
+
+    act(cx, window, &app, |app, _, cx| app.toggle_adjust(cx));
+    wait_until(cx, "the render adjusted", |cx| seen(cx).3.is_some());
+    act(cx, window, &app, |app, _, cx| app.toggle_adjust(cx));
+    wait_until(cx, "Adjust left", |cx| seen(cx).3.is_none());
+    assert_eq!(seen(cx), ("viewing", "viewer", false, None));
 }

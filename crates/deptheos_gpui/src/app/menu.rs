@@ -102,7 +102,7 @@ impl AppView {
     /// window fills the screen.
     fn menu_state_in(&self, now: &Snapshot, fullscreen: bool, cx: &App) -> MenuState {
         let paint = self.paint.read(cx);
-        let painting = paint.is_open();
+        let painting = self.is_retouching();
         let viewer = self.viewer.read(cx);
         let has_result = self.has_result(cx) && self.screen == Screen::Stacking;
         let renders = self.renders.read(cx);

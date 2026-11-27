@@ -38,7 +38,7 @@ The stages are functions in `crates/deptheos_render/src/dng_render/adjust.wgsl`,
 - **Contrast, Whites and Blacks are one curve**, lightcraft's operators as they stand (MIT OR Apache-2.0; `crates/deptheos_render/src/curve.rs`). A tone map on luminance in a gamma-2.2 domain, identity at neutral, scales the pixel by its ratio and pulls it toward its luminance as far as a channel passes white (craft-libs b2d2a1e94 `crates/develop/src/tone.rs`). A standard stack takes all three there. A camera RAW stack takes Whites there, after its profile's tone curve, then Contrast and Blacks as lightcraft's fitted operators on sRGB-encoded ProPhoto, Contrast per channel and Blacks mixed with luminance (craft-libs b2d2a1e94 `crates/develop/src/light_v3.rs`, constants from `light_v3_params.rs` in `curve_fits.rs`). The tables are made in the resolve step and bound to the shaders as one buffer; `curve.wgsl` reads them.
 - **The tone map's shoulder into white is as wide as Whites lifts white**, up to lightcraft's (0.95 to 1.05). lightcraft's own pulls white to 0.988 at any edit of the curve, which would make the first step of Contrast or Blacks from neutral jump; sized to the lift, Contrast and Blacks keep white at 1 and a small lift gets a small shoulder.
 - **Vibrance and Saturation scale OkLab's chroma**, lightcraft's as they stand (MIT OR Apache-2.0: craft-libs b2d2a1e94 `crates/develop/src/colorops.rs`; `crates/deptheos_render/src/chroma.rs`). Vibrance raises low chroma most, below 0.22, and when raised acts less near skin's hue (sRGB's 25°); Saturation scales every chroma, to gray at -100. OkLab is Ottosson's, from linear ProPhoto through XYZ adapted to D65 (craft-libs b2d2a1e94 `crates/color-transform/src/oklab.rs`), its cone matrix scaled so white lands exactly on the neutral axis, so gray keeps no chroma for Vibrance to raise. A stack with no color, a camera RAW stack without a color profile or a standard stack whose channels are all equal (`CompletedStack::has_color`), takes no color slider.
-- **The shoulder** is lightcraft's roll-off into white in stops (MIT OR Apache-2.0: craft-libs b2d2a1e94 `crates/develop/src/tone.rs`, `rolloff_past`), joined at slope 1 at its knee. The knee fades in from a clamp at white as exposure raises the picture past what was white, toward `SHOULDER_STOPS` below white.
+- **The shoulder** is lightcraft's roll-off into white in stops (MIT OR Apache-2.0: craft-libs b2d2a1e94 `crates/develop/src/tone.rs`, `rolloff_past`), joined at slope 1 at its knee. The knee fades in from a clamp at white as exposure raises the picture past what was white, toward `SHOULDER_STOPS` below white, lightcraft's knee of 0.5 stops (`GENERIC_KNEE_STOPS`).
 
 ### Following lightcraft
 
@@ -77,7 +77,7 @@ Two copies of a number drift. The module written from Rust is the only copy the 
 ## Consequences
 
 - With exposure set, a RAW stack's values above white reach the shoulder rather than the clamp, so an exposure raised from neutral never matches the SDK in the highlights; with the shoulder off it does (`Constants::without_shoulder`).
-- How far the shoulder reaches is the process version's, chosen by eye.
+- How far the shoulder reaches is the process version's.
 
 ## Code
 

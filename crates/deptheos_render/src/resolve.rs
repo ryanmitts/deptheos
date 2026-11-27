@@ -147,8 +147,9 @@ fn relative_white_balance(white_balance: WhiteBalance) -> Option<crate::white::M
 
 /// Stops below white where the shoulder starts once exposure has raised
 /// the picture far past white; it fades in from a clamp at white as the
-/// raise grows ([`knee`]).
-pub const SHOULDER_STOPS: f64 = 1.0;
+/// raise grows ([`knee`]): lightcraft's `GENERIC_KNEE_STOPS` (craft-libs
+/// b2d2a1e94 `crates/develop/src/tone.rs`).
+pub const SHOULDER_STOPS: f64 = 0.5;
 
 /// The shoulder's knee when exposure raises the picture `raised` stops
 /// past what was white: 1 (a clamp) at none, approaching

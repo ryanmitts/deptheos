@@ -214,6 +214,20 @@ std::optional<std::vector<double>> deptheos_neutral_for_white(const DngImageMeta
     return neutral;
 }
 
+std::optional<DngWhiteXY> deptheos_white_for_neutral(const DngImageMetadata &meta,
+                                                     const double neutral[3]) {
+    deptheos_host host;
+    AutoPtr<dng_negative> negative(
+        rebuild_negative_from_metadata(host, meta, nullptr, 0, 0, 0));
+    dng_camera_profile profile;
+    std::unique_ptr<dng_color_spec> spec = make_color_spec(*negative, profile);
+    if (!spec || spec->Channels() != 3) return std::nullopt;
+    dng_vector v(3);
+    for (uint32 i = 0; i < 3; i++) v[i] = neutral[i];
+    const dng_xy_coord xy = spec->NeutralToXY(v);
+    return DngWhiteXY{xy.x, xy.y};
+}
+
 // A white the SDK takes: finite, and valid (dng_xy_coord::IsValid). The
 // same test as src/lib.rs's `WhiteXy::is_valid`.
 static bool is_valid(const DngWhiteXY &w) {

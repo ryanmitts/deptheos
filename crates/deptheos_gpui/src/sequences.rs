@@ -38,11 +38,13 @@ pub enum GrowFrom {
     /// Already loaded: the result on screen.
     Loaded(Arc<CompletedStack>),
     /// Read from the history on the worker.
-    History(Arc<History>),
+    History,
 }
 
-/// A grow sequence to write.
+/// A grow sequence to write, of a render of `store`, under its saved
+/// adjustments.
 pub struct GrowJob {
+    pub store: Arc<History>,
     pub from: GrowFrom,
     pub render: RenderId,
     pub name: String,
@@ -120,12 +122,13 @@ impl Sequences {
         self.start(starting, cx, move |cancel, progress| {
             let stack = match job.from {
                 GrowFrom::Loaded(stack) => stack,
-                GrowFrom::History(store) => Arc::new(store.load_render(&job.render)?),
+                GrowFrom::History => Arc::new(job.store.load_render(&job.render)?),
             };
+            let saved = job.store.adjustments_to_export(&job.render)?;
             sequence::export_grow(
                 &engine,
                 &stack,
-                &deptheos_app::Adjustments::NEUTRAL,
+                &saved.adjustments,
                 Some(job.render.as_str()),
                 &job.name,
                 &job.parent,

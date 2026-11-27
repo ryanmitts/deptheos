@@ -23,6 +23,7 @@ use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
 use deptheos_app::Engine as AppEngine;
+use deptheos_app::Look;
 use deptheos_app::engine::present::{CpuImage, TiledLevel};
 use deptheos_app::engine::work::Lane;
 use deptheos_app::library::export::ExportFormat;
@@ -32,7 +33,6 @@ use deptheos_app::paint::{
     Observer, OpenRender, RADIUS_RANGE, Report, SourceKind, Status, TOLERANCE_RANGE,
     Told as SourceTold,
 };
-use deptheos_app::{Adjustments, Look};
 
 use crate::picture::{TileAsk, TileFetched, fetch_tiles};
 use crate::request::{Ask, on_pool};
@@ -428,6 +428,7 @@ impl Observer for Forward {
 #[derive(uniffi::Object)]
 pub struct PaintSession {
     pub(crate) engine: Arc<AppEngine>,
+    history: Arc<deptheos_app::library::history::History>,
     session: deptheos_app::paint::PaintSession,
     mirror: Arc<Mutex<Option<Mirror>>>,
     forward: Arc<Forward>,
@@ -460,6 +461,7 @@ impl Engine {
         );
         Arc::new(PaintSession {
             engine: self.engine.clone(),
+            history: self.history.clone(),
             session,
             mirror,
             forward,
@@ -642,16 +644,13 @@ impl PaintSession {
             export_target(&result.stack, directory, name, format).told(self.engine.words())?;
         let key = self.id(render_id)?;
         let stack = result.stack.clone();
+        // Read after the render's pending Adjust writes.
+        let saved = self.history.adjustments_to_export(&key).told(self.engine.words())?;
         let flattened = self.session.flatten(key, stack.clone());
         // Every failure leads with what didn't happen: paint unreadable, the
         // worker gone, or the write.
         self.engine
-            .save_flattened(
-                Look::exported(&stack, Some(&Adjustments::NEUTRAL)),
-                Some(flattened),
-                &path,
-                save,
-            )
+            .save_flattened(Look::saved(&stack, &saved), Some(flattened), &path, save)
             .map_err(|e| EngineError::led(Line::RetouchedExportFailed, &e, self.engine.words()))?;
         Ok(path)
     }

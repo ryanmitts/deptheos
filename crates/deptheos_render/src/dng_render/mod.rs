@@ -389,6 +389,23 @@ impl Constants {
         self.local.is_some()
     }
 
+    /// A standard stack's stored `rgb` codes in linear ProPhoto, as these
+    /// constants take them before exposure (their white balance
+    /// included); `None` for a linear stack.
+    pub fn stored_in_prophoto(&self, rgb: [u16; 3]) -> Option<[f64; 3]> {
+        let Kind::Standard(standard) = &self.kind else { return None };
+        if let Some(linearizer) = &standard.linearizer {
+            let rgba = linearizer.linearize(&rgb);
+            return Some(std::array::from_fn(|c| f64::from(rgba[c])));
+        }
+        let u = &standard.uniform;
+        let codes = standard::CODES;
+        let linear: [f64; 3] =
+            std::array::from_fn(|c| f64::from(standard.decode[c * codes + usize::from(rgb[c])]));
+        let to = [u.to_prophoto_c0, u.to_prophoto_c1, u.to_prophoto_c2];
+        Some(std::array::from_fn(|row| (0..3).map(|c| f64::from(to[c][row]) * linear[c]).sum()))
+    }
+
     /// How the stored pixels go to the GPU for this draw: as they are
     /// (`None`), or linearized on the CPU first, uploaded as Rgba32Float.
     pub fn linearizer(&self) -> Option<&Linearizer> {

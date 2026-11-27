@@ -57,6 +57,26 @@ impl History {
         flattened: Option<Receiver<Flattened>>,
     ) -> impl std::future::Future<Output = Result<Rewrote>> + Send + 'static {
         let (tx, rx) = futures::channel::oneshot::channel();
+        self.rewrite_thumbnail_then(engine, id, stack, flattened, move |done| {
+            let _ = tx.send(done);
+        });
+        async move {
+            rx.await.unwrap_or_else(|_| {
+                Err(Error::InvalidState("the thumbnail rewrite panicked".into()))
+            })
+        }
+    }
+
+    /// [`Self::rewrite_thumbnail`], calling `done` with what it did, on the
+    /// pool's or the store's thread.
+    pub fn rewrite_thumbnail_then(
+        self: &Arc<Self>,
+        engine: Arc<Engine>,
+        id: RenderId,
+        stack: Arc<CompletedStack>,
+        flattened: Option<Receiver<Flattened>>,
+        done: impl FnOnce(Result<Rewrote>) + Send + 'static,
+    ) {
         let (number, sent) = self.rewrites.send(&id);
         let overtaken = move || number < sent.load(Ordering::Acquire);
         let history = self.clone();
@@ -68,25 +88,25 @@ impl History {
             }) {
                 Ok(value) => value,
                 Err(e) => {
-                    let _ = tx.send(Err(e));
+                    done(Err(e));
                     return;
                 }
             };
             let draw = move || {
                 if overtaken() {
-                    let _ = tx.send(Ok(Rewrote::Overtaken));
+                    done(Ok(Rewrote::Overtaken));
                     return;
                 }
                 let pixels = match flattened.map(|rx| rx.recv()) {
                     None | Some(Ok(Ok(None))) => None,
                     Some(Ok(Ok(Some(pixels)))) => Some(pixels),
                     Some(Ok(Err(e))) => {
-                        let _ = tx.send(Err(e));
+                        done(Err(e));
                         return;
                     }
                     Some(Err(_)) => {
                         let why = "the paint worker stopped before the paint was flattened";
-                        let _ = tx.send(Err(Error::InvalidState(why.into())));
+                        done(Err(Error::InvalidState(why.into())));
                         return;
                     }
                 };
@@ -97,13 +117,13 @@ impl History {
                 let bytes = match drawn {
                     Ok(bytes) => bytes,
                     Err(e) => {
-                        let _ = tx.send(Err(e));
+                        done(Err(e));
                         return;
                     }
                 };
                 let _written = crate::engine::store::store().write(move || {
                     if overtaken() {
-                        let _ = tx.send(Ok(Rewrote::Overtaken));
+                        done(Ok(Rewrote::Overtaken));
                         return;
                     }
                     let path = history.render_path(&id).join(THUMBNAIL_FILE);
@@ -111,7 +131,7 @@ impl History {
                         std::fs::write(tmp, &bytes).map_err(Into::into)
                     });
                     tracing::debug!("render {}: thumbnail rewritten", id.as_str());
-                    let _ = tx.send(written.map(|()| Rewrote::Written).map_err(|e| {
+                    done(written.map(|()| Rewrote::Written).map_err(|e| {
                         Error::from(crate::StoreError::Io {
                             path,
                             source: std::io::Error::other(e.to_string()),
@@ -129,11 +149,6 @@ impl History {
                 .detach();
         };
         let _read = crate::engine::store::store().write(read);
-        async move {
-            rx.await.unwrap_or_else(|_| {
-                Err(Error::InvalidState("the thumbnail rewrite panicked".into()))
-            })
-        }
     }
 }
 

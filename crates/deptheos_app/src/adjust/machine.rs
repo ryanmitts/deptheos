@@ -173,6 +173,14 @@ pub enum Report {
 #[derive(Debug)]
 pub struct AdjustClosed(());
 
+impl AdjustClosed {
+    /// For a Library with no session adjusting or writing the renders
+    /// ([`super::session::close`]).
+    pub(crate) fn none_open() -> Self {
+        Self(())
+    }
+}
+
 /// One render's undo: whole values, one per committed change.
 #[derive(Clone, Debug, Default, PartialEq)]
 struct Steps {

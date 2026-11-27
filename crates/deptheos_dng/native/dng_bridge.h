@@ -241,6 +241,11 @@ std::optional<DngWhiteXY> deptheos_as_shot_white(const DngImageMetadata &meta);
 // holds it (largest 1); none where deptheos_as_shot_white has none.
 std::optional<std::vector<double>> deptheos_neutral_for_white(const DngImageMetadata &meta,
                                                               const DngWhiteXY &white);
+// The white whose camera neutral under `meta`'s profile is `neutral`
+// (dng_color_spec::NeutralToXY); none where deptheos_as_shot_white has
+// none, or for a camera of other than three channels.
+std::optional<DngWhiteXY> deptheos_white_for_neutral(const DngImageMetadata &meta,
+                                                     const double neutral[3]);
 // The SDK's temperature (kelvin) and tint of a white, and back
 // (dng_temperature).
 void deptheos_temperature_of(const DngWhiteXY &white, double &kelvin, double &tint);

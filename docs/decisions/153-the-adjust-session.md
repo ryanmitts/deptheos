@@ -30,6 +30,16 @@ Adjust moves a render's sliders and its reframe (ADR-136, ADR-137) over the stor
 - **Writes outlive the session.** The machine knows each render's latest write until it lands. A delete takes `AdjustClosed`, which the machine gives only when none of the renders is open, being left or has a write pending, as a paint delete takes `PaintClosed`. It also says whether a render has a write pending (`is_writing`), which an export of it waits for.
 - **Away and back.** Going to the background or memory pressure frees the GPU copies and keeps the values, which may still change and be written; coming back makes the reduced copy again, then draws the full picture if what is on screen is no longer the value. A change to the stored picture (its generation number moved by Retouch) makes the reduced copy and the full picture again.
 
+### The session that drives it
+
+- **`AdjustSession`** (`crates/deptheos_app/src/adjust/session.rs`) is one per app, beside `PaintSession`. It feeds the machine under one lock and delivers its updates in order outside it, so an observer that calls back in can't deadlock. Its calls are plain (open, set, set a slider, commit, undo, redo, reset, paste, eyedrop, leave, away, back), so the bridge can mirror them.
+- **Its requests run on the engine's threads** (ADR-143): an open's read on the store thread, after the writes queued before it; the GPU copies made, each preview and full picture drawn, and the eyedropper's sample on the pool's interactive lane; each write on the store thread. On iOS the copies are made only if `engine::memory::limit()` holds them; otherwise the open fails with a worded reason.
+- **A damaged adjustments file opens neutral** and says so; an unreadable one doesn't open.
+- **The eyedropper** (`adjust/eyedropper.rs`) maps the click back through the reframe to the stored pixels with paint, averages a small patch, refuses a clipped or dark one, and sets the white balance that makes it neutral: through the DNG SDK's camera neutral for a camera RAW stack, by inverting the resolve's adaptation for a standard one. It is one set and one commit.
+- **Leaving a render it wrote draws its thumbnail again** under its adjustments (ADR-140).
+- **A delete's close covers Adjust.** `History::close_paint` asks every session of the Library to leave the renders it adjusts and waits for their last writes, as it waits for the paint worker (`adjust::session::close`, never on the store thread); its `PaintClosed` carries the `AdjustClosed`, so a delete can't be sent without both.
+- **The paint comes from the Library's paint worker** (`paint::worker::flatten`), so the GPU copies, the eyedropper and the thumbnail are of the picture with its retouching, and the app passes no paint in.
+
 ### What the machine doesn't own
 
 Exclusivity with Retouch is each app's mode enum, which holds either session. The reduced copy, the preview's tiers and its budgets are the session's and the renderer's (ADR-135); what the viewer shows is `View`'s (ADR-149).
@@ -57,4 +67,5 @@ A held arrow key commits many times a second; drawing the full picture at each w
 ## Code
 
 - `crates/deptheos_app/src/adjust/machine.rs`, `crates/deptheos_app/src/adjust/machine_tests.rs`.
+- `crates/deptheos_app/src/adjust/session.rs`, `crates/deptheos_app/src/adjust/session_tests.rs`, `crates/deptheos_app/src/adjust/eyedropper.rs`.
 - `crates/deptheos_app/src/library/adjustments.rs` (the writes it asks for).

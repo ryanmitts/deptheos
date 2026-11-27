@@ -88,29 +88,31 @@ impl AppView {
         if self.is_exporting() {
             return;
         }
-        let (stack, painted, again) = match what {
+        let (stack, painted, saved, again) = match what {
             Written::Shown => {
                 let stacking = self.stacking.read(cx);
                 if stacking.is_running() {
                     return;
                 }
                 let Some(stack) = stacking.result().cloned() else { return };
-                let painted = self
-                    .result_doc(cx)
+                let saved = self.result_doc(cx);
+                let painted = saved
+                    .clone()
                     .map(|(stack, key)| self.paint.update(cx, |p, _| p.flatten(key, stack)));
-                (stack, painted, None)
+                (stack, painted, saved.map(|(_, key)| key), None)
             }
             Written::Render(id, stack) => {
                 let painted = self.paint.update(cx, |p, _| p.flatten(id.clone(), stack.clone()));
-                (stack, Some(painted), Some(id))
+                (stack, Some(painted), Some(id.clone()), Some(id))
             }
         };
         let engine = self.sequences.read(cx).engine().clone();
+        let saved = saved.map(|key| (self.renders.read(cx).store().clone(), key));
         let task = cx.spawn_in(window, {
             let path = path.clone();
             async move |this, cx| {
                 let target = path.clone();
-                let saved = save_stack(engine, stack, painted, target, options).await;
+                let saved = save_stack(engine, stack, painted, saved, target, options).await;
                 this.update_in(cx, |this, window, cx| {
                     this.set_exporting(Exporting::Idle, cx);
                     match saved {
@@ -153,21 +155,23 @@ impl AppView {
 }
 
 /// Save `stack` to `path` with `options` on a worker, with the pixels
-/// `painted` sends in place of its own if it sends any (it retouched).
+/// `painted` sends in place of its own if it sends any (it retouched), under
+/// the adjustments `saved` names in the Library, read after its pending
+/// writes.
 async fn save_stack(
     engine: Arc<deptheos_app::Engine>,
     stack: Arc<CompletedStack>,
     painted: Option<std::sync::mpsc::Receiver<Flattened>>,
+    saved: Option<(Arc<deptheos_app::library::history::History>, RenderId)>,
     path: PathBuf,
     options: SaveOptions,
 ) -> Result<(), deptheos_app::Error> {
     crate::work::write("export", move || {
-        engine.save_flattened(
-            deptheos_app::Look::exported(&stack, Some(&deptheos_app::Adjustments::NEUTRAL)),
-            painted,
-            &path,
-            options,
-        )
+        let adjusted = match saved {
+            Some((history, key)) => history.adjustments_to_export(&key)?,
+            None => deptheos_app::library::adjustments::RenderAdjustments::NONE,
+        };
+        engine.save_flattened(deptheos_app::Look::saved(&stack, &adjusted), painted, &path, options)
     })
     .await
     .unwrap_or_else(|e| Err(deptheos_app::Error::InvalidState(format!("save {e}"))))

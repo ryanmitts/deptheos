@@ -8,7 +8,7 @@
 //! white's cone response is not above 0 (craft-libs b2d2a1e94
 //! `crates/cms/src/math.rs`, `bradford_checked`).
 
-use deptheos_adjust::temperature::{REFERENCE_KELVIN, relative_to_kelvin};
+use deptheos_adjust::temperature::{MIREDS_PER_STEP, REFERENCE_KELVIN, mireds, relative_to_kelvin};
 
 pub(crate) type Mat3 = [[f64; 3]; 3];
 
@@ -49,6 +49,61 @@ pub(crate) fn relative_matrix(temperature: f64, tint: f64) -> Mat3 {
         return IDENTITY;
     }
     m.map(|row| row.map(|v| v / top))
+}
+
+/// The relative temperature and tint whose [`relative_matrix`] draws
+/// `color` (linear ProPhoto, as shot) as a gray: the white it was lit
+/// by, found from the von Kries law the matrix applies, then on the locus.
+/// `None` for a color with no cone response, or off the scale's reach.
+/// Not clamped to the sliders' ranges.
+pub fn relative_for_gray(color: [f64; 3]) -> Option<(f64, f64)> {
+    let (to_xyz, _) = prophoto();
+    let cone = |v: [f64; 3]| apply(&BRADFORD, apply(&to_xyz, v));
+    let (lit, gray) = (cone(color), cone([1.0; 3]));
+    let reference = apply(&BRADFORD, white_xyz(REFERENCE_KELVIN, 0.0));
+    if !lit.iter().chain(&gray).all(|c| c.is_finite() && *c > 0.0) {
+        return None;
+    }
+    let set: [f64; 3] = std::array::from_fn(|i| reference[i] * lit[i] / gray[i]);
+    let xyz = apply(&invert(&BRADFORD)?, set);
+    let sum: f64 = xyz.iter().sum();
+    if !(sum.is_finite() && sum > 0.0 && xyz[1] > 0.0) {
+        return None;
+    }
+    let (kelvin, tint) = locus_of([xyz[0] / sum, xyz[1] / sum])?;
+    Some((kelvin_to_relative_unclamped(kelvin), tint))
+}
+
+/// [`kelvin_to_relative`] past its range.
+fn kelvin_to_relative_unclamped(kelvin: f64) -> f64 {
+    (mireds(REFERENCE_KELVIN) - mireds(kelvin)) / MIREDS_PER_STEP
+}
+
+/// The temperature and tint [`temp_tint_to_xy`] takes to `xy`, by Newton's
+/// method in mireds and tint; `None` if it doesn't converge in range.
+fn locus_of(xy: [f64; 2]) -> Option<(f64, f64)> {
+    let (u, v) = xy_to_uv(xy);
+    let at = |m: f64, tint: f64| xy_to_uv(temp_tint_to_xy(1e6 / m, tint));
+    let (mut m, mut tint) = (mireds(REFERENCE_KELVIN), 0.0);
+    for _ in 0..50 {
+        let (fu, fv) = at(m, tint);
+        let (eu, ev) = (fu - u, fv - v);
+        if eu.hypot(ev) < 1e-12 {
+            return (10.0..=1000.0).contains(&m).then_some((1e6 / m, tint));
+        }
+        let (h, k) = (1e-3, 1e-3);
+        let (mu, mv) = at(m + h, tint);
+        let (tu, tv) = at(m, tint + k);
+        let j = [[(mu - fu) / h, (tu - fu) / k], [(mv - fv) / h, (tv - fv) / k]];
+        let det = j[0][0] * j[1][1] - j[0][1] * j[1][0];
+        if !det.is_finite() || det.abs() < 1e-18 {
+            return None;
+        }
+        m -= (j[1][1] * eu - j[0][1] * ev) / det;
+        tint -= (j[0][0] * ev - j[1][0] * eu) / det;
+        m = m.clamp(5.0, 2000.0);
+    }
+    None
 }
 
 fn kim_xy(t: f64) -> [f64; 2] {
@@ -232,6 +287,37 @@ mod tests {
         assert!(g < r && g < b, "magenta: {r} {g} {b}");
         let [r, g, b] = gray(0.0, -40.0);
         assert!(g > r && g > b, "green: {r} {g} {b}");
+    }
+
+    /// A gray lit by the white a relative value names gives that value
+    /// back, and its matrix draws it gray again.
+    #[test]
+    fn a_lit_gray_gives_back_its_white_balance() {
+        let (to_xyz, from_xyz) = prophoto();
+        let reference = white_xyz(REFERENCE_KELVIN, 0.0);
+        for t in [-100.0, -60.0, -15.0, 0.0, 25.0, 70.0, 100.0] {
+            for tint in [-80.0, -20.0, 0.0, 35.0, 90.0] {
+                // A gray under the light the value corrects: the inverse
+                // adaptation of ProPhoto's gray.
+                let set = white_xyz(relative_to_kelvin(t), tint);
+                let lit = bradford_checked(reference, set).unwrap();
+                let gray = apply(&mul(&from_xyz, &mul(&lit, &to_xyz)), [0.18; 3]);
+                let (rt, rtint) = relative_for_gray(gray).expect("on the scale");
+                assert!(
+                    (rt - t).abs() < 1e-6 && (rtint - tint).abs() < 1e-6,
+                    "{t} {tint}: {rt} {rtint}"
+                );
+                let drawn = apply(&relative_matrix(rt, rtint), gray);
+                let spread = drawn.iter().fold(0.0f64, |a, &c| a.max((c - drawn[1]).abs()));
+                assert!(spread < 1e-9, "{t} {tint}: {drawn:?}");
+            }
+        }
+        assert_eq!(
+            relative_for_gray([0.18; 3]).map(|(t, i)| (t.abs() < 1e-9, i.abs() < 1e-9)),
+            Some((true, true))
+        );
+        assert_eq!(relative_for_gray([0.0; 3]), None);
+        assert_eq!(relative_for_gray([f64::NAN, 0.2, 0.2]), None);
     }
 
     #[test]

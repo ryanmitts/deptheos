@@ -203,9 +203,10 @@ impl AppView {
             self.stacking.read(cx).saved_result().filter(|(_, shown)| *shown == id).map(|(s, _)| s);
         let from = match shown {
             Some(shown) => GrowFrom::Loaded(shown),
-            None => GrowFrom::History(self.renders.read(cx).store().clone()),
+            None => GrowFrom::History,
         };
-        let job = GrowJob { from, render: id, name: info.name, parent, options };
+        let store = self.renders.read(cx).store().clone();
+        let job = GrowJob { store, from, render: id, name: info.name, parent, options };
         // Paint closes first: a sequence locks what a stack does.
         self.leave_paint(cx);
         let awake = super::run::Awake::new("Deptheos is writing a grow sequence", cx);

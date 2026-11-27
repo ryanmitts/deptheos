@@ -635,10 +635,10 @@ impl Engine {
         on_pool(self.engine.words(), request, lane, ask, move || f(&engine)).await
     }
 
-    /// Have the paint worker close the files of `ids` (or all) before a
-    /// delete goes to the store thread. On the pool, never the store
-    /// thread: the worker waits on that thread to close them, so asking
-    /// from it would deadlock.
+    /// Have the paint worker close the files of `ids` (or all), and Adjust
+    /// leave them and land their writes, before a delete goes to the store
+    /// thread. On the pool, never the store thread: both wait on that
+    /// thread, so asking from it would deadlock.
     async fn close_paint(self: &Arc<Self>, ids: Option<Vec<RenderId>>) -> Result<PaintClosed> {
         let close = move |e: &Engine| {
             Ok(match &ids {

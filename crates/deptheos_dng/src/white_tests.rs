@@ -123,6 +123,33 @@ fn the_as_shot_white_given_is_the_as_shot_render() {
     }
 }
 
+/// A white's camera neutral gives that white back, across the range a
+/// white balance offers and at any scale of the neutral: what the white
+/// balance eyedropper sets from a gray patch.
+#[test]
+fn a_camera_neutral_gives_back_its_white() {
+    let mut worst = 0.0f64;
+    for meta in [camera(DAYLIGHT), camera([1.2, 1.0, 2.6, 1.0])] {
+        let image = image(meta);
+        for (kelvin, tint) in
+            [(2500.0, 0.0), (3200.0, 20.0), (5000.0, -10.0), (6500.0, 0.0), (12000.0, 40.0)]
+        {
+            let white = Temperature { kelvin, tint }.white();
+            let neutral = image.render_params_at(Some(white)).unwrap().camera_white;
+            let scaled = neutral.map(|c| f64::from(c) * 0.37);
+            let back = image.white_for_neutral(scaled).unwrap().expect("a color profile");
+            worst = worst.max((back.x - white.x).abs()).max((back.y - white.y).abs());
+            let t = Temperature::of(back);
+            assert!((t.kelvin - kelvin).abs() / kelvin < 0.002, "{kelvin} K came back {t:?}");
+            assert!((t.tint - tint).abs() < 0.2, "tint {tint} came back {t:?}");
+        }
+        for bad in [[0.0, 1.0, 1.0], [f64::NAN, 1.0, 1.0], [-1.0, 1.0, 1.0]] {
+            assert!(image.white_for_neutral(bad).is_err(), "{bad:?}");
+        }
+    }
+    assert!(worst < 1e-4, "xy off by {worst}");
+}
+
 /// A monochrome file has no white to change: none as shot, and the same
 /// parameters at any white.
 #[test]
@@ -137,6 +164,7 @@ fn a_monochrome_file_has_no_white() {
     };
     let image = image(meta);
     assert_eq!(image.as_shot_white().unwrap(), None);
+    assert_eq!(image.white_for_neutral([1.0; 3]).unwrap(), None);
     let at = image.render_params_at(Some(WhiteXy { x: 0.4, y: 0.4 })).unwrap();
     assert_eq!(at, image.render_params().unwrap());
 }

@@ -685,6 +685,10 @@ paint-shown-without = This render is shown without its retouching.
 paint-unread-damaged = Its saved retouching is damaged.
 paint-unread-unreachable = Its saved retouching couldn't be read just now.
 paint-unread-unreachable-advice = Try again in a moment.
+# Why a render's saved adjustments couldn't be read for an export, after
+# the export's lead.
+adjust-export-damaged = Its saved adjustments are damaged.
+adjust-export-unreachable = Its saved adjustments couldn't be read just now.
 # A notice that stays in Retouch while nothing painted can be saved; one
 # of the sentences after it says why.
 paint-unsaveable = What you paint on this render can't be saved.
@@ -1126,3 +1130,21 @@ adjust-value-stops = { $value } EV
 adjust-value-kelvin = { $value } K
 # A size in pixels of the picture. $value: the number, formatted ("1.0").
 adjust-value-pixels = { $value } px
+
+## The white balance eyedropper (adjust/eyedropper.rs): why a click set
+## nothing, shown as a notice.
+
+adjust-eyedrop-outside = Click on the picture to set the white balance from it.
+adjust-eyedrop-clipped = That spot is too bright to set the white balance from. Click a gray or white area that isn't blown out.
+adjust-eyedrop-dark = That spot is too dark to set the white balance from. Click a brighter gray area.
+adjust-eyedrop-no-white = The white balance can't be set from that spot. Click a gray area.
+
+## An Adjust session (adjust/session.rs): why it didn't open or draw, and
+## a write that failed, as notices.
+
+adjust-unread-damaged = This render's adjustments were damaged, so they start again from none.
+adjust-unread-unreachable = This render's adjustments couldn't be read just now. Try again in a moment.
+adjust-no-memory = There isn't enough memory to adjust this render right now. Close other apps, then try again.
+adjust-open-failed = The render couldn't be opened for Adjust.
+adjust-draw-failed = The render couldn't be drawn with these adjustments.
+adjust-write-failed = The adjustments couldn't be saved.

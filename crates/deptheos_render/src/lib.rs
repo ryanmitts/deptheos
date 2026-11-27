@@ -18,3 +18,4 @@ pub use deptheos_adjust::{
 };
 pub use deptheos_adjust::{reframe, slider, temperature};
 pub use resolve::{Color, Draw, OutputSpace, resolve, resolve_adjusted};
+pub use white::relative_for_gray;

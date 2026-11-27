@@ -503,6 +503,20 @@ int32_t dt_dng_as_shot_white(const DtDngImage *meta_source, DtDngWhite *out, int
     });
 }
 
+int32_t dt_dng_white_for_neutral(const DtDngImage *meta_source, const double *neutral,
+                                 DtDngWhite *out, int32_t *has, DtStatus *status) {
+    if (!meta_source || !neutral || !out || !has) {
+        return 0;
+    }
+    return guarded<int32_t>("white_for_neutral", status, [&] {
+        const std::optional<DngWhiteXY> white =
+            deptheos_white_for_neutral(meta_source->result.metadata, neutral);
+        *has = white ? 1 : 0;
+        if (white) *out = DtDngWhite{white->x, white->y};
+        return 1;
+    });
+}
+
 int32_t dt_dng_temperature_of(DtDngWhite white, double *kelvin, double *tint) {
     if (!kelvin || !tint) {
         return 0;

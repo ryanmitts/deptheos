@@ -560,3 +560,31 @@ fn a_thumbnail_is_its_side_long() {
         assert_eq!((thumbnail.width(), thumbnail.height()), size, "{crop:?}");
     }
 }
+
+/// An export of an adjusted render holds what the viewer's settled full
+/// picture draws, bit for bit, in the export's space and before dither:
+/// both kinds.
+#[test]
+fn an_export_is_the_settled_picture() {
+    use crate::library::adjustments::RenderAdjustments;
+    let Some(engine) = crate::test_support::engine() else { return };
+    let dir = tempfile::tempdir().unwrap();
+    let (adjustments, _) = every_slider();
+    let saved = RenderAdjustments { adjustments: adjustments.clone(), reframe: Reframe::NONE };
+    for (kind, stack) in stacks(dir.path(), scene(SIZE)) {
+        let look = Look::saved(&stack, &saved);
+        let output = look.resolve().output();
+        let exported =
+            crate::runs::session::export_pixels(&engine, look, &stack.pixels, (SIZE[0], SIZE[1]))
+                .unwrap();
+        let file = Look::redrawn(&stack, &adjustments, Reframe::NONE, output);
+        let Draw::Rendered(constants) = file.resolve() else { panic!("on the GPU") };
+        let mut copies =
+            GpuCopies::make(&engine, &stack, &stack.pixels, Generation::ON_DISK).unwrap();
+        let texture = copies.draw_full(&engine, &constants);
+        let whole = image::math::Rect { x: 0, y: 0, width: SIZE[0], height: SIZE[1] };
+        let settled =
+            crate::runs::session::readback::download_rgb(engine.gpu(), &texture, whole).unwrap();
+        assert!(*exported == *settled, "{kind}");
+    }
+}

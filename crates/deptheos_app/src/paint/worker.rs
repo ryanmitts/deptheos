@@ -434,6 +434,23 @@ pub(crate) fn close(library: &Path, ids: &[RenderId]) {
     }
 }
 
+/// `key`'s painted pixels over `stack` from `library`'s paint worker
+/// ([`Command::Flatten`]); `None` with no worker running.
+pub(crate) fn flatten(
+    library: &Path,
+    key: RenderId,
+    stack: Arc<CompletedStack>,
+) -> Option<Receiver<Flattened>> {
+    let commands = {
+        let mut started = crate::lock(&WORKERS);
+        started.retain(|w| w.commands.strong_count() > 0);
+        started.iter().find(|w| w.library == library).and_then(|w| w.commands.upgrade())
+    }?;
+    let (reply, rx) = channel();
+    commands.send(Command::Flatten { key, stack, reply }).ok()?;
+    Some(rx)
+}
+
 /// The UI's handle. Dropping it stops the worker after the commands sent,
 /// saving every doc first.
 pub struct PaintWorker {

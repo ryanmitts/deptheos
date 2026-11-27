@@ -65,6 +65,10 @@ pub enum Error {
     #[error("the render's retouching couldn't be read: {0}")]
     PaintUnread(crate::paint::store::Unread),
 
+    /// A render's saved adjustments couldn't be read.
+    #[error("the render's adjustments couldn't be read: {0}")]
+    AdjustmentsUnread(crate::library::adjustments::Unread),
+
     /// A sequence's frames that aren't on disk (`stack` named when it has
     /// several).
     #[error("{}", missing_text(stack.as_deref(), files))]

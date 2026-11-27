@@ -225,6 +225,12 @@ void dt_dng_render_params_free(DtDngRenderParams *params);
 int32_t dt_dng_as_shot_white(const DtDngImage *meta_source, DtDngWhite *out, int32_t *has,
                              DtStatus *status);
 
+// The white whose camera neutral is `neutral` (three values), in `out`,
+// with `has` 1; `has` 0 where dt_dng_as_shot_white has none. Returns 1 on
+// success.
+int32_t dt_dng_white_for_neutral(const DtDngImage *meta_source, const double *neutral,
+                                 DtDngWhite *out, int32_t *has, DtStatus *status);
+
 // The SDK's temperature (kelvin) and tint of `white` (dng_temperature); a
 // white not finite, or with x or y not positive, reads as D50. Returns 1 on
 // success.

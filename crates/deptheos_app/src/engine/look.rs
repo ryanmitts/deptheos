@@ -10,6 +10,7 @@ use deptheos_render::{Adjustments, Color, Draw, OutputSpace, Reframe, WhiteBalan
 use deptheos_render::{resolve_adjusted, slider};
 
 use crate::engine::present::display_space;
+use crate::library::adjustments::RenderAdjustments;
 use crate::runs::session::{CompletedStack, StackColor};
 
 #[derive(Clone, Copy)]
@@ -69,6 +70,14 @@ impl<'a> Look<'a> {
         };
         let adjusted = adjustments.map_or(Adjusted::Stored, Adjusted::Set);
         Self { stack, adjusted, reframe: Reframe::NONE, target: Target::File(output) }
+    }
+
+    /// The render exported under what it was saved with in the Library:
+    /// its adjustments and reframe, into [`Self::exported`]'s space. With
+    /// none set it draws as [`Self::exported`] with no slider set.
+    pub fn saved(stack: &'a CompletedStack, saved: &'a RenderAdjustments) -> Self {
+        let exported = Self::exported(stack, Some(&saved.adjustments));
+        Self { reframe: saved.reframe, ..exported }
     }
 
     /// The render exported under `adjustments` and `reframe` into

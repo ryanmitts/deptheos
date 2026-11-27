@@ -58,6 +58,7 @@ A ProRes 422 HQ movie written beside the frames: one platform's feature, with co
 - Lining up a compared render or a paint source is one GPU warp with no alignment search.
 - Two renders that share no stacked frame can't be compared or painted from each other.
 - A grow sequence replays the unretouched pyramid stack and has none of paint mode's strokes; the Export Grow Sequence dialog says so when a render has paint.
+- A grow sequence draws every frame under the final render's saved sliders (`History::adjustments_to_export`), not its reframe: every frame keeps the stack's size.
 
 ## Code
 

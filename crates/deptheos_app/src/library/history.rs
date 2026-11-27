@@ -53,6 +53,7 @@ use deptheos_render::reframe::Size;
 use image::RgbImage;
 use serde::{Deserialize, Serialize};
 
+use crate::adjust::AdjustClosed;
 use crate::frames::list::List;
 use crate::frames::sources::{FrameRef, Places, RootId};
 pub use crate::fsutil::StoreError;
@@ -386,14 +387,16 @@ pub struct History {
     _lock: Arc<LibraryLock>,
 }
 
-/// Proof that the paint of renders about to be deleted was closed
-/// ([`History::close_paint`], [`History::close_all_paint`]).
+/// Proof that the paint and Adjust of renders about to be deleted were
+/// closed ([`History::close_paint`], [`History::close_all_paint`]).
 ///
 /// Separate from the delete because the close waits on the store thread:
 /// a delete run there gets its close made before it is sent.
 #[must_use = "a delete takes it"]
 #[derive(Debug)]
-pub struct PaintClosed(());
+pub struct PaintClosed {
+    _adjust: AdjustClosed,
+}
 
 impl History {
     /// The per-user local data directory (`%LOCALAPPDATA%` on Windows, not
@@ -769,6 +772,30 @@ impl History {
     /// store thread.
     ///
     /// [`Write::save`]: crate::library::adjustments::Write::save
+    /// Render `id`'s adjustments for an export, read on the store thread
+    /// after every write sent before it, an Adjust change's among them;
+    /// [`crate::Error::AdjustmentsUnread`] if they can't be. Never on the
+    /// store thread.
+    pub fn adjustments_to_export(
+        self: &Arc<Self>,
+        id: &RenderId,
+    ) -> crate::Result<RenderAdjustments> {
+        let (history, id) = (self.clone(), id.clone());
+        let read = crate::engine::store::store().write(move || {
+            let render = history.render(&id).map_err(crate::Error::from)?;
+            history.adjustments(&render).map_err(|unread| {
+                tracing::warn!(
+                    "render {}'s adjustments not read for an export: {unread}",
+                    id.as_str()
+                );
+                crate::Error::AdjustmentsUnread(unread)
+            })
+        });
+        read.wait().unwrap_or_else(|| {
+            Err(crate::Error::InvalidState("the adjustments' read panicked".into()))
+        })
+    }
+
     pub fn adjustment_writes(&self, id: &RenderId) -> Writes {
         Writes::of(self.render_path(id))
     }
@@ -854,7 +881,12 @@ impl History {
             let failures: Vec<RenderId> =
                 failures.iter().filter(|f| of(&f.stack)).map(|f| f.id.clone()).collect();
             // Closed above, with every render's.
-            note(self.remove_stack(stack, &renders, &failures, PaintClosed(())));
+            note(self.remove_stack(
+                stack,
+                &renders,
+                &failures,
+                PaintClosed { _adjust: AdjustClosed::none_open() },
+            ));
         }
         for path in self.working_files().into_iter().chain(self.stack_files_set_aside()) {
             note(remove_if_present(&path));
@@ -870,13 +902,15 @@ impl History {
         first.map_or(Ok(()), Err)
     }
 
-    /// Have the paint worker close the files of renders `ids` and wait: the
-    /// first step of deleting them ([`PaintClosed`],
-    /// [`crate::paint::worker::close`]). Never from the store thread, which
-    /// the worker waits on: there it is logged and skipped.
+    /// Have the paint worker close the files of renders `ids`, and Adjust
+    /// leave them and land their writes, and wait: the first step of
+    /// deleting them ([`PaintClosed`], [`crate::paint::worker::close`],
+    /// [`crate::adjust::session::close`]). Never from the store thread,
+    /// which both wait on: there it is logged and skipped.
     pub fn close_paint(&self, ids: &[RenderId]) -> PaintClosed {
+        let adjust = crate::adjust::session::close(&self.root, ids);
         crate::paint::worker::close(&self.root, ids);
-        PaintClosed(())
+        PaintClosed { _adjust: adjust }
     }
 
     /// [`Self::close_paint`] for every render, for [`Self::delete_library`].

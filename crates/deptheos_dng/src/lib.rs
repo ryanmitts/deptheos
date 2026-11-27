@@ -278,6 +278,13 @@ unsafe extern "C" {
         has: *mut i32,
         status: *mut DtStatus,
     ) -> i32;
+    fn dt_dng_white_for_neutral(
+        meta_source: *const DtDngImage,
+        neutral: *const f64,
+        out: *mut WhiteXy,
+        has: *mut i32,
+        status: *mut DtStatus,
+    ) -> i32;
     fn dt_dng_temperature_of(white: WhiteXy, kelvin: *mut f64, tint: *mut f64) -> i32;
     fn dt_dng_temperature_white(kelvin: f64, tint: f64, out: *mut WhiteXy) -> i32;
 }
@@ -741,6 +748,34 @@ impl DngImage {
         let mut status = DtStatus::new();
         let ok =
             unsafe { dt_dng_as_shot_white(self.ptr.as_ptr(), &mut white, &mut has, &mut status) };
+        check(ok, &status, DngError::ParamsFailed)?;
+        Ok((has == 1).then_some(white))
+    }
+
+    /// The white whose camera neutral is `neutral` (camera RGB, any
+    /// scale): the SDK's `NeutralToXY`, as a render takes an as-shot
+    /// neutral. `None` where [`Self::as_shot_white`] has none, or for a
+    /// camera of other than three channels.
+    pub fn white_for_neutral(&self, neutral: [f64; 3]) -> Result<Option<WhiteXy>> {
+        let top = neutral.iter().copied().fold(0.0, f64::max);
+        if !(top.is_finite() && top > 0.0) || neutral.iter().any(|v| !(v.is_finite() && *v > 0.0)) {
+            let message = format!("{neutral:?} is not a camera neutral");
+            return Err(DngError::ParamsFailed(Cause::Other { code: 0, message }));
+        }
+        let neutral = neutral.map(|v| v / top);
+        let mut white = WhiteXy { x: 0.0, y: 0.0 };
+        let mut has = 0;
+        let mut status = DtStatus::new();
+        // SAFETY: three f64s and the outputs live for the call.
+        let ok = unsafe {
+            dt_dng_white_for_neutral(
+                self.ptr.as_ptr(),
+                neutral.as_ptr(),
+                &mut white,
+                &mut has,
+                &mut status,
+            )
+        };
         check(ok, &status, DngError::ParamsFailed)?;
         Ok((has == 1).then_some(white))
     }

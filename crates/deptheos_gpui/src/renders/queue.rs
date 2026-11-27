@@ -672,8 +672,8 @@ impl Renders {
         );
     }
 
-    /// Run a delete as the writer: `close` closes the paint of what goes on a
-    /// worker (it waits for the store thread, so never on it), then `delete`
+    /// Run a delete as the writer: `close` closes the paint and Adjust of
+    /// what goes on a worker (it waits for the store thread, so never on it), then `delete`
     /// runs on the store thread in order with earlier writes. Done, `done`
     /// drops what went; stopped part way (error or panic), it says so and
     /// rereads the Library.

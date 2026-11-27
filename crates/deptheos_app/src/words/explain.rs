@@ -256,6 +256,16 @@ fn said_session(error: &Error, w: &Words) -> Said {
                 ),
             }
         }
+        Error::AdjustmentsUnread(unread) => {
+            use crate::library::adjustments::Unread;
+            match unread {
+                Unread::Damaged => user(say!(w, "adjust-export-damaged"), ""),
+                Unread::Unreachable => user(
+                    say!(w, "adjust-export-unreachable"),
+                    say!(w, "paint-unread-unreachable-advice"),
+                ),
+            }
+        }
         Error::MissingFrames { stack, files } => {
             let names = names_list(files, w);
             let count = files.len();
@@ -1091,6 +1101,14 @@ mod tests {
             ("needs pyramid", Error::NeedsPyramid),
             ("paint damaged", Error::PaintUnread(crate::paint::store::Unread::Damaged)),
             ("paint unreachable", Error::PaintUnread(crate::paint::store::Unread::Unreachable)),
+            (
+                "adjustments damaged",
+                Error::AdjustmentsUnread(crate::library::adjustments::Unread::Damaged),
+            ),
+            (
+                "adjustments unreachable",
+                Error::AdjustmentsUnread(crate::library::adjustments::Unread::Unreachable),
+            ),
             ("missing, one", Error::MissingFrames { stack: None, files: vec![path("/x/a.CR3")] }),
             (
                 "missing, three",

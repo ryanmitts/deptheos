@@ -11,8 +11,8 @@ use deptheos_core::pack::{QUANTIZE_MODULE, threshold_bind_group};
 use deptheos_core::pipelines::COLOR_MODULE;
 
 pub use deptheos_dng::{HueSatMap, RenderParams};
-pub use draw::{KeptPlanes, NeighborStage, Region, Source, TILE};
-pub use reduce::{REDUCED_FORMAT, REDUCED_LONG, reduced_size};
+pub use draw::{GridPlanes, KeptPlanes, NeighborStage, Region, Source, TILE};
+pub use reduce::{Encoding, REDUCED_FORMAT, REDUCED_LONG, reduced_size};
 pub(crate) use stages::{Exposure, LocalTone, Stages};
 pub use standard::Linearizer;
 
@@ -279,6 +279,52 @@ impl Constants {
         self
     }
 
+    /// These constants with the vignette on the whole frame.
+    fn without_window(mut self) -> Self {
+        match &mut self.kind {
+            Kind::Linear { uniform, .. } => uniform.vignette_window = Vec4::ZERO,
+            Kind::Standard(standard) => standard.uniform.vignette_window = Vec4::ZERO,
+        }
+        self
+    }
+
+    /// These constants drawn on a copy `sx` × `sy` the stored picture's
+    /// size: the vignette's rectangle scaled to its pixels, so it stays
+    /// where the stored picture has it.
+    pub fn scaled(mut self, sx: f32, sy: f32) -> Self {
+        let scale = Vec4::new(sx, sy, sx, sy);
+        match &mut self.kind {
+            Kind::Linear { uniform, .. } => uniform.vignette_window *= scale,
+            Kind::Standard(standard) => standard.uniform.vignette_window *= scale,
+        }
+        self
+    }
+
+    /// Whether Texture or Sharpening is set, which only a draw at full
+    /// size shows (ADR-138).
+    pub fn has_fine_detail(&self) -> bool {
+        self.local.is_some_and(|n| n.texture || n.sharpen.is_some())
+    }
+
+    /// These constants without Texture and Sharpening: a reduced draw's
+    /// (ADR-138).
+    pub fn without_fine_detail(mut self) -> Self {
+        let fine = stages::TEXTURE_TERM | stages::SHARPEN_TERM;
+        let (flags, detail) = match &mut self.kind {
+            Kind::Linear { uniform, .. } => (&mut uniform.flags.z, &mut uniform.local_detail),
+            Kind::Standard(standard) => {
+                (&mut standard.uniform.flags.z, &mut standard.uniform.local_detail)
+            }
+        };
+        *flags &= !fine;
+        *detail = Vec4::ZERO;
+        self.local = self
+            .local
+            .map(|n| crate::local_tone::Needs { texture: false, sharpen: None, ..n })
+            .filter(|n| n.base || n.clarity);
+        self
+    }
+
     /// These constants with exposure's shoulder a clamp at white, as the
     /// SDK's ramp clips: for the tests that match the SDK.
     #[doc(hidden)]
@@ -356,6 +402,14 @@ pub struct PlanesKey {
     needs: crate::local_tone::Needs,
     frame: [u32; 2],
     inputs: Vec<u32>,
+}
+
+impl PlanesKey {
+    /// Whether both are the planes of the same sliders of one frame,
+    /// whatever their white or profile.
+    pub fn same_sliders(&self, other: &Self) -> bool {
+        self.needs == other.needs && self.frame == other.frame
+    }
 }
 
 /// One [`Constants`]' GPU buffers, built once and reused by every render

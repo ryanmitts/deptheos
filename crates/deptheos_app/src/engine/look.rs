@@ -16,7 +16,7 @@ use crate::runs::session::{CompletedStack, StackColor};
 pub struct Look<'a> {
     stack: &'a CompletedStack,
     adjusted: Adjusted<'a>,
-    /// The window drawn, applied last; none but the redraw command's yet.
+    /// The window drawn, applied last: the redraw command's and Adjust's.
     reframe: Reframe,
     target: Target,
 }
@@ -29,7 +29,7 @@ enum Adjusted<'a> {
     /// These adjustments; neutral ones draw as the stored picture does.
     Set(&'a Adjustments),
     /// These adjustments through the adjusted path even when neutral, on
-    /// the GPU: the redraw command's.
+    /// the GPU: the redraw command's and Adjust's.
     Redrawn(&'a Adjustments),
 }
 
@@ -82,6 +82,17 @@ impl<'a> Look<'a> {
     ) -> Self {
         let (adjusted, target) = (Adjusted::Redrawn(adjustments), Target::File(output));
         Self { stack, adjusted, reframe, target }
+    }
+
+    /// The render on screen in Adjust under `adjustments` and `reframe`,
+    /// always through the adjusted path, so every tick and the picture it
+    /// settles on draw alike (ADR-138).
+    pub fn adjusting(
+        stack: &'a CompletedStack,
+        adjustments: &'a Adjustments,
+        reframe: Reframe,
+    ) -> Self {
+        Self { stack, adjusted: Adjusted::Redrawn(adjustments), reframe, target: Target::Display }
     }
 
     /// Whether a slider is off its default: such an export can take 16

@@ -3,6 +3,7 @@
 
 pub mod copies;
 pub mod machine;
+pub mod preview;
 pub mod sliders;
 
 pub use copies::{GpuCopies, RenderMemory};

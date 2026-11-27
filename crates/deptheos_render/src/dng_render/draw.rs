@@ -138,6 +138,149 @@ impl KeptPlanes {
     pub fn bytes(&self) -> u64 {
         self.0.as_ref().map_or(0, |(_, planes)| planes.bytes() as u64)
     }
+
+    /// What the kept planes were made from.
+    pub fn key(&self) -> Option<&super::PlanesKey> {
+        self.0.as_ref().map(|(key, _)| key)
+    }
+}
+
+/// The local tone's values of `region`, uploaded for a draw to read; a
+/// placeholder texel without local tone.
+fn upload_values(ctx: &GpuContext, region: Region, values: Option<Vec<[f32; 4]>>) -> PooledTexture {
+    let (width, height, values) = match values {
+        None => (1, 1, vec![[0.0f32; 4]]),
+        Some(values) => (region.width, region.height, values),
+    };
+    let texture = ctx.pooled_texture(
+        width,
+        height,
+        wgpu::TextureFormat::Rgba32Float,
+        wgpu::TextureUsages::TEXTURE_BINDING | wgpu::TextureUsages::COPY_DST,
+        "local_planes",
+    );
+    ctx.queue.write_texture(
+        texture.as_image_copy(),
+        bytemuck::cast_slice(&values),
+        wgpu::TexelCopyBufferLayout {
+            offset: 0,
+            bytes_per_row: Some(width * 16),
+            rows_per_image: Some(height),
+        },
+        wgpu::Extent3d { width, height, depth_or_array_layers: 1 },
+    );
+    texture
+}
+
+/// The local tone's values of a whole frame, each texel of a smaller
+/// `size` grid the mean of the frame's values it covers, edge pixels
+/// weighted by how much of them it covers, as the reduced copy is made: what
+/// a reduced draw reads, so it takes the planes of the full-size pixels
+/// (ADR-138).
+pub struct GridPlanes {
+    frame: [u32; 2],
+    size: [u32; 2],
+    /// Each frame column's (or row's) share of each grid column it falls in.
+    across: Vec<Vec<(usize, f32)>>,
+    down: Vec<Vec<(usize, f32)>>,
+    sums: Vec<[f32; 4]>,
+}
+
+impl GridPlanes {
+    /// An empty grid of `size` for a `frame`-sized picture.
+    pub fn new(frame: [u32; 2], size: [u32; 2]) -> Self {
+        let n = size[0] as usize * size[1] as usize;
+        Self {
+            frame,
+            size,
+            across: shares(frame[0], size[0]),
+            down: shares(frame[1], size[1]),
+            sums: vec![[0.0; 4]; n],
+        }
+    }
+
+    pub fn size(&self) -> [u32; 2] {
+        self.size
+    }
+
+    /// Frame `region`'s values, row by row, added in.
+    fn add(&mut self, region: Region, values: &[[f32; 4]]) {
+        use rayon::prelude::*;
+        let (gw, w) = (self.size[0] as usize, region.width as usize);
+        let across = &self.across[region.x as usize..][..w];
+        // Each row reduced across first, then added to the grid rows it
+        // falls in.
+        let rows: Vec<Vec<[f32; 4]>> = values
+            .par_chunks(w)
+            .map(|row| {
+                let mut out = vec![[0.0f32; 4]; gw];
+                for (v, shares) in row.iter().zip(across) {
+                    for &(gx, share) in shares {
+                        for c in 0..4 {
+                            out[gx][c] += v[c] * share;
+                        }
+                    }
+                }
+                out
+            })
+            .collect();
+        for (dy, row) in rows.iter().enumerate() {
+            for &(gy, share) in &self.down[region.y as usize + dy] {
+                let line = &mut self.sums[gy * gw..][..gw];
+                for (o, v) in line.iter_mut().zip(row) {
+                    for c in 0..4 {
+                        o[c] += v[c] * share;
+                    }
+                }
+            }
+        }
+    }
+
+    /// The means, as a texture [`DngRenderPipeline::draw_reading`] takes.
+    pub fn texture(&self, ctx: &GpuContext) -> wgpu::Texture {
+        let area = (self.frame[0] as f32 / self.size[0] as f32)
+            * (self.frame[1] as f32 / self.size[1] as f32);
+        let means: Vec<[f32; 4]> = self.sums.iter().map(|s| s.map(|v| v / area)).collect();
+        let [width, height] = self.size;
+        let texture = ctx.create_texture(
+            width,
+            height,
+            wgpu::TextureFormat::Rgba32Float,
+            wgpu::TextureUsages::TEXTURE_BINDING | wgpu::TextureUsages::COPY_DST,
+            "grid_planes",
+        );
+        ctx.queue.write_texture(
+            texture.as_image_copy(),
+            bytemuck::cast_slice(&means),
+            wgpu::TexelCopyBufferLayout {
+                offset: 0,
+                bytes_per_row: Some(width * 16),
+                rows_per_image: Some(height),
+            },
+            wgpu::Extent3d { width, height, depth_or_array_layers: 1 },
+        );
+        texture
+    }
+}
+
+/// For each of `from` pixels, the grid cells of `to` it falls in and how
+/// much of it falls in each, in pixels.
+fn shares(from: u32, to: u32) -> Vec<Vec<(usize, f32)>> {
+    let step = f64::from(from) / f64::from(to);
+    (0..from)
+        .map(|i| {
+            let (a, b) = (f64::from(i), f64::from(i) + 1.0);
+            let first = (a / step).floor() as usize;
+            let last = (((b / step).ceil() as usize).max(first + 1)).min(to as usize);
+            (first..last)
+                .filter_map(|g| {
+                    let (lo, hi) = (g as f64 * step, (g + 1) as f64 * step);
+                    let share = b.min(hi) - a.max(lo);
+                    (share > 0.0).then_some((g, share as f32))
+                })
+                .collect()
+        })
+        .collect()
 }
 
 /// A stage that reads each pixel's neighbors, run after the per-pixel
@@ -347,44 +490,129 @@ impl DngRenderPipeline {
         prepared
     }
 
-    /// The local tone's values over frame `region` ([`local_tone::Planes::at`]),
-    /// as a texture the draw reads at output texels; a placeholder without
-    /// local tone.
-    fn local_planes(
+    /// `prepared`'s constants with the planes `kept` holds when they are
+    /// of the same sliders (`PlanesKey::same_sliders`), though made under
+    /// another white or profile: a drag's draw, which doesn't wait for new
+    /// planes. `None` when it holds none such.
+    pub fn with_planes_like(
+        &self,
+        ctx: &GpuContext,
+        constants: &super::Constants,
+        frame: [u32; 2],
+        kept: &KeptPlanes,
+    ) -> Option<PreparedRender> {
+        let key = constants.planes_key(frame)?;
+        let (held, planes) = kept.0.as_ref()?;
+        held.same_sliders(&key).then(|| {
+            let mut prepared = PreparedRender::new(ctx, constants);
+            prepared.planes = Planes::Built(planes.clone());
+            prepared
+        })
+    }
+
+    /// The local tone's values over frame `region`
+    /// ([`local_tone::Planes::at`]), row by row; `None` without local tone.
+    fn region_values(
+        &self,
+        ctx: &GpuContext,
+        prepared: &PreparedRender,
+        source: Source<'_>,
+        region: Region,
+    ) -> Option<Vec<[f32; 4]>> {
+        match &prepared.planes {
+            Planes::None => None,
+            Planes::Needed(_) => panic!("local tone draws with its planes (`with_planes`)"),
+            Planes::Built(planes) => {
+                let around = planes.around(region.rect());
+                let plane = self.log_brightness(ctx, prepared, source, Region::of(around));
+                Some(planes.at(&Patch { rect: around, plane }, region.rect()))
+            }
+        }
+    }
+
+    /// The local tone's values over frame `region` as a texture a draw
+    /// reads at output texels, its texel (0, 0) the region's top-left; a
+    /// placeholder without local tone. [`Self::draw_reading`] takes it.
+    pub fn region_planes(
         &self,
         ctx: &GpuContext,
         prepared: &PreparedRender,
         source: Source<'_>,
         region: Region,
     ) -> PooledTexture {
-        let (width, height, values) = match &prepared.planes {
-            Planes::None => (1, 1, vec![[0.0f32; 4]]),
-            Planes::Needed(_) => panic!("local tone draws with its planes (`with_planes`)"),
-            Planes::Built(planes) => {
-                let around = planes.around(region.rect());
-                let plane = self.log_brightness(ctx, prepared, source, Region::of(around));
-                let values = planes.at(&Patch { rect: around, plane }, region.rect());
-                (region.width, region.height, values)
+        let values = self.region_values(ctx, prepared, source, region);
+        upload_values(ctx, region, values)
+    }
+
+    /// The local tone's values of `source`'s whole frame gathered into
+    /// `grid`, a strip of [`TILE`] rows at a time.
+    pub fn gather_planes(
+        &self,
+        ctx: &GpuContext,
+        prepared: &PreparedRender,
+        source: Source<'_>,
+        grid: &mut GridPlanes,
+    ) {
+        let whole = Region::whole(source.frame[0], source.frame[1]);
+        for strip in whole.strips(TILE) {
+            if let Some(values) = self.region_values(ctx, prepared, source, strip) {
+                grid.add(strip, &values);
             }
-        };
-        let texture = ctx.pooled_texture(
-            width,
-            height,
-            wgpu::TextureFormat::Rgba32Float,
-            wgpu::TextureUsages::TEXTURE_BINDING | wgpu::TextureUsages::COPY_DST,
-            "local_planes",
-        );
-        ctx.queue.write_texture(
-            texture.as_image_copy(),
-            bytemuck::cast_slice(&values),
-            wgpu::TexelCopyBufferLayout {
-                offset: 0,
-                bytes_per_row: Some(width * 16),
-                rows_per_image: Some(height),
-            },
-            wgpu::Extent3d { width, height, depth_or_array_layers: 1 },
-        );
-        texture
+        }
+    }
+
+    /// [`Self::draw`] over the whole frame, its local tone's values also
+    /// gathered into `grid`, so a reduced draw reads the planes this draw
+    /// did.
+    pub fn draw_gathering(
+        &self,
+        ctx: &GpuContext,
+        prepared: &PreparedRender,
+        source: Source<'_>,
+        output: &wgpu::Texture,
+        grid: &mut GridPlanes,
+    ) {
+        let whole = Region::whole(source.frame[0], source.frame[1]);
+        self.draw_strips(ctx, prepared, source, whole, output, TILE, Some(grid));
+    }
+
+    /// Frame `region` of `source` through `prepared` into `output`'s
+    /// top-left, reading the local tone's values from `planes`, whose
+    /// texel (0, 0) holds the region's top-left ([`Self::region_planes`],
+    /// or a reduced copy's [`GridPlanes::texture`]), rather than making
+    /// them.
+    pub fn draw_reading(
+        &self,
+        ctx: &GpuContext,
+        prepared: &PreparedRender,
+        source: Source<'_>,
+        region: Region,
+        planes: &wgpu::Texture,
+        output: &wgpu::Texture,
+    ) {
+        assert!(source.covers.contains(region), "{region:?} outside {:?}", source.covers);
+        assert!(region.width <= output.width() && region.height <= output.height());
+        let _drawing = ctx.drawing();
+        let views = self.views(source, output);
+        let planes_view = planes.create_view(&Default::default());
+        for strip in region.strips(TILE) {
+            let at = [region.x, region.y];
+            self.draw_strip_tiles(
+                ctx,
+                prepared,
+                source,
+                region,
+                strip,
+                TILE,
+                &views,
+                &planes_view,
+                at,
+            );
+        }
+    }
+
+    fn views(&self, source: Source<'_>, output: &wgpu::Texture) -> [wgpu::TextureView; 2] {
+        [source.texture.create_view(&Default::default()), output.create_view(&Default::default())]
     }
 
     pub(super) fn draw_tiled(
@@ -396,75 +624,120 @@ impl DngRenderPipeline {
         output: &wgpu::Texture,
         side: u32,
     ) {
+        self.draw_strips(ctx, prepared, source, region, output, side, None);
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    fn draw_strips(
+        &self,
+        ctx: &GpuContext,
+        prepared: &PreparedRender,
+        source: Source<'_>,
+        region: Region,
+        output: &wgpu::Texture,
+        side: u32,
+        mut grid: Option<&mut GridPlanes>,
+    ) {
         assert!(source.covers.contains(region), "{region:?} outside {:?}", source.covers);
         assert!(region.width <= output.width() && region.height <= output.height());
         let _drawing = ctx.drawing();
-        let (in_view, out_view) = (
-            source.texture.create_view(&Default::default()),
-            output.create_view(&Default::default()),
-        );
+        let views = self.views(source, output);
         // The local tone's planes are made a strip of tiles at a time, so a
         // whole picture never holds them at once.
         for strip in region.strips(side) {
-            let planes = self.local_planes(ctx, prepared, source, strip);
+            let values = self.region_values(ctx, prepared, source, strip);
+            if let (Some(grid), Some(values)) = (grid.as_deref_mut(), &values) {
+                grid.add(strip, values);
+            }
+            let planes = upload_values(ctx, strip, values);
             let planes_view = planes.create_view(&Default::default());
-            for tile in strip.tiles(side) {
-                let [sx, sy] = source.texel(tile.x, tile.y);
-                let placement = place::Placement {
-                    origins: glam::UVec4::new(sx, sy, tile.x - region.x, tile.y - region.y),
-                    size: glam::UVec4::new(
-                        tile.width,
-                        tile.height,
-                        tile.x - strip.x,
-                        tile.y - strip.y,
-                    ),
-                    frame: glam::UVec4::new(tile.x, tile.y, source.frame[0], source.frame[1]),
-                };
-                let placement = ctx.create_uniform_buffer(&placement, "dng_render_place");
-                let (shader, entries): (_, Vec<wgpu::BindingResource>) = match &prepared.buffers {
-                    Prepared::Linear { params, tone, hsm, look, curve } => (
-                        &self.linear,
-                        vec![
-                            tex(&in_view),                 // in_tex
-                            tex(&out_view),                // out_tex
-                            params.as_entire_binding(),    // params
-                            tone.as_entire_binding(),      // tone_curve
-                            hsm.as_entire_binding(),       // hsm_lut
-                            look.as_entire_binding(),      // look_lut
-                            placement.as_entire_binding(), // place
-                            curve.as_entire_binding(),     // curve_luts
-                            tex(&planes_view),             // local_planes
-                        ],
-                    ),
-                    Prepared::Standard { params, decode, curve } => (
-                        &self.standard,
-                        vec![
-                            tex(&in_view),                 // in_tex
-                            tex(&out_view),                // out_tex
-                            params.as_entire_binding(),    // params
-                            decode.as_entire_binding(),    // decode
-                            placement.as_entire_binding(), // place
-                            curve.as_entire_binding(),     // curve_luts
-                            tex(&planes_view),             // local_planes
-                        ],
-                    ),
-                };
-                let group0 =
-                    create_bind_group(&ctx.device, &shader.pipeline, 0, "dng_render", &entries);
-                let groups: Vec<&wgpu::BindGroup> =
-                    std::iter::once(&group0).chain(shader.thresholds.as_ref()).collect();
-                let mut encoder = ctx.encoder("dng_render");
-                dispatch_compute_with(
-                    &mut encoder,
-                    &shader.pipeline,
-                    &groups,
-                    "dng_render",
+            let at = [strip.x, strip.y];
+            self.draw_strip_tiles(
+                ctx,
+                prepared,
+                source,
+                region,
+                strip,
+                side,
+                &views,
+                &planes_view,
+                at,
+            );
+        }
+    }
+
+    /// The tiles of `side` of `strip`, frame pixel `planes_at` at the
+    /// planes' texel (0, 0).
+    #[allow(clippy::too_many_arguments)]
+    fn draw_strip_tiles(
+        &self,
+        ctx: &GpuContext,
+        prepared: &PreparedRender,
+        source: Source<'_>,
+        region: Region,
+        strip: Region,
+        side: u32,
+        views: &[wgpu::TextureView; 2],
+        planes_view: &wgpu::TextureView,
+        planes_at: [u32; 2],
+    ) {
+        let [in_view, out_view] = views;
+        for tile in strip.tiles(side) {
+            let [sx, sy] = source.texel(tile.x, tile.y);
+            let placement = place::Placement {
+                origins: glam::UVec4::new(sx, sy, tile.x - region.x, tile.y - region.y),
+                size: glam::UVec4::new(
                     tile.width,
                     tile.height,
-                    WORKGROUP_SIZE,
-                );
-                ctx.submit(encoder);
-            }
+                    tile.x - planes_at[0],
+                    tile.y - planes_at[1],
+                ),
+                frame: glam::UVec4::new(tile.x, tile.y, source.frame[0], source.frame[1]),
+            };
+            let placement = ctx.create_uniform_buffer(&placement, "dng_render_place");
+            let (shader, entries): (_, Vec<wgpu::BindingResource>) = match &prepared.buffers {
+                Prepared::Linear { params, tone, hsm, look, curve } => (
+                    &self.linear,
+                    vec![
+                        tex(in_view),                  // in_tex
+                        tex(out_view),                 // out_tex
+                        params.as_entire_binding(),    // params
+                        tone.as_entire_binding(),      // tone_curve
+                        hsm.as_entire_binding(),       // hsm_lut
+                        look.as_entire_binding(),      // look_lut
+                        placement.as_entire_binding(), // place
+                        curve.as_entire_binding(),     // curve_luts
+                        tex(planes_view),              // local_planes
+                    ],
+                ),
+                Prepared::Standard { params, decode, curve } => (
+                    &self.standard,
+                    vec![
+                        tex(in_view),                  // in_tex
+                        tex(out_view),                 // out_tex
+                        params.as_entire_binding(),    // params
+                        decode.as_entire_binding(),    // decode
+                        placement.as_entire_binding(), // place
+                        curve.as_entire_binding(),     // curve_luts
+                        tex(planes_view),              // local_planes
+                    ],
+                ),
+            };
+            let group0 =
+                create_bind_group(&ctx.device, &shader.pipeline, 0, "dng_render", &entries);
+            let groups: Vec<&wgpu::BindGroup> =
+                std::iter::once(&group0).chain(shader.thresholds.as_ref()).collect();
+            let mut encoder = ctx.encoder("dng_render");
+            dispatch_compute_with(
+                &mut encoder,
+                &shader.pipeline,
+                &groups,
+                "dng_render",
+                tile.width,
+                tile.height,
+                WORKGROUP_SIZE,
+            );
+            ctx.submit(encoder);
         }
     }
 

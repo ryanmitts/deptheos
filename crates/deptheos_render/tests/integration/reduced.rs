@@ -1,5 +1,6 @@
-//! The reduced copy: the mean of the linear values each texel covers, and
-//! at full size the same picture as the source draws, both kinds.
+//! The reduced copy: the mean of what each texel covers in sRGB-encoded
+//! values, as the viewer's levels take it, and at full size the same
+//! picture as the source draws, both kinds.
 
 use deptheos_dng::RenderParams;
 use deptheos_gpu::GpuContext;
@@ -36,10 +37,11 @@ fn standard(adjustments: &Adjustments) -> Constants {
 }
 
 /// Each texel of a picture twice the reduced copy's long side is the mean
-/// of the four it covers, decoded: black and white average to linear half,
-/// not to the code halfway.
+/// of the four it covers in sRGB-encoded values, kept linear: black and
+/// white average to the encoded half, as a display's levels would, not to
+/// linear half.
 #[test]
-fn a_texel_is_the_mean_of_the_linear_values_it_covers() {
+fn a_texel_is_the_mean_of_the_encoded_values_it_covers() {
     let Some(ctx) = GpuContext::new_or_skip() else { return };
     let [w, h] = [8192u32, 4];
     let pixels: Vec<u16> = (0..w * h)
@@ -51,10 +53,14 @@ fn a_texel_is_the_mean_of_the_linear_values_it_covers() {
         .collect();
     let source = upload(&ctx, [w, h], pixels);
     let constants = standard(&Adjustments::NEUTRAL);
-    let reduced = DngRenderPipeline::new(&ctx).reduce(&ctx, &source, &constants);
+    let pipeline = DngRenderPipeline::new(&ctx);
+    let encoding = pipeline.encoding(&ctx, &constants);
+    let reduced = pipeline.reduce(&ctx, &source, &constants, &encoding);
     assert_eq!([reduced.width(), reduced.height()], [4096, 2]);
+    // sRGB's curve at 0.5, decoded.
+    let half_encoded = ((0.5f32 + 0.055) / 1.055).powf(2.4);
     for (i, v) in read_half(&ctx, &reduced).chunks(4).enumerate() {
-        assert_eq!(&v[..3], &[0.5; 3], "texel {i}");
+        assert!(v[..3].iter().all(|c| (c - half_encoded).abs() < 1e-3), "texel {i}: {v:?}");
     }
 }
 
@@ -78,7 +84,8 @@ fn at_full_size_the_reduced_copy_draws_as_the_source() {
         ("linear", *resolve_adjusted(Color::Linear(&raw), &adjustments, OutputSpace::Srgb)),
     ];
     for (kind, constants) in kinds {
-        let reduced = pipeline.reduce(&ctx, &source, &constants);
+        let encoding = pipeline.encoding(&ctx, &constants);
+        let reduced = pipeline.reduce(&ctx, &source, &constants, &encoding);
         assert_eq!([reduced.width(), reduced.height()], [w, h], "{kind}");
         let full = crate::common::download_rgba(&ctx, &pipeline.render(&ctx, &source, &constants));
         let drawn = pipeline.render(&ctx, &reduced, &constants.clone().reduced());

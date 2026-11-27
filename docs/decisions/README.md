@@ -52,6 +52,7 @@ of a record, cites only records in this folder.
 - [135](135-every-draw-takes-a-look.md) Every draw of a stack takes a look (the stack, its adjustments, an output space), resolved once and drawn by one render function
 - [136](136-the-reframe-is-a-window-of-stored-pixels.md) The reframe is a window of stored pixels, flipped and turned, applied last; the adjustment sliders' numbers
 - [137](137-the-adjustment-stages.md) The adjustment stages: one order on both kinds of stack, each slider's law in the resolve step
+- [138](138-the-adjust-preview.md) The drag preview is one flat picture a tick, from the reduced copy at fit and the full-size source past half zoom; it settles on screen before the whole picture redraws
 
 ## The model, the workflow and saved data
 

@@ -633,15 +633,28 @@ impl AdjustSession {
         self.session.leave();
     }
 
-    /// The app goes to the background, or memory is short: the GPU copies
-    /// are freed, the values kept (ADR-164, ADR-165).
+    /// The app goes to the background: the GPU copies are freed, the
+    /// values kept (ADR-164, ADR-165).
     pub fn away(&self) {
         self.session.away();
     }
 
-    /// The app is back: the GPU copies are made again.
+    /// The app is back, or memory is no longer short: the GPU copies are
+    /// made again.
     pub fn back(&self) {
         self.session.back();
+    }
+
+    /// Memory is short: a moderate shed frees the preview's copies, a
+    /// critical one all of them, as [`Self::away`] (ADR-114).
+    pub fn shed(&self, level: crate::MemoryShed) {
+        self.session.shed(level.into());
+    }
+
+    /// The device's thermal state is serious or critical (`hot`), or no
+    /// longer: a drag's ticks at fit are drawn smaller while it is.
+    pub fn set_hot(&self, hot: bool) {
+        self.session.set_hot(hot);
     }
 
     /// The stored picture's paint changed (Retouch on the render): its

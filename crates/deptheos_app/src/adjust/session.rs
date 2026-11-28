@@ -15,6 +15,7 @@
 
 use std::collections::{HashMap, HashSet, VecDeque};
 use std::path::{Path, PathBuf};
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::mpsc::Receiver;
 use std::sync::{Arc, Condvar, Mutex, Weak};
 use std::time::{Duration, Instant};
@@ -142,6 +143,8 @@ struct Inner {
     copies: Mutex<Option<Held>>,
     outbox: Mutex<Outbox>,
     slot: FlatSlot,
+    /// The device runs hot: ticks at fit are drawn smaller (ADR-138).
+    hot: AtomicBool,
     me: Weak<Inner>,
 }
 
@@ -180,6 +183,7 @@ impl AdjustSession {
             copies: Mutex::new(None),
             outbox: Mutex::default(),
             slot: FlatSlot::default(),
+            hot: AtomicBool::new(false),
             me: me.clone(),
         });
         let mut sessions = crate::lock(&SESSIONS);
@@ -308,9 +312,24 @@ impl AdjustSession {
         self.inner.on(Event::Away);
     }
 
-    /// The app came back: the GPU copies are made again.
+    /// The app came back, or memory is no longer short: the GPU copies
+    /// are made again.
     pub fn back(&self) {
         self.inner.on(Event::Back);
+    }
+
+    /// Whether the device runs hot (a serious or critical thermal state):
+    /// a drag's ticks at fit are then drawn smaller.
+    pub fn set_hot(&self, hot: bool) {
+        if self.inner.hot.swap(hot, Ordering::Relaxed) != hot {
+            tracing::debug!("adjust: ticks at fit drawn {}", if hot { "smaller" } else { "full" });
+        }
+    }
+
+    /// Memory runs short: the preview's copies go at a moderate shed, all
+    /// of them at a critical one (ADR-114).
+    pub fn shed(&self, level: crate::engine::memory::Shed) {
+        self.inner.on(Event::Shed(level));
     }
 
     /// The stored picture with its paint changed (Retouch's generation
@@ -446,6 +465,7 @@ impl Inner {
                 core.upload = None;
                 self.free(core.epoch);
             }
+            Action::TrimPreview => self.trim(),
             Action::DrawPreview { id, value } => {
                 let Some(open) = core.current.clone() else { return };
                 let shown = core.shown.unwrap_or_else(|| whole(&open.stack));
@@ -620,12 +640,33 @@ impl Inner {
             .detach();
     }
 
+    /// Let go of the preview's copies on the pool, after the draw in
+    /// flight.
+    fn trim(&self) {
+        let me = self.me.clone();
+        work::pool()
+            .run(Lane::Interactive, Key::of("adjust-trim", 0), work::root(), move || {
+                let Some(inner) = me.upgrade() else { return };
+                if let Some(held) = crate::lock(&inner.copies).as_mut() {
+                    held.copies.trim_preview();
+                }
+                inner.slot.clear();
+                deptheos_gpu::trim_pools(0);
+                tracing::debug!("adjust: the preview's copies freed");
+            })
+            .detach();
+    }
+
     /// Draw a preview tick of `value` of `open` at `shown` on the pool.
     fn draw(&self, id: RequestId, open: Opened, value: RenderAdjustments, shown: Shown) {
         let me = self.me.clone();
         work::pool()
             .run(Lane::Interactive, Key::of("adjust-draw", id), work::root(), move || {
                 let Some(inner) = me.upgrade() else { return };
+                let shown = match inner.hot.load(Ordering::Relaxed) {
+                    true => shown.hot(open.stack.width, open.stack.height),
+                    false => shown,
+                };
                 let drawn = inner.drawing_shown(&open, &value, shown, Draft::Tick);
                 let mut updates = Vec::new();
                 {

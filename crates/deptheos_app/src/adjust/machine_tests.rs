@@ -454,3 +454,28 @@ fn status_is_reported_once_per_change() {
     assert_eq!(statuses(&m.on(Event::Set(at(1.0)))), 1);
     assert_eq!(statuses(&m.on(Event::Set(at(1.0)))), 0, "the same value");
 }
+
+#[test]
+fn a_moderate_shed_trims_the_preview_and_a_critical_one_goes_away() {
+    let mut m = ready(1, RenderAdjustments::NONE);
+    assert_eq!(m.on(Event::Shed(Shed::Moderate)), [Action::TrimPreview]);
+    assert_eq!(phase(&m), Some(Phase::Ready), "still drawing");
+    let tick = previews(&m.on(Event::Set(at(1.0))))[0].0;
+    let a = m.on(Event::Shed(Shed::Critical));
+    assert_eq!(a.first(), Some(&Action::FreeGpu));
+    assert_eq!(phase(&m), Some(Phase::Away));
+    // Away, a moderate shed has nothing to trim; the drag's value is kept.
+    assert!(m.on(Event::Shed(Shed::Moderate)).is_empty());
+    let upload = uploads(&m.on(Event::Back))[0];
+    assert!(shown(&m.on(Event::PreviewDrawn(tick))).is_empty(), "stale");
+    let a = m.on(Event::ReducedReady(upload));
+    assert_eq!(fulls(&a).iter().map(|f| f.1).collect::<Vec<_>>(), [1.0]);
+}
+
+#[test]
+fn a_moderate_shed_while_opening_or_away_does_nothing() {
+    let mut m = Machine::new();
+    m.on(Event::Open { key: key(1), value: at(0.0) });
+    assert!(m.on(Event::Shed(Shed::Moderate)).is_empty());
+    assert_eq!(phase(&m), Some(Phase::Opening));
+}

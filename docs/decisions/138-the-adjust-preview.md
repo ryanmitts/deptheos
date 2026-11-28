@@ -19,6 +19,8 @@ The budgets at 45 MP: a tick at fit in 16 ms; at 100% in 16 ms, or 33 ms with Te
 - **Fit, up to 50% zoom: the whole picture at the size shown, from the reduced copy.** The size is the picture's on screen, at most 2048 on the long side. The reduced copy (ADR-114) is resampled to it once for each size, and drawn in one fused pass.
 - **Region, past 50% zoom: the part on screen at full size, from the full-size source**, every slider, as one flat picture rather than tiles. It is that window of the full draw bit for bit, since a region draws as the whole picture does (ADR-135).
 
+While the device runs hot (iOS's serious or critical thermal state, `AdjustSession::set_hot`), a tick at fit is drawn at most `HOT_FIT_LONG` (1024) on its long side, a quarter of the pixels, and stretched on screen; past 50% it is unchanged, and the settled picture is drawn as always.
+
 Each tick is read back into one flat picture (`FlatPicture`): 8-bit pixels in the display's channel order, naming the stored pixels they cover and their color space, sRGB or a standard stack's own profile with Color Management off. Its buffer comes from a `FlatSlot` the app hands each replaced picture back to; on iOS the app reads it in place (ADR-139). A tick allocates none once the slot holds the two it needs, the picture on screen and the one being drawn.
 
 ### The fit tier keeps the settled picture's level

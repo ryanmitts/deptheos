@@ -155,10 +155,16 @@ pub enum MemoryShed {
 /// logged first.
 #[uniffi::export]
 pub fn shed_memory(level: MemoryShed) {
-    deptheos_app::engine::memory::shed(match level {
-        MemoryShed::Moderate => deptheos_app::engine::memory::Shed::Moderate,
-        MemoryShed::Critical => deptheos_app::engine::memory::Shed::Critical,
-    });
+    deptheos_app::engine::memory::shed(level.into());
+}
+
+impl From<MemoryShed> for deptheos_app::engine::memory::Shed {
+    fn from(level: MemoryShed) -> Self {
+        match level {
+            MemoryShed::Moderate => Self::Moderate,
+            MemoryShed::Critical => Self::Critical,
+        }
+    }
 }
 
 /// "footprint 812 MB, 2304 MB left", for the app's logs at each transition

@@ -10,7 +10,7 @@ use deptheos_render::{Adjustments, Draw, Reframe, Sharpening, Vignette, WhiteBal
 
 use super::*;
 use crate::adjust::histogram::{Counted, Histogram};
-use crate::adjust::preview::{Draft, FlatPicture, FlatSlot, Shown, read_flat};
+use crate::adjust::preview::{Draft, FlatPicture, FlatSlot, HOT_FIT_LONG, Shown, read_flat};
 use crate::runs::session::StackColor;
 
 const SIZE: [u32; 2] = [900, 600];
@@ -587,4 +587,17 @@ fn an_export_is_the_settled_picture() {
             crate::runs::session::readback::download_rgb(engine.gpu(), &texture, whole).unwrap();
         assert!(*exported == *settled, "{kind}");
     }
+}
+
+#[test]
+fn a_hot_device_draws_fit_ticks_smaller_and_leaves_regions_alone() {
+    let whole = Region::whole(8256, 5504);
+    let fit = Shown { zoom: 2048.0 / 8256.0, visible: whole };
+    let hot = fit.hot(8256, 5504);
+    assert_eq!(hot.zoom, HOT_FIT_LONG as f32 / 8256.0);
+    assert_eq!(hot.visible, whole);
+    let small = Shown { zoom: 0.05, visible: whole };
+    assert_eq!(small.hot(8256, 5504), small, "already smaller");
+    let region = Shown { zoom: 1.0, visible: Region { x: 0, y: 0, width: 2560, height: 1600 } };
+    assert_eq!(region.hot(8256, 5504), region);
 }

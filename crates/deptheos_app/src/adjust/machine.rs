@@ -40,6 +40,7 @@ use std::collections::HashMap;
 use std::fmt;
 
 use crate::RenderId;
+use crate::engine::memory::Shed;
 use crate::library::adjustments::RenderAdjustments;
 
 /// The most undo steps a render keeps; the oldest go first.
@@ -68,11 +69,16 @@ pub enum Event {
     Retry,
     /// Leave Adjust.
     Leave,
-    /// The app went to the background, or memory ran low: free the GPU
-    /// copies, keep the values.
+    /// The app went to the background: free the GPU copies, keep the
+    /// values.
     Away,
-    /// The app came back: make the reduced copy again.
+    /// The app came back, or memory is no longer short: make the reduced
+    /// copy again.
     Back,
+    /// Memory runs short: at [`Shed::Moderate`] the preview's own copies go
+    /// (remade by the next tick), at [`Shed::Critical`] all of them, as
+    /// [`Event::Away`].
+    Shed(Shed),
     /// The stored picture with its paint changed (its generation number
     /// moved): the reduced copy and the settled picture are stale.
     StoredChanged,
@@ -108,6 +114,9 @@ pub enum Action {
     UploadReduced(RequestId),
     /// Free the open render's GPU copies.
     FreeGpu,
+    /// Free the preview's copies at the size shown, keeping the source and
+    /// the reduced copy.
+    TrimPreview,
     /// Draw `value` from the reduced copy, at the view shown.
     DrawPreview {
         id: RequestId,
@@ -287,8 +296,9 @@ impl Pace {
 /// - Closed → Opening: [`Event::Open`].
 /// - Opening → Ready: its reduced copy in; → Failed: its upload failed.
 /// - Ready → Failed: a draw failed; Failed → Opening: [`Event::Retry`].
-/// - Opening, Ready, Failed → Away: [`Event::Away`]; Away → Opening:
-///   [`Event::Back`].
+/// - Opening, Ready, Failed → Away: [`Event::Away`], or a critical
+///   [`Event::Shed`]; Away → Opening: [`Event::Back`]. A moderate shed
+///   while ready trims the preview's copies and stays.
 /// - Ready, Opening → Opening: [`Event::StoredChanged`].
 /// - any open state → Leaving: [`Event::Leave`] or another render opened;
 ///   Leaving → Closed: its write and last full draw in.
@@ -513,7 +523,12 @@ impl Machine {
                 }
             }
             Event::Leave => self.leave(out),
-            Event::Away => match self.take() {
+            Event::Shed(Shed::Moderate) => {
+                if let State::Ready { .. } = self.state {
+                    out.push(Action::TrimPreview);
+                }
+            }
+            Event::Shed(Shed::Critical) | Event::Away => match self.take() {
                 State::Opening { open, .. } => {
                     out.push(Action::FreeGpu);
                     self.set_state(State::Away(open));

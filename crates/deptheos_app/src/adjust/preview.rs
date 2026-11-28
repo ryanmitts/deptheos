@@ -62,6 +62,23 @@ pub struct Shown {
     pub visible: Region,
 }
 
+/// The fit tier's long side while the device runs hot: a quarter of the
+/// pixels of [`FIT_LONG`].
+pub const HOT_FIT_LONG: u32 = 1024;
+
+impl Shown {
+    /// A tick of a `width` × `height` picture drawn smaller while the
+    /// device runs hot: at fit, at most [`HOT_FIT_LONG`] on its long side,
+    /// stretched on screen. Past [`REGION_ZOOM`] it is unchanged.
+    pub fn hot(self, width: u32, height: u32) -> Self {
+        let most = HOT_FIT_LONG as f32 / width.max(height) as f32;
+        match Tier::of(self.zoom) {
+            Tier::Fit => Self { zoom: self.zoom.min(most), ..self },
+            Tier::Region => self,
+        }
+    }
+}
+
 /// Whether a draw is a drag's or the settled picture's.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Draft {
@@ -145,6 +162,11 @@ impl FlatSlot {
         if free.len() < 3 {
             free.push(picture.pixels);
         }
+    }
+
+    /// Let go of the buffers handed back.
+    pub fn clear(&self) {
+        self.free.lock().unwrap_or_else(|e| e.into_inner()).clear();
     }
 
     /// How many buffers it has made.

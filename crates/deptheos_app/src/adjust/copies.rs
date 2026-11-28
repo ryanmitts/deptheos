@@ -78,6 +78,15 @@ impl GpuCopies {
         Ok(copies)
     }
 
+    /// Let go of the preview's copies at the sizes drawn and the region's
+    /// values, keeping the source, the reduced copy and the planes: the
+    /// next tick makes them again.
+    pub fn trim_preview(&mut self) {
+        self.fit = Fitted::default();
+        self.small = Fitted::default();
+        self.region = None;
+    }
+
     /// The generation they were made for: copies of another are stale.
     pub fn generation(&self) -> Generation {
         self.generation

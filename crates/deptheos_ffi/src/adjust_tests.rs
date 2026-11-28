@@ -262,3 +262,39 @@ fn adjust_views_and_panes_through_the_bindings() {
     let (a, b) = (result.to_stored(p), uncropped.to_stored(shown));
     assert!((a.x - b.x).abs() < 1e-9 && (a.y - b.y).abs() < 1e-9, "{a:?} {b:?}");
 }
+
+#[test]
+fn a_shed_frees_the_preview_or_every_copy_and_back_makes_them_again() {
+    let dir = tempfile::tempdir().unwrap();
+    let Some(engine) = engine(dir.path()) else { return };
+    let (result, render) = saved(&engine, dir.path(), &crate::new_stack_id());
+    let heard = Arc::new(Heard::default());
+    let session = engine.adjust_session(heard.clone(), 64);
+    let ready = |phase: AdjustPhase| {
+        while session.status().is_none_or(|s| s.phase != phase) {
+            std::thread::sleep(Duration::from_millis(5));
+        }
+    };
+    session.open(result, render.id).unwrap();
+    ready(AdjustPhase::Ready);
+
+    // A moderate shed keeps Adjust drawing; a hot device too.
+    session.shed(crate::MemoryShed::Moderate);
+    session.set_hot(true);
+    let at = heard.log.lock().unwrap().len();
+    session.set_slider(Slider::Exposure, 0.5);
+    let at = heard.wait_for(at, "preview");
+    session.commit();
+    let at = heard.wait_for(at, "settled");
+
+    // A critical one goes away, the value kept; back draws it again.
+    session.shed(crate::MemoryShed::Critical);
+    ready(AdjustPhase::Away);
+    session.set_slider(Slider::Exposure, 0.8);
+    session.commit();
+    session.back();
+    ready(AdjustPhase::Ready);
+    heard.wait_for(at, "settled");
+    assert_eq!(session.status().unwrap().value.get(Slider::Exposure), 0.8);
+    session.leave();
+}

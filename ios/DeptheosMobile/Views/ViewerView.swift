@@ -52,10 +52,10 @@ struct ViewerView: View {
         }
         .overlay {
             ZStack {
-                if !model.paint.active, !showsPhoto {
+                if model.viewing, !showsPhoto {
                     placeholder
                 }
-                if !model.paint.active, !model.panel.hidesControls {
+                if model.viewing, !model.panel.hidesControls {
                     controls
                         .transition(.opacity)
                 }
@@ -192,7 +192,7 @@ struct ViewerView: View {
     /// The photo itself, under the bars.
     @ViewBuilder
     private var photo: some View {
-        if model.paint.active {
+        if !model.viewing {
             Color.viewer
         } else if model.comparing, let display = model.result?.displayPane {
             CompareView(
@@ -375,7 +375,7 @@ struct ViewerView: View {
     /// On the result alone, with a frame to show.
     private var canHold: Bool {
         guard case .result = model.viewState else { return false }
-        return !model.paint.active && model.stacking == nil && model.result?.display != nil
+        return model.viewing && model.stacking == nil && model.result?.display != nil
             && model.sourcePreview?.image != nil
     }
 
@@ -428,7 +428,7 @@ struct ViewerView: View {
         return switch model.viewState {
         case .frame:
             model.shownContributionFrame?.pane ?? model.sourcePreview?.pane ?? frameStandIn
-        case .result, .compare: model.result?.displayPane ?? model.standIn.map(PanePicture.init)
+        case .result, .compare: model.resultPicture ?? model.standIn.map(PanePicture.init)
         case .map: model.shownLitMap?.pane ?? model.result?.mapPane
         }
     }

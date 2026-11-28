@@ -77,6 +77,7 @@ extension AppModel {
     }
 
     func startPaint(_ engine: Engine) {
+        paint.app = self
         paint.onPresented = { [weak self] id, painted in
             guard let self, let shown = result, shown.renderID == id, !paint.active else { return }
             // Nothing painted (reset, or unshowable, which was said): the
@@ -112,6 +113,7 @@ extension AppModel {
     /// layout is `PaintModel`'s memory.
     func startPainting() {
         guard canPaint, let result else { return }
+        stopAdjusting()
         setPanel(.closed)
         paint.open(
             result.stack, renderID: result.renderID, frame: selectedFile, standIn: result.display,

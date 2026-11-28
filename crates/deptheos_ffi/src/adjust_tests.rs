@@ -329,3 +329,25 @@ fn a_display_made_again_after_the_background_keeps_the_adjustments() {
     };
     assert!(mean(&made) > mean(&plain) + 20.0, "{} {}", mean(&made), mean(&plain));
 }
+
+#[test]
+fn the_crop_tools_turns_flips_and_drags_are_the_engines() {
+    use crate::crop::{
+        CropAspect, CropFrame, CropHandle, crop_aspect_turned, reframe_flipped, reframe_turned,
+    };
+    let none = Reframe::NONE;
+    assert_eq!(reframe_turned(none, true).turn, Turn::Quarter);
+    assert_eq!(reframe_turned(none, false).turn, Turn::ThreeQuarters);
+    assert_eq!(reframe_flipped(none, false).flip, Flip::Horizontal);
+    assert_eq!(
+        crop_aspect_turned(CropAspect::Ratio { width: 4, height: 5 }),
+        CropAspect::Ratio { width: 5, height: 4 }
+    );
+    let frame = CropFrame::new(400, 300, reframe_turned(none, true));
+    let whole = frame.area();
+    assert_eq!((whole.right, whole.bottom), (300.0, 400.0), "turned: shown 300 wide");
+    assert_eq!(frame.handle_at(whole, 0.0, 0.0, 10.0), Some(CropHandle::TopLeft));
+    let dragged = frame.drag(whole, CropHandle::TopLeft, 50.0, 50.0, CropAspect::Free);
+    assert_eq!((dragged.left, dragged.top), (50.0, 50.0));
+    assert!(frame.reframed(dragged).crop.is_some());
+}

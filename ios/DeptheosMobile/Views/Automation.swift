@@ -2,6 +2,8 @@ import CoreGraphics
 @preconcurrency import DeptheosEngine
 import SwiftUI
 
+private let automationLog = AppLog(category: "automation")
+
 /// Launch arguments that drive the app for simulator tests and screenshots
 /// (`-OpenCamera YES`, `-AddPath <path>`). Debug builds only.
 enum Automation {
@@ -79,7 +81,9 @@ enum Automation {
            model.history.renders.indices.contains(index) {
             model.setPanel(.closed)
             model.setScreen(.stacking)
+            automationLog.info("automation: opening render \(index)")
             await model.open(model.history.renders.reversed()[index])
+            automationLog.info("automation: render \(index) opened")
         }
         // `-Retouch YES`: retouch the result; `-RetouchStroke YES` then
         // paints one stroke across its middle.
@@ -112,6 +116,48 @@ enum Automation {
                     try? await Task.sleep(for: .seconds(1))
                     model.stopPainting()
                 }
+            }
+        }
+        // `-Adjust YES`: adjust the result (`-AdjustAfter n` seconds
+        // later); `-AdjustSet <slider>=<value>` then sets one and commits,
+        // `-AdjustCrop YES` opens the crop tool, `-AdjustTurn YES` turns it
+        // right, `-AdjustBefore YES` holds Before, `-AdjustDone YES` leaves.
+        if Automation.flag("Adjust") {
+            automationLog.info("automation: Adjust")
+            if let wait = Automation.integer("AdjustAfter") {
+                try? await Task.sleep(for: .seconds(wait))
+            }
+            model.startAdjusting()
+            try? await Task.sleep(for: .seconds(3))
+            if let set = Automation.string("AdjustSet"), let panel = model.adjust.panel {
+                let parts = set.split(separator: "=")
+                let all = panel.groups.flatMap(\.sliders)
+                if parts.count == 2, let value = Double(parts[1]),
+                   let info = all.first(where: { String(describing: $0.slider).lowercased() == parts[0].lowercased() }) {
+                    model.adjust.set(info.slider, to: value)
+                    model.adjust.commit()
+                }
+                try? await Task.sleep(for: .seconds(2))
+            }
+            if Automation.flag("AdjustTurn"), let value = model.adjust.value {
+                model.adjust.setReframe(reframeTurned(reframe: value.reframe(), right: true))
+                model.adjust.commit()
+                try? await Task.sleep(for: .seconds(2))
+            }
+            // `-AdjustSquare YES`: a square crop, then the sliders.
+            if Automation.flag("AdjustSquare"), let value = model.adjust.value, let stack = model.result?.stack {
+                let size = stack.storedSize
+                let frame = CropFrame(width: size.width, height: size.height, reframe: value.reframe())
+                let square = frame.shaped(area: frame.area(), aspect: .ratio(width: 1, height: 1))
+                model.adjust.setReframe(frame.reframed(area: square))
+                model.adjust.commit()
+                try? await Task.sleep(for: .seconds(2))
+            }
+            if Automation.flag("AdjustCrop") { model.view(.tool(tool: .crop)) }
+            if Automation.flag("AdjustBefore") { model.view(.holdBefore(held: true)) }
+            if Automation.flag("AdjustDone") {
+                try? await Task.sleep(for: .seconds(1))
+                model.stopAdjusting()
             }
         }
         // `-ShowLibrary YES`: back to the Library; `-ShowStacking YES`: the

@@ -128,6 +128,7 @@ extension AppModel {
         guard !ids.isEmpty, !busy, let (deletion, baseNow) = await history.delete(ids, base: base) else { return }
         let renderIDs = deletion.renders
         paint.remove(renderIDs)
+        if let adjusted = adjust.renderID, renderIDs.contains(adjusted) { stopAdjusting() }
         // The base was deleted: the newest left in its stack is, so Edited
         // and Revert still have one.
         if baseNow != base {
@@ -152,7 +153,7 @@ extension AppModel {
         guard let deletion = await history.deleteStacks(stacks) else { return }
         paint.remove(deletion.renders)
         if deletion.stacks.contains(stackID) {
-            stopPainting()
+            leaveMode()
             viewGeneration += 1
             setResult(nil)
             setPreviewLoad(.none)
@@ -326,7 +327,7 @@ extension AppModel {
     var libraryDeletable: LibraryDeletable {
         guard history.read == .read else { return .unread }
         if libraryIsEmpty { return .empty }
-        if busy || paint.active { return .busy }
+        if busy || !viewing { return .busy }
         return .ready(stacks: library(.all, query: "").count(.all), renders: history.renders.count)
     }
 
@@ -351,7 +352,7 @@ extension AppModel {
         }
         // As at a first launch, whatever stayed: what did is listed again.
         paint.remove(ids)
-        stopPainting()
+        leaveMode()
         viewGeneration += 1
         setResult(nil)
         setPreviewLoad(.none)

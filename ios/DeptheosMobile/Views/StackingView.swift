@@ -42,16 +42,23 @@ struct StackingView: View {
             } detail: {
                 detail
             }
-            .accessibilityHidden(model.paint.active)
-            .allowsHitTesting(!model.paint.active)
+            .accessibilityHidden(!model.viewing)
+            .allowsHitTesting(model.viewing)
 
-            if model.paint.active {
+            switch model.mode {
+            case .viewing:
+                EmptyView()
+            case .retouching:
                 RetouchSessionView()
+                    .transition(.opacity)
+                    .zIndex(2)
+            case .adjusting:
+                AdjustSessionView()
                     .transition(.opacity)
                     .zIndex(2)
             }
         }
-        .animation(.snappy(duration: 0.28), value: model.paint.active)
+        .animation(.snappy(duration: 0.28), value: model.viewing)
         // Stacking is dark in either mode, like the photo's backdrop; light
         // glass over it turns muddy gray. Its own views only, so the Library
         // under it stays as it is during the slide; each sheet asks for dark
@@ -72,7 +79,7 @@ struct StackingView: View {
             stackingLog.debug(
                 "size class: \(String(describing: old), privacy: .public) → \(String(describing: new), privacy: .public), panel \(String(describing: model.panel), privacy: .public)")
             let event = StackingColumns.ColumnEvent.sizeClass(
-                new, panel: model.panel, paint: model.paint.active,
+                new, panel: model.panel, paint: !model.viewing,
                 onStacking: model.screen == .stacking, renderInfo: model.renderInfo != nil)
             if let panel = columns.on(event) { model.setPanel(panel) }
         }
@@ -89,7 +96,7 @@ struct StackingView: View {
         // At compact width Render Info is pushed onto the sources' renders
         // (`SourcesSidebar`), not a sheet over the sheet.
         .onChange(of: model.renderInfo) { _, id in
-            guard compact, id != nil, !model.paint.active else { return }
+            guard compact, id != nil, model.viewing else { return }
             if case .sources(.renders, _) = model.panel { return }
             model.setPanel(.sources(.renders, model.panel.height ?? .low))
         }
@@ -100,9 +107,10 @@ struct StackingView: View {
             if case .sources(.frames, _) = model.panel { return }
             model.setPanel(.sources(.frames, model.panel.height ?? .tall))
         }
-        // Entering Retouch closes any open Stack Settings popover or sheet.
-        .onChange(of: model.paint.active) { _, active in
-            if active {
+        // Entering Retouch or Adjust closes any open Stack Settings popover
+        // or sheet.
+        .onChange(of: model.viewing) { _, viewing in
+            if !viewing {
                 columns.showSettingsPopover = false
                 if model.panel.isOpen { model.setPanel(.closed) }
             }
@@ -170,7 +178,7 @@ struct StackingView: View {
         })
         .renameStackAlert($renaming, name: $name)
         .toolbar { resultToolbar }
-        .modifier(StackInVerticalBar(shown: !model.paint.active))
+        .modifier(StackInVerticalBar(shown: model.viewing))
         // Light status bar and titles over the dark backdrop.
         .toolbarColorScheme(.dark, for: .navigationBar, .bottomBar)
         .modifier(VerticalBarEdgeReader())
@@ -275,6 +283,10 @@ struct StackingView: View {
     private var secondaryItems: some ToolbarContent {
         ToolbarItem(placement: .primaryAction) {
             RetouchButton()
+        }
+        .seldomUsed()
+        ToolbarItem(placement: .primaryAction) {
+            AdjustButton()
         }
         .seldomUsed()
         ToolbarItem(placement: .primaryAction) {

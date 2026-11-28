@@ -49,7 +49,7 @@ pub struct Pictured {
 }
 
 impl Pictured {
-    fn of(picture: Arc<Picture>, base_side: u32) -> Self {
+    pub(crate) fn of(picture: Arc<Picture>, base_side: u32) -> Self {
         let base = if base_side == 0 { None } else { picture.base(base_side) };
         Self { picture, base }
     }

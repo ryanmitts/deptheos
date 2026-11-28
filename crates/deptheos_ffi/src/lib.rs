@@ -23,6 +23,7 @@ uniffi::setup_scaffolding!();
 mod adjust;
 mod batch;
 mod bench;
+mod crop;
 mod decode;
 mod engine;
 mod error;

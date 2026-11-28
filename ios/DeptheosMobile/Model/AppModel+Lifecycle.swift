@@ -35,6 +35,7 @@ extension AppModel {
     /// (`leaveForeground`) and refused until back (`enteredForeground`).
     func enteredBackground() {
         leaveForeground()
+        adjust.away()
         saveList()
         let background = BackgroundTask("Save on leaving")
         let engine = engine
@@ -68,6 +69,14 @@ extension AppModel {
         stateLog.info("memory \(String(describing: level), privacy: .public)\(stackRuns ? " while stacking" : ""): \(memoryReading(), privacy: .public); dropping thumbnails out of view")
         history.shedThumbnails()
         if stackRuns || level == .critical { fitPictures() }
+        adjust.shed(level)
+    }
+
+    /// The memory pressure is over: Adjust's copies are made again if a
+    /// critical shed took them.
+    func memoryNormal() {
+        stateLog.info("memory normal: \(memoryReading(), privacy: .public)")
+        if UIApplication.shared.applicationState != .background { adjust.back(engine) }
     }
 
     /// iOS took back the background time: in the background, GPU work
@@ -113,6 +122,7 @@ extension AppModel {
         askStoppedAgain()
         mapLighter.askAgain()
         paint.askStoppedAgain()
+        adjust.back(engine)
         requestFullFrame()
         if history.read == .unread, engine != nil { Task { await history.refresh() } }
         if let run = batchRun {

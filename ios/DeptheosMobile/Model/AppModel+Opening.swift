@@ -97,7 +97,7 @@ extension AppModel {
     /// fix and stack again. The stack left keeps its working version.
     func retry(_ failure: FailureInfo) async {
         guard !busy else { return }
-        stopPainting()
+        leaveMode()
         await switchStack(
             to: failure.stack, opening: .failure(failure.id),
             fallback: failureWorking(failure: failure)
@@ -141,7 +141,7 @@ extension AppModel {
             await land(on: base, request: generation)
             return
         }
-        stopPainting()
+        leaveMode()
         await switchStack(to: stack, opening: .stack(stack, landing: nil), fallback: nil) { request in
             if let base = baseRender?.id {
                 expectLanding(landing(base), generation: request)
@@ -246,12 +246,12 @@ extension AppModel {
                 backToResult()
                 return
             }
-            stopPainting()
+            leaveMode()
             await showResult(of: render.id)
             return
         }
         guard !busy else { return }
-        stopPainting()
+        leaveMode()
         let id = render.id
         await switchStack(to: render.stack, opening: .render(id), fallback: nil) { request in
             await showResult(of: id, continuing: request)
@@ -395,7 +395,9 @@ extension AppModel {
         }
         setResult(ShownResult(
             stack: stack, renderID: renderID, display: display, plainDisplay: display, map: map,
-            fullSize: CGSize(width: Int(stack.width()), height: Int(stack.height())),
+            // Turned as handed over.
+            fullSize: PanePicture.size(of: plainPicture)
+                ?? CGSize(width: Int(stack.width()), height: Int(stack.height())),
             displayPicture: DisplayPicture(plainPicture), mapPicture: mapPicture,
             legend: ShownResult.legend(colors, frames: frames), leftOut: leftOut, stacked: Set(frames),
             contributions: contributions, lease: lease))

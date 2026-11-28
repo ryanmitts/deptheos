@@ -85,6 +85,7 @@ of a record, cites only records in this folder.
 - [168](168-website-hosting.md) The pages are a Cloudflare Worker's static assets, the media is in an R2 bucket under content hashes; deployed by hand
 - [169](169-ios-layout-reads-flow-one-way.md) On iOS, a measured value never sizes or moves the view it was measured from
 - [170](170-ios-backup-keeps-the-library-but-recently-deleted.md) iOS backs up the Library, all but Recently Deleted
+- [171](171-ios-adjust-screens.md) iOS Adjust is a mode beside Retouch, over Stacking, with the sliders under the photo or in a column, and the crop drawn as a window
 
 ## Earlier records
 

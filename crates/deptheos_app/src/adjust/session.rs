@@ -318,6 +318,30 @@ impl AdjustSession {
         self.inner.on(Event::Back);
     }
 
+    /// Before: `key` as stored, with its paint and none of its
+    /// adjustments, turned and flipped as `reframe` is (its crop is the
+    /// app's). Paint that can't be read leaves it unpainted. Blocks: call
+    /// it off the UI thread.
+    pub fn before(
+        &self,
+        key: &RenderId,
+        stack: &Arc<CompletedStack>,
+        reframe: Reframe,
+    ) -> crate::Result<PresentedImage> {
+        let painted = match self.inner.painted(key, stack).map(|rx| rx.recv()) {
+            Some(Ok(Ok(Some(pixels)))) => Some(pixels),
+            Some(Ok(Err(e))) => {
+                tracing::warn!("adjust: Before drawn without its paint: {e}");
+                None
+            }
+            _ => None,
+        };
+        let pixels = painted.as_deref().unwrap_or(&stack.pixels);
+        let image = self.inner.engine.present_pixels(Look::stored(stack), pixels)?;
+        let picture = Size { width: stack.width, height: stack.height };
+        Ok(Orient::of(reframe, picture).presented(image))
+    }
+
     /// Whether the device runs hot (a serious or critical thermal state):
     /// a drag's ticks at fit are then drawn smaller.
     pub fn set_hot(&self, hot: bool) {

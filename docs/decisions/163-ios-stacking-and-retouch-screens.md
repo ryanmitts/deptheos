@@ -2,7 +2,7 @@
 
 ## Status
 
-Accepted. The deck along the photo, the focus rail, the view menu, the viewer's view (the engine's) and Retouch's source with its lit depth map are ADR-149's; the change line and Revert are ADR-142's; Copy Frames into Deptheos is ADR-145's; the paint session's scrubs and opens are ADR-148's.
+Accepted. The deck along the photo, the focus rail, the view menu, the viewer's view (the engine's) and Retouch's source with its lit depth map are ADR-149's; the change line and Revert are ADR-142's; Copy Frames into Deptheos is ADR-145's; the paint session's scrubs and opens are ADR-148's. Retouch and Adjust are cases of one mode, and Adjust's screen is ADR-171's.
 
 ## Context
 

@@ -106,7 +106,7 @@ extension UIScrollView {
         contentSize = size
     }
 
-    /// Double tap: fit to 100% centered on `point` (in image pixels), any
+    /// Double tap: fit to 100% centered on `point` (in the zoomed view), any
     /// other zoom back to fit. A picture whose 100% is hardly past fit goes
     /// to twice fit instead.
     func toggleActualPixels(at point: CGPoint) {
@@ -160,7 +160,9 @@ extension UIScrollView {
         let rect = CGRect(
             x: fraction.minX * size.width, y: fraction.minY * size.height,
             width: fraction.width * size.width, height: fraction.height * size.height)
-        zoom(to: rect, animated: false)
+        // In what zooms, which may hold `view` offset (a crop's window).
+        let zooming = delegate?.viewForZooming?(in: self) ?? view
+        zoom(to: view.convert(rect, to: zooming), animated: false)
     }
 
     /// The system's blur where the photo meets a bar: none over a photo.

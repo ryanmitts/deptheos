@@ -378,7 +378,7 @@ extension AppModel {
         stateLog.debug("stack: running")
         // So the result Retouch closes on isn't given its full-size
         // picture again (`wantsPictures`).
-        stopPainting()
+        leaveMode()
         // No auto-lock while stacking: the background may stop the GPU.
         keepAwake(.stack, true)
         defer { keepAwake(.stack, false) }

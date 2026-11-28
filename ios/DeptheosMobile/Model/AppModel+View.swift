@@ -35,7 +35,7 @@ extension AppModel {
     var compareState: ViewCompare? { viewState.compare }
 
     var comparing: Bool {
-        compareState != nil && result?.display != nil && stacking == nil && !paint.active
+        compareState != nil && result?.display != nil && stacking == nil && viewing
     }
 
     var showsFrameAlone: Bool {
@@ -49,7 +49,7 @@ extension AppModel {
     /// The render shown is on screen, alone or as a compare's result side;
     /// its row is checked in the menus and the home control lit.
     var showsRenderShown: Bool {
-        guard result?.display != nil, stacking == nil, !paint.active else { return false }
+        guard result?.display != nil, stacking == nil, viewing else { return false }
         return viewState.isResultAlone || comparing
     }
 
@@ -74,7 +74,7 @@ extension AppModel {
 
     /// The view says the frame in view supplied part of the result.
     var canShowContribution: Bool {
-        contributionToggle?.canChange == true && stacking == nil && !paint.active
+        contributionToggle?.canChange == true && stacking == nil && viewing
     }
 
     /// Shown over the frame in view, or, over a frame that supplied
@@ -337,7 +337,7 @@ extension AppModel {
     /// frame alone, or the result alone while held. Not a compare, the
     /// depth map or Retouch.
     var needsSourcePreview: Bool {
-        guard !paint.active else { return false }
+        guard viewing else { return false }
         switch viewState {
         case .frame, .result: return true
         case .compare, .map: return false
@@ -557,7 +557,7 @@ extension AppModel {
         for case .show(let path) in answer.actions {
             selectedFile = path
         }
-        setView(answer.now, contribution: answer.contribution)
+        setView(answer.now, contribution: answer.contribution, adjust: answer.adjust, pane: answer.pane)
         for action in answer.actions {
             switch action {
             case .light(let frame, let token): light(frame, token: token)
@@ -751,7 +751,7 @@ extension AppModel {
     /// applies only while the view holds its request, or, overtaken, as the
     /// image held meanwhile (`CompareLoad`).
     func refreshCompare() {
-        guard stacking == nil, !paint.active, let result, result.display != nil else { return }
+        guard stacking == nil, viewing, let result, result.display != nil else { return }
         let id = ObjectIdentifier(result.stack)
         let source: CompareSource
         let load: CompareLoad

@@ -1,5 +1,6 @@
 import SwiftUI
 import UIKit
+@preconcurrency import DeptheosEngine
 
 /// A picture in a scroll view, a point per full-size pixel (`imageSize`),
 /// so 100% is a zoom scale of one over the screen scale: the viewer's panes
@@ -9,7 +10,10 @@ import UIKit
 /// others in `sync`, and tells a subclass where it settled
 /// (`reportOwnZoom`).
 class TiledZoomView: UIScrollView, UIScrollViewDelegate {
-    /// A point per image pixel: touches in it are image coordinates.
+    /// What zooms: the part of the picture shown (`shownWindow`), clipping it.
+    let windowView = UIView()
+    /// A point per image pixel: touches in it are image coordinates. Inside
+    /// `windowView`, placed so only the window shows.
     let pictureView = TiledPictureView()
     /// Whole or left of Split's divider: its own picture, stretched over
     /// the same full size, tiled the same.
@@ -17,8 +21,11 @@ class TiledZoomView: UIScrollView, UIScrollViewDelegate {
     private let splitMask = CALayer()
     /// A fraction of the width; `nil` when the cover, if any, is whole.
     private var split: CGFloat?
-    /// In image pixels: the content size at zoom 1; zero before one.
+    /// In image pixels: the picture's size at zoom 1; zero before one.
     private(set) var imageSize = CGSize.zero
+    /// In image pixels: the part shown and fitted, a render's crop (ADR-171),
+    /// else the whole picture. The content size at zoom 1.
+    private(set) var shownWindow = CGRect.zero
     private(set) weak var sync: ZoomSync?
     /// What the controls cover at the bottom past the safe area.
     private(set) var below = Below.row(0)
@@ -70,7 +77,7 @@ class TiledZoomView: UIScrollView, UIScrollViewDelegate {
         self.extraChromeInsets = extraInsets
         self.controlsHidden = controlsHidden
         guard imageSize != .zero, bounds.width > 0 else { return }
-        keepZoomRange(fitting: imageSize, fitInsets: fitInsets, panMargins: panMargins)
+        keepZoomRange(fitting: shownWindow.size, fitInsets: fitInsets, panMargins: panMargins)
         updateSplitMask()
         updateTiles()
     }
@@ -83,7 +90,9 @@ class TiledZoomView: UIScrollView, UIScrollViewDelegate {
         decelerationRate = .fast
         contentInsetAdjustmentBehavior = .never
         hideEdgeEffects()
-        addSubview(pictureView)
+        windowView.clipsToBounds = true
+        addSubview(windowView)
+        windowView.addSubview(pictureView)
         // Stretched over full size: magnified pixels stay sharp, reduced
         // ones smoothed.
         coverView.layer.magnificationFilter = .nearest
@@ -104,12 +113,17 @@ class TiledZoomView: UIScrollView, UIScrollViewDelegate {
         sync.add(self)
     }
 
-    /// Lay out and fit at `size`, the cover over the same.
-    func layOut(at size: CGSize) {
+    /// Lay out and fit at `size`, the cover over the same, showing
+    /// `window` of it (the whole when `nil`).
+    func layOut(at size: CGSize, window: CGRect? = nil) {
         imageSize = size
-        layOutZoomed(pictureView, at: size)
-        withoutAnimation { coverView.frame = CGRect(origin: .zero, size: size) }
-        zoomToFit(size, fitInsets: fitInsets, panMargins: panMargins)
+        self.shownWindow = window ?? CGRect(origin: .zero, size: size)
+        layOutZoomed(windowView, at: self.shownWindow.size)
+        withoutAnimation {
+            pictureView.frame = CGRect(origin: CGPoint(x: -self.shownWindow.minX, y: -self.shownWindow.minY), size: size)
+            coverView.frame = CGRect(origin: .zero, size: size)
+        }
+        zoomToFit(self.shownWindow.size, fitInsets: fitInsets, panMargins: panMargins)
     }
 
     /// Left of `split` (a fraction of the width) or whole; `nil` uncovers.
@@ -152,7 +166,7 @@ class TiledZoomView: UIScrollView, UIScrollViewDelegate {
     /// (a frame and a cropped result, a preview), so scale and offset
     /// aren't copied.
     func follow(_ other: TiledZoomView) {
-        let otherSize = other.imageSize
+        let otherSize = other.shownWindow.size
         guard imageSize != .zero, otherSize != .zero, bounds.width > 0,
             other.bounds.width > 0, other.minimumZoomScale > 0
         else { return }
@@ -168,12 +182,12 @@ class TiledZoomView: UIScrollView, UIScrollViewDelegate {
         }
         if abs(zoomScale - target) > 0.0001 { zoomScale = target }
         // The image point at the other's center, as fractions of its image.
-        let center = other.convert(CGPoint(x: other.bounds.midX, y: other.bounds.midY), to: other.pictureView)
+        let center = other.convert(CGPoint(x: other.bounds.midX, y: other.bounds.midY), to: other.windowView)
         let fx = center.x / otherSize.width
         let fy = center.y / otherSize.height
         let offset = CGPoint(
-            x: fx * imageSize.width * zoomScale - bounds.width / 2,
-            y: fy * imageSize.height * zoomScale - bounds.height / 2)
+            x: fx * shownWindow.width * zoomScale - bounds.width / 2,
+            y: fy * shownWindow.height * zoomScale - bounds.height / 2)
         let clamped = clampedOffset(offset)
         if abs(clamped.x - contentOffset.x) > 0.5 || abs(clamped.y - contentOffset.y) > 0.5 {
             contentOffset = clamped
@@ -191,7 +205,7 @@ class TiledZoomView: UIScrollView, UIScrollViewDelegate {
         super.safeAreaInsetsDidChange()
         if safeAreaInsets != lastLayoutSafeArea {
             lastLayoutSafeArea = safeAreaInsets
-            keepZoomRange(fitting: imageSize, fitInsets: fitInsets, panMargins: panMargins)
+            keepZoomRange(fitting: shownWindow.size, fitInsets: fitInsets, panMargins: panMargins)
             updateSplitMask()
             updateTiles()
         }
@@ -202,7 +216,7 @@ class TiledZoomView: UIScrollView, UIScrollViewDelegate {
         if bounds.size != lastLayoutBounds || safeAreaInsets != lastLayoutSafeArea {
             lastLayoutBounds = bounds.size
             lastLayoutSafeArea = safeAreaInsets
-            keepZoomRange(fitting: imageSize, fitInsets: fitInsets, panMargins: panMargins)
+            keepZoomRange(fitting: shownWindow.size, fitInsets: fitInsets, panMargins: panMargins)
         }
         settleZoom()
         updateSplitMask()
@@ -243,7 +257,7 @@ class TiledZoomView: UIScrollView, UIScrollViewDelegate {
 
     // MARK: UIScrollViewDelegate
 
-    func viewForZooming(in scrollView: UIScrollView) -> UIView? { pictureView }
+    func viewForZooming(in scrollView: UIScrollView) -> UIView? { windowView }
 
     func scrollViewDidZoom(_ scrollView: UIScrollView) {
         centerContent(fitInsets: fitInsets, panMargins: panMargins)
@@ -343,6 +357,13 @@ struct ZoomableImage: UIViewRepresentable {
     /// At fractions of the picture: `true` when it did something, else the
     /// tap toggles the controls.
     var onImageTap: ((CGPoint) -> Bool)?
+    /// Adjust's drag picture over the part it covers.
+    var adjustOverlay: AdjustOverlay?
+    /// As it changes: screen pixels per picture pixel, and the part of the
+    /// picture in sight, in its pixels (Adjust's next preview).
+    var onView: ((CGFloat, CGRect) -> Void)?
+    /// Adjust's crop tool over the uncropped picture.
+    var crop: CropTool?
 
     func makeUIView(context: Context) -> ZoomingScrollView {
         let view = ZoomingScrollView()
@@ -359,7 +380,10 @@ struct ZoomableImage: UIViewRepresentable {
         view.onHold = onHold
         view.onTap = context.environment.viewerTap?.perform
         view.onImageTap = onImageTap
+        view.onView = onView
         view.show(picture, keepingFrame: keepsFrame)
+        view.showOverlay(adjustOverlay)
+        view.showCrop(crop)
         // The overlay only with a divider to show it left of.
         view.cover(with: split == nil ? nil : overlay, split: split)
         view.requestFit(fitRequest)
@@ -399,6 +423,17 @@ final class ZoomingScrollView: TiledZoomView {
     var onHold: ((Bool) -> Void)? {
         didSet { hold.isEnabled = onHold != nil }
     }
+    var onView: ((CGFloat, CGRect) -> Void)?
+    /// Adjust's drag picture, over the tiles and the cover.
+    private let overlayLayer = CALayer()
+    /// Adjust's crop tool, over everything.
+    private let cropMark = CropMarkView()
+    private lazy var cropDrag = CropDrag(self)
+    /// The handle under the pointer, for its cursor.
+    var cropHover: CropHandle? {
+        didSet { if cropHover != oldValue { pointer.invalidate() } }
+    }
+    private lazy var pointer = UIPointerInteraction(delegate: self)
 
     override init(frame: CGRect) {
         super.init(frame: frame)
@@ -406,6 +441,14 @@ final class ZoomingScrollView: TiledZoomView {
         // ones smoothed.
         pictureView.layer.magnificationFilter = .nearest
         pictureView.layer.minificationFilter = .trilinear
+        overlayLayer.isHidden = true
+        overlayLayer.zPosition = 0.75
+        overlayLayer.magnificationFilter = .linear
+        overlayLayer.minificationFilter = .trilinear
+        pictureView.layer.addSublayer(overlayLayer)
+        cropMark.isHidden = true
+        cropMark.layer.zPosition = 2
+        pictureView.addSubview(cropMark)
         for (layer, color) in [(ghostDark, UIColor.black), (ghostLight, .white)] {
             layer.fillColor = nil
             layer.strokeColor = color.withAlphaComponent(0.6).cgColor
@@ -448,14 +491,20 @@ final class ZoomingScrollView: TiledZoomView {
     /// `TiledZoomView.follow` does.
     func show(_ picture: PanePicture, keepingFrame: Bool = false) {
         let image = picture.base
-        guard image !== shownImage || picture.source !== shownSource || picture.size != imageSize else { return }
+        let window = picture.window ?? CGRect(origin: .zero, size: picture.size)
+        guard image !== shownImage || picture.source !== shownSource || picture.size != imageSize
+            || window != self.shownWindow
+        else { return }
         shownImage = image
         shownSource = picture.source
         let size = picture.size
-        if size != imageSize {
-            // Where the view is in the image shown before, when zoomed in.
+        if size != imageSize || window != self.shownWindow {
+            // Where the view is in the image shown before, when zoomed in. A
+            // new window of the same picture keeps the point in the middle
+            // (the crop put on or taken off).
+            let sameSize = size == imageSize
             var kept: (relative: CGFloat, center: CGPoint)?
-            if keepingFrame, imageSize != .zero, bounds.width > 0, minimumZoomScale > 0,
+            if keepingFrame || sameSize, imageSize != .zero, bounds.width > 0, minimumZoomScale > 0,
                zoomScale > fitZoomScale * 1.0001 {
                 let center = convert(CGPoint(x: bounds.midX, y: bounds.midY), to: pictureView)
                 kept = (
@@ -465,13 +514,13 @@ final class ZoomingScrollView: TiledZoomView {
             // The base alone until laid out: tiles are asked only once in
             // their geometry.
             pictureView.show(base: image, source: nil)
-            layOut(at: size)
+            layOut(at: size, window: window)
             if let kept {
                 zoomScale = min(fitZoomScale * kept.relative, maximumZoomScale)
                 centerContent(fitInsets: fitInsets, panMargins: panMargins)
                 let offset = CGPoint(
-                    x: kept.center.x * size.width * zoomScale - bounds.width / 2,
-                    y: kept.center.y * size.height * zoomScale - bounds.height / 2)
+                    x: (kept.center.x * size.width - window.minX) * zoomScale - bounds.width / 2,
+                    y: (kept.center.y * size.height - window.minY) * zoomScale - bounds.height / 2)
                 contentOffset = clampedOffset(offset)
                 reportOwnZoom()
             }
@@ -479,6 +528,37 @@ final class ZoomingScrollView: TiledZoomView {
         }
         pictureView.show(base: image, source: picture.source)
         updateTiles()
+    }
+
+    /// Over the part of the picture it covers; `nil` hides it.
+    func showOverlay(_ overlay: AdjustOverlay?) {
+        withoutAnimation {
+            overlayLayer.isHidden = overlay == nil
+            overlayLayer.contents = overlay?.image
+            if let overlay { overlayLayer.frame = overlay.covers }
+        }
+    }
+
+    /// The crop tool, or `nil` outside it.
+    func showCrop(_ tool: CropTool?) {
+        if tool != nil, pointer.view == nil { addInteraction(pointer) }
+        cropDrag.tool = tool
+        cropDrag.pan.isEnabled = tool != nil
+        cropMark.frame = CGRect(origin: .zero, size: imageSize)
+        cropMark.show(tool?.area, zoom: zoomScale)
+    }
+
+    override func zoomChanged() {
+        if ghost != nil { updateGhost() }
+        if !cropMark.isHidden { cropMark.show(cropDrag.tool?.area, zoom: zoomScale) }
+    }
+
+    override func updateTiles() {
+        super.updateTiles()
+        guard let onView, bounds.width > 0, imageSize != .zero else { return }
+        let visible = convert(bounds, to: pictureView).intersection(CGRect(origin: .zero, size: imageSize))
+        guard !visible.isNull, visible.width > 0 else { return }
+        onView(zoomScale * screenPixelScale, visible)
     }
 
     /// When `request` is new.
@@ -517,9 +597,6 @@ final class ZoomingScrollView: TiledZoomView {
         updateGhost()
     }
 
-    override func zoomChanged() {
-        if ghost != nil { updateGhost() }
-    }
 
     /// The same width on screen at any zoom.
     private func updateGhost() {
@@ -563,6 +640,24 @@ final class ZoomingScrollView: TiledZoomView {
 
     /// Fit ↔ 100% at the point tapped (`toggleActualPixels`).
     @objc private func toggleZoom(_ tap: UITapGestureRecognizer) {
-        toggleActualPixels(at: tap.location(in: pictureView))
+        toggleActualPixels(at: tap.location(in: windowView))
+    }
+}
+
+extension ZoomingScrollView: UIPointerInteractionDelegate {
+    /// Over a crop handle, a cursor of the way it drags.
+    func pointerInteraction(_ interaction: UIPointerInteraction, styleFor region: UIPointerRegion) -> UIPointerStyle? {
+        switch cropHover {
+        case nil: return nil
+        case .inside: return UIPointerStyle(shape: .path(UIBezierPath(ovalIn: CGRect(x: -6, y: -6, width: 12, height: 12))))
+        case .left, .right: return UIPointerStyle(shape: .verticalBeam(length: 18), constrainedAxes: [])
+        case .top, .bottom: return UIPointerStyle(shape: .horizontalBeam(length: 18), constrainedAxes: [])
+        case .topLeft, .topRight, .bottomLeft, .bottomRight:
+            return UIPointerStyle(shape: .roundedRect(CGRect(x: -7, y: -7, width: 14, height: 14), radius: 2))
+        }
+    }
+
+    func pointerInteraction(_ interaction: UIPointerInteraction, regionFor request: UIPointerRegionRequest, defaultRegion: UIPointerRegion) -> UIPointerRegion? {
+        cropHover.map { UIPointerRegion(rect: bounds, identifier: "\($0)" as NSString) }
     }
 }

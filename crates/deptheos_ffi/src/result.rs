@@ -138,6 +138,9 @@ pub struct StackResult {
     /// The render it is in the Library, once saved or loaded: its export
     /// draws under that render's adjustments.
     saved: std::sync::OnceLock<(Arc<History>, RenderId)>,
+    /// The reframe its pictures were handed over under, turned and
+    /// flipped; the app draws the crop.
+    reframe: deptheos_render::Reframe,
 }
 
 /// A result's display and map levels, full size down: for 44 MP about
@@ -163,7 +166,7 @@ enum Displays {
 
 impl StackResult {
     pub(crate) fn new(engine: Arc<AppEngine>, presented: PresentedStack) -> Arc<Self> {
-        let PresentedStack { stack, display, map, .. } = presented;
+        let PresentedStack { stack, display, map, reframe } = presented;
         Arc::new(Self {
             engine,
             stack: Arc::new(stack),
@@ -172,6 +175,7 @@ impl StackResult {
                 map: map.map(Arc::new),
             }),
             saved: std::sync::OnceLock::new(),
+            reframe,
         })
     }
 
@@ -190,6 +194,7 @@ impl StackResult {
             stack: Arc::new(stack),
             displays: Mutex::new(Displays::Released),
             saved: std::sync::OnceLock::new(),
+            reframe: deptheos_render::Reframe::NONE,
         })
     }
 
@@ -301,6 +306,13 @@ pub fn running_legend(total: u32, taken: u32, reversed: bool) -> Vec<Option<Lege
 
 #[uniffi::export]
 impl StackResult {
+    /// The reframe its display and map were handed over under: they come
+    /// turned and flipped, and the viewer's result pane draws the crop as
+    /// a window (`PaneFraming`).
+    pub fn reframe(&self) -> deptheos_render::Reframe {
+        self.reframe
+    }
+
     /// The frames left out and why, then any load notes; `None` when
     /// nothing.
     pub fn notice(&self) -> Option<String> {

@@ -4,6 +4,107 @@
     " · " : {
       "comment" : "The separator between the items of a line of compact metadata, such as 'Pyramid · 24 of 30 frames'. Spaces included."
     },
+    "%u:%u" : {
+      "comment" : "Adjust's Crop tool: a crop shape. The placeholders are its sides, as in 4:5.",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "%1$u:%2$u"
+          }
+        }
+      }
+    },
+    "Adjust" : {
+      "comment" : "Adjust's tool picker: the sliders."
+    },
+    "Adjust picks up where it was when you're back" : {
+      "comment" : "Over Adjust's sliders while the app is away and Adjust has let go of the GPU."
+    },
+    "Adjust the result's light, color, crop and turn" : {
+      "comment" : "Pointer tooltip of the Adjust button."
+    },
+    "Adjusting" : {
+      "comment" : "The title in Adjust, when the render's number isn't known."
+    },
+    "Adjusting #%u" : {
+      "comment" : "The title in Adjust. The placeholder is the number of the render being adjusted."
+    },
+    "Before" : {
+      "comment" : "Adjust: held, the photo shows without its adjustments."
+    },
+    "Copy Adjustments" : {
+      "comment" : "Menu item: copies the adjustments of the render shown, to paste onto another."
+    },
+    "Crop" : {
+      "comment" : "Adjust's tool picker: crop, turn and flip."
+    },
+    "Done Adjusting" : {
+      "comment" : "Menu bar item in Adjust: leaves it (key A)."
+    },
+    "Flip Horizontal" : {
+      "comment" : "Adjust's Crop tool: mirrors the photo left to right."
+    },
+    "Flip Vertical" : {
+      "comment" : "Adjust's Crop tool: mirrors the photo top to bottom."
+    },
+    "Free" : {
+      "comment" : "Adjust's Crop tool: the crop takes any shape."
+    },
+    "Highlights clipped" : {
+      "comment" : "VoiceOver value of Adjust's histogram."
+    },
+    "Histogram" : {
+      "comment" : "VoiceOver label of Adjust's histogram."
+    },
+    "Hold to see the render without its adjustments" : {
+      "comment" : "Pointer tooltip of Adjust's Before button."
+    },
+    "Nothing clipped" : {
+      "comment" : "VoiceOver value of Adjust's histogram."
+    },
+    "Opening the render…" : {
+      "comment" : "Over Adjust's sliders while the render opens."
+    },
+    "Paste Adjustments" : {
+      "comment" : "Menu item: sets the copied sliders on the render shown, its crop kept."
+    },
+    "Reset All" : {
+      "comment" : "Adjust menu button: every slider back to its start, as one undoable change."
+    },
+    "Reset Crop" : {
+      "comment" : "Adjust's Crop tool: the whole photo, unturned and unflipped."
+    },
+    "Shadows and highlights clipped" : {
+      "comment" : "VoiceOver value of Adjust's histogram."
+    },
+    "Shadows clipped" : {
+      "comment" : "VoiceOver value of Adjust's histogram."
+    },
+    "Swap Width and Height" : {
+      "comment" : "Adjust's Crop tool: turns the crop's shape, 4:5 to 5:4."
+    },
+    "Tool" : {
+      "comment" : "Adjust: picks between the sliders and Crop."
+    },
+    "Touch and hold to see the photo without its adjustments" : {
+      "comment" : "VoiceOver hint on Adjust's Before button."
+    },
+    "Try Again" : {
+      "comment" : "Adjust: opens the render again after a failure."
+    },
+    "Turn Left" : {
+      "comment" : "Adjust's Crop tool: a quarter turn counterclockwise."
+    },
+    "Turn Right" : {
+      "comment" : "Adjust's Crop tool: a quarter turn clockwise."
+    },
+    "White Balance Eyedropper" : {
+      "comment" : "Adjust: a tap on something neutral gray in the photo then sets the white balance."
+    },
+    "White balance eyedropper: tap something neutral gray in the photo" : {
+      "comment" : "Pointer tooltip of Adjust's eyedropper."
+    },
     "–/%lld" : {
       "comment" : "Beside the focus rail while no frame is shown (the result is). The placeholder is how many frames the stack has."
     },

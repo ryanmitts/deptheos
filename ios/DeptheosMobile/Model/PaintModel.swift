@@ -27,16 +27,12 @@ final class PaintModel {
     /// How long going to the background waits for the paint to be saved.
     static let saveTimeoutMs: UInt32 = 5_000
 
-    /// Paint mode: off, or on for one render (`Open`).
-    ///
-    /// Lifecycle: closed, or open on a render (its canvas, view and touch).
-    /// Its case changed only by `open` and `close`; inside `.open` only
+    /// Retouch on one render: `AppModel.mode`'s retouching case
+    /// (`RenderMode`), entered by `open` and left by `close`; inside it only
     /// `PaintModel`'s methods change anything, through `whileOpen`
-    /// (ADR-163, ADR-149):
+    /// (ADR-163, ADR-149).
     ///
-    ///     closed ──open──▶ open ──close, or its render deleted──▶ closed
-    ///                       └──open (another render)──▶ open
-    ///
+    /// Lifecycle: the case's own states, changed only by `PaintModel`:
     ///
     ///     canvas:    opening ──the session's tiles──▶ ready
     ///                opening ──the session's status says it failed──▶ failed ──Retry──▶ opening (the session opens it again)
@@ -50,11 +46,6 @@ final class PaintModel {
     /// What the brush paints from is the session's (`status`). The source's
     /// pane, Split and the peek show the frame as it is: Contribution is the
     /// viewer's alone.
-    enum Mode {
-        case closed
-        case open(Open)
-    }
-
     struct Open {
         let renderID: String
         /// Its size, where its detail came from, its depth map.
@@ -81,7 +72,8 @@ final class PaintModel {
     }
 
     let ranges = brushRanges()
-    private(set) var mode = Mode.closed
+    /// Whose mode holds Retouch's `Open`: set once at launch.
+    @ObservationIgnored weak var app: AppModel?
 
     private var status: PaintStatus? { painting?.status }
     /// Strokes that can be undone, and redone.
@@ -416,7 +408,7 @@ final class PaintModel {
     }
 
     private func begin(_ open: Open) {
-        mode = .open(open)
+        app?.setMode(.retouching(open))
         let (canvas, view) = (open.canvas.logName, open.view.logName)
         stateLog.debug("paint: open, canvas \(canvas, privacy: .public), \(view, privacy: .public)")
     }
@@ -474,19 +466,17 @@ final class PaintModel {
         // Tiles after this go nowhere: leaving shows `paintedImage`, then
         // `present`'s answer, which has every stroke.
         session?.close()
-        mode = .closed
+        app?.setMode(.viewing)
         stateLog.debug("paint: closed")
     }
 
     private var painting: Open? {
-        if case .open(let open) = mode { open } else { nil }
+        if case .retouching(let open)? = app?.mode { open } else { nil }
     }
 
     /// Nothing when no render is open.
     private func whileOpen(_ change: (inout Open) -> Void) {
-        guard case .open(var open) = mode else { return }
-        change(&open)
-        mode = .open(open)
+        app?.whileRetouching(change)
     }
 
     private func opened(_ id: String, levels: [PaintLevel]) {
@@ -525,26 +515,27 @@ final class PaintModel {
     // MARK: The state's changes
 
     private func setCanvas(_ new: PaintCanvasState) {
-        guard case .open(var open) = mode else { return }
-        stateLog.debug("paint: canvas \(open.canvas.logName, privacy: .public) → \(new.logName, privacy: .public)")
-        open.canvas = new
-        mode = .open(open)
+        whileOpen { open in
+            stateLog.debug("paint: canvas \(open.canvas.logName, privacy: .public) → \(new.logName, privacy: .public)")
+            open.canvas = new
+        }
     }
 
     private func setView(_ new: PaintView) {
-        guard case .open(var open) = mode else { return }
-        if open.view.logName != new.logName {
-            stateLog.debug("paint: view \(open.view.logName, privacy: .public) → \(new.logName, privacy: .public)")
+        whileOpen { open in
+            if open.view.logName != new.logName {
+                stateLog.debug("paint: view \(open.view.logName, privacy: .public) → \(new.logName, privacy: .public)")
+            }
+            open.view = new
         }
-        open.view = new
-        mode = .open(open)
     }
 
     private func setTouch(_ new: PaintTouch) {
-        guard case .open(var open) = mode, open.touch != new else { return }
-        stateLog.debug("paint: touch \(String(describing: open.touch), privacy: .public) → \(String(describing: new), privacy: .public)")
-        open.touch = new
-        mode = .open(open)
+        guard let painting, painting.touch != new else { return }
+        whileOpen { open in
+            stateLog.debug("paint: touch \(String(describing: open.touch), privacy: .public) → \(String(describing: new), privacy: .public)")
+            open.touch = new
+        }
     }
 
     // MARK: What the brush paints from

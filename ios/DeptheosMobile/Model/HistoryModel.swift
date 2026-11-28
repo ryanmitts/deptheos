@@ -262,6 +262,12 @@ final class HistoryModel {
     }
 
     /// Memory is short: keep only the thumbnails in view.
+    /// `id`'s thumbnail was drawn again: the one held goes, read again
+    /// while in view.
+    func thumbnailRewritten(_ id: String) {
+        apply(thumbs.rewritten(id: id))
+    }
+
     func shedThumbnails() {
         apply(thumbs.shed())
     }

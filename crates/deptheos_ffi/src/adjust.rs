@@ -622,6 +622,28 @@ impl AdjustSession {
         self.session.eyedrop((x, y));
     }
 
+    /// Before: render `render_id` of `result` as stored, with its paint
+    /// and none of its adjustments, turned and flipped as `reframe` is,
+    /// its base at most `base_side`. Drawn on the pool for `request`.
+    pub async fn before(
+        self: Arc<Self>,
+        request: Arc<crate::Request>,
+        result: Arc<StackResult>,
+        render_id: String,
+        reframe: Reframe,
+        base_side: u32,
+    ) -> Result<crate::Pictured> {
+        let key = self.id(&render_id)?;
+        let this = self.clone();
+        let draw = move || {
+            let image =
+                this.session.before(&key, &result.stack, reframe).told(this.engine.words())?;
+            Ok(crate::Pictured::of(Picture::of(image), base_side))
+        };
+        let ask = crate::request::Ask::Own("adjust-before");
+        crate::request::on_pool(self.engine.words(), &request, Lane::Interactive, ask, draw).await
+    }
+
     /// Open the render again after its open or a draw failed.
     pub fn retry(&self) {
         self.session.retry();

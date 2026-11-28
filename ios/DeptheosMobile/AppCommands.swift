@@ -33,18 +33,36 @@ struct AppCommands: Commands {
                 if let id = model.result?.renderID { model.present(.renderInfo(id)) }
             }
             .keyboardShortcut("i")
-            .disabled(!onStacking || model.shownRender == nil || model.paint.active)
+            .disabled(!onStacking || model.shownRender == nil || !model.viewing)
             Button(LocalizedStringResource("Export…", comment: "Toolbar button: opens the Export sheet for the result shown.")) {
                 model.present(.export)
             }
             .keyboardShortcut("e")
             .disabled(!onStacking || !model.canExport || model.showExport)
             Divider()
+            Button(model.adjusting
+                   ? LocalizedStringResource("Done Adjusting", comment: "Menu bar item in Adjust: leaves it (key A).")
+                   : LocalizedStringResource("Adjust", comment: "Menu bar item: opens Adjust on the result (key A).")) {
+                if model.adjusting { model.stopAdjusting() } else { model.startAdjusting() }
+            }
+            .keyboardShortcut("a", modifiers: [])
+            .disabled(!onStacking || model.retouching || !(model.adjusting || model.canAdjust))
+            Button(AdjustCommands.copy) {
+                Task { await model.copyAdjustments() }
+            }
+            .keyboardShortcut("c", modifiers: [.command, .shift])
+            .disabled(!onStacking || model.retouching || model.result == nil)
+            Button(AdjustCommands.paste) {
+                model.pasteAdjustments()
+            }
+            .keyboardShortcut("v", modifiers: [.command, .shift])
+            .disabled(!onStacking || model.retouching || model.copiedAdjustments == nil || model.busy)
+            Divider()
             Button(LocalizedStringResource("Library", comment: "Menu bar item: goes back to the Library from a stack.")) {
                 model.setScreen(.library)
             }
             .keyboardShortcut("l")
-            .disabled(!onStacking || model.paint.active)
+            .disabled(!onStacking || !model.viewing)
         }
         // In the system's View menu, with the desktop's keys: here, not on
         // the view bar's buttons, which a menu or narrow bar hides.
@@ -66,7 +84,7 @@ struct AppCommands: Commands {
                 model.present(.revert(revert))
             }
         }
-        .disabled(!onStacking || showing.revert == nil || model.busy || model.paint.active)
+        .disabled(!onStacking || showing.revert == nil || model.busy || !model.viewing)
     }
 
     @ViewBuilder
@@ -116,15 +134,15 @@ struct AppCommands: Commands {
                 model.toggleControls(voiceOver: UIAccessibility.isVoiceOverRunning)
             }
         }
-        .disabled(!onStacking || model.paint.active || model.panel.isOpen || UIAccessibility.isVoiceOverRunning)
+        .disabled(!onStacking || !model.viewing || model.panel.isOpen || UIAccessibility.isVoiceOverRunning)
         Divider()
         Button(Self.stepTitle(-1, renders: model.stepsRenders)) {
-            Task { await model.paint.active ? model.stepPaintSource(by: -1) : model.step(by: -1) }
+            Task { await model.retouching ? model.stepPaintSource(by: -1) : model.step(by: -1) }
         }
         .keyboardShortcut(.leftArrow, modifiers: [])
         .disabled(!canStep || typing)
         Button(Self.stepTitle(1, renders: model.stepsRenders)) {
-            Task { await model.paint.active ? model.stepPaintSource(by: 1) : model.step(by: 1) }
+            Task { await model.retouching ? model.stepPaintSource(by: 1) : model.step(by: 1) }
         }
         .keyboardShortcut(.rightArrow, modifiers: [])
         .disabled(!canStep || typing)
@@ -163,11 +181,11 @@ struct AppCommands: Commands {
     }
 
     private var canView: Bool {
-        onStacking && !model.paint.active && model.stacking == nil && model.result?.display != nil
+        onStacking && model.viewing && model.stacking == nil && model.result?.display != nil
     }
 
     private var retouching: Bool {
-        onStacking && model.paint.active
+        onStacking && model.retouching
     }
 
     /// With a frame to compare it with.

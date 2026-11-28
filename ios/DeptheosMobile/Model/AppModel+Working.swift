@@ -157,11 +157,11 @@ extension AppModel {
     /// confirmation can outlast its question) and the request is current;
     /// never while retouching.
     func revert(to id: String) async {
-        guard !busy, !paint.active, canRevert(to: id) else { return }
+        guard !busy, viewing, canRevert(to: id) else { return }
         let generation = beginOpening(.revert(id))
         defer { endOpening(generation) }
         guard let working = await ask({ try await $0.workingOfRender(request: $1, id: id) }),
-            viewGeneration == generation, !paint.active, canRevert(to: id)
+            viewGeneration == generation, viewing, canRevert(to: id)
         else { return }
         edit(working)
         if result?.renderID != id { await showResult(of: id, continuing: generation) }

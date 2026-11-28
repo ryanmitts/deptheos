@@ -17,6 +17,22 @@ struct RetouchButton: View {
     }
 }
 
+/// Adjust the result: its sliders, crop, turn and flip.
+struct AdjustButton: View {
+    @Environment(AppModel.self) private var model
+
+    var body: some View {
+        Button(
+            LocalizedStringResource("Adjust", comment: "Toolbar button: opens Adjust on the result, its sliders and crop."),
+            systemImage: "slider.horizontal.3"
+        ) { model.startAdjusting() }
+            .disabled(!model.canAdjust)
+            .accessibilityIdentifier("adjust")
+            .help(LocalizedStringResource(
+                "Adjust the result's light, color, crop and turn", comment: "Pointer tooltip of the Adjust button."))
+    }
+}
+
 /// Whether a finger paints, on iPad: in Retouch's options menu and
 /// Settings ▸ Retouch. It starts as the system's Only Draw with Apple
 /// Pencil, so it is shown where painting happens.

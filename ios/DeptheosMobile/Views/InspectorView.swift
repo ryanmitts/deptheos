@@ -119,7 +119,7 @@ struct ChangeLine: View {
                     .frame(minHeight: 44)
                     // In a form's row, only the button takes the tap.
                     .buttonStyle(.borderless)
-                    .disabled(model.busy || model.paint.active)
+                    .disabled(model.busy || !model.viewing)
                     .help(LocalizedStringResource(
                         "Make the frames and settings those of #\(revert.number)",
                         comment: "Pointer tooltip of Revert, above Stack. The placeholder is the number of the render it reverts to."))

@@ -106,10 +106,11 @@ struct ShownResult {
     /// Its frames' scopes while shown: read to compare, paint and export.
     let lease: Lease
 
-    func showing(_ display: CGImage?, picture: DisplayPicture, renderID: String) -> ShownResult {
+    /// `size`: a picture turned since (Adjust), else the same.
+    func showing(_ display: CGImage?, picture: DisplayPicture, renderID: String, size: CGSize? = nil) -> ShownResult {
         ShownResult(
             stack: stack, renderID: renderID, display: display, plainDisplay: plainDisplay,
-            map: map, fullSize: fullSize, displayPicture: picture, mapPicture: mapPicture,
+            map: map, fullSize: size ?? fullSize, displayPicture: picture, mapPicture: mapPicture,
             legend: legend, leftOut: leftOut, stacked: stacked, contributions: contributions,
             lease: lease)
     }
@@ -142,6 +143,16 @@ struct PanePicture: Equatable {
     let base: CGImage
     let source: (any TileSource)?
     let size: CGSize
+    /// The part shown, in its pixels: a render's crop (ADR-171); `nil`
+    /// shows the whole.
+    var window: CGRect?
+
+    /// Showing only `window` of it.
+    func windowed(_ window: CGRect?) -> PanePicture {
+        var windowed = self
+        windowed.window = window
+        return windowed
+    }
 
     init(_ base: CGImage) {
         self.init(base, source: nil, size: CGSize(width: base.width, height: base.height))
@@ -167,7 +178,7 @@ struct PanePicture: Equatable {
 
     /// By identity.
     static func == (a: PanePicture, b: PanePicture) -> Bool {
-        a.base === b.base && a.source === b.source && a.size == b.size
+        a.base === b.base && a.source === b.source && a.size == b.size && a.window == b.window
     }
 }
 

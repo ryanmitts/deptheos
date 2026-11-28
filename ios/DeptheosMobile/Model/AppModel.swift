@@ -97,6 +97,9 @@ final class AppModel {
     static let liveSide: UInt32 = 1024
 
     private(set) var engineState = EngineState.idle
+    /// What is being done to the render shown (`RenderMode`), changed only
+    /// by `setMode` and its kin, below (`RenderMode`, `AppModel+Mode.swift`).
+    private(set) var mode = RenderMode.viewing
     /// The compact window's sheet over the photo, changed only by
     /// `setPanel` and its kin.
     private(set) var panel = Panel.closed
@@ -164,6 +167,12 @@ final class AppModel {
     /// Contribution's toggle over the frame on screen, as the view last
     /// answered; none with no frame on screen.
     private(set) var contributionToggle: ContributionToggle?
+    /// In Adjust, what the view shows: its tool, a drag's preview, the
+    /// render held up without its adjustments (the engine's `View`).
+    private(set) var adjustView: AdjustView?
+    /// What the result's pane draws: reframed, uncropped with the crop
+    /// marked, or stored (`PaneFraming`).
+    private(set) var resultPane = Pane.result
     /// The view's reducer, the engine's: `view(_:)` hands it each event.
     @ObservationIgnored let viewControl = ViewControl()
     /// The load of what the view lines up with the result: a compare's
@@ -247,6 +256,9 @@ final class AppModel {
     var errorMessage: ErrorMessage?
 
     let paint = PaintModel()
+    let adjust = AdjustModel()
+    /// Copy Adjustments' value, pasted by Paste Adjustments.
+    var copiedAdjustments: AdjustValue?
     /// iOS's memory warnings, heard from launch (`shed`).
     @ObservationIgnored private var memoryPressure: MemoryPressure?
     /// The preferences shared with the desktop.
@@ -503,8 +515,11 @@ final class AppModel {
                 appDirectory: container.path, language: AppWords.language)
             engineState = .ready(engine, Bookmarks())
             try? await Blocking.run(.background) { AppFiles.leaveRecentlyDeletedOutOfBackup(directory) }
-            memoryPressure = MemoryPressure { [weak self] level in self?.shed(level) }
+            memoryPressure = MemoryPressure(
+                then: { [weak self] level in self?.shed(level) },
+                normal: { [weak self] in self?.memoryNormal() })
             startPaint(engine)
+            startAdjust(engine)
             // Lasting: a launch the app leaves at once still reads its list.
             let saved = try await Request.lasting().run { try await engine.readWorking(request: $0) }
             (stackID, base) = (saved.stack, saved.base)
@@ -748,6 +763,28 @@ extension AppModel {
 
     /// Open, change or close the compact window's sheet. A sheet opened
     /// shows the controls again (`photoOnly` is a state of its own).
+    /// The one place `mode`'s case changes, logged. The mode left must
+    /// have closed its session first (`PaintModel.close`,
+    /// `AdjustModel.close`).
+    func setMode(_ new: RenderMode) {
+        stateLog.debug("mode: \(self.mode.logName, privacy: .public) → \(new.logName, privacy: .public)")
+        mode = new
+    }
+
+    /// Retouch's data, changed in place; nothing while not retouching.
+    func whileRetouching(_ change: (inout PaintModel.Open) -> Void) {
+        guard case .retouching(var open) = mode else { return }
+        change(&open)
+        mode = .retouching(open)
+    }
+
+    /// Adjust's data, changed in place; nothing while not adjusting.
+    func whileAdjusting(_ change: (inout AdjustModel.Open) -> Void) {
+        guard case .adjusting(var open) = mode else { return }
+        change(&open)
+        mode = .adjusting(open)
+    }
+
     func setPanel(_ panel: Panel) {
         guard panel != self.panel else { return }
         appLog.debug("panel: \(String(describing: panel), privacy: .public)")
@@ -755,7 +792,9 @@ extension AppModel {
     }
 
     /// The one place `viewState` changes, logged.
-    func setView(_ view: ViewState, contribution: ContributionToggle?) {
+    func setView(_ view: ViewState, contribution: ContributionToggle?, adjust: AdjustView?, pane: Pane) {
+        adjustView = adjust
+        resultPane = pane
         // What the view lined up goes with it, the lit picture with the map.
         if view.linesUp != viewState.linesUp { alignedLoad = .none }
         if view.light == nil { litMap = .whole }

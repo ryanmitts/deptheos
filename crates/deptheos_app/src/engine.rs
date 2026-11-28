@@ -584,6 +584,19 @@ impl Engine {
         Ok(self.presented(stack, saved, display))
     }
 
+    /// The display alone of `stack` under what it was saved with, turned
+    /// and flipped as [`Self::present_saved`] hands it over: a display made
+    /// again after the app let go of it.
+    pub fn present_display(
+        &self,
+        stack: &CompletedStack,
+        saved: &RenderAdjustments,
+    ) -> Result<PresentedImage> {
+        let display = self.present_pixels(Look::shown_saved(stack, saved), &stack.pixels)?;
+        let orient = Orient::of(saved.reframe, Size { width: stack.width, height: stack.height });
+        Ok(orient.presented(display))
+    }
+
     /// Save `look`'s stack, its format from the extension: `.dng` writes
     /// the linear pixels (linear stacks only), others drawn in `look`.
     /// JPEG, PNG and TIFF carry the reference's EXIF and the stack's XMP

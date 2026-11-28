@@ -298,3 +298,34 @@ fn a_shed_frees_the_preview_or_every_copy_and_back_makes_them_again() {
     assert_eq!(session.status().unwrap().value.get(Slider::Exposure), 0.8);
     session.leave();
 }
+
+#[test]
+fn a_display_made_again_after_the_background_keeps_the_adjustments() {
+    let dir = tempfile::tempdir().unwrap();
+    let Some(engine) = engine(dir.path()) else { return };
+    let (result, render) = saved(&engine, dir.path(), &crate::new_stack_id());
+    let heard = Arc::new(Heard::default());
+    let session = engine.adjust_session(heard.clone(), 64);
+    session.open(result.clone(), render.id.clone()).unwrap();
+    while session.status().is_none_or(|s| s.phase != AdjustPhase::Ready) {
+        std::thread::sleep(Duration::from_millis(5));
+    }
+    let plain = result.picture_of(&crate::PictureOf::Display).unwrap().unwrap();
+    session.set_slider(Slider::Exposure, 1.0);
+    session.set_reframe(Reframe { crop: None, flip: Flip::None, turn: Turn::Quarter });
+    session.commit();
+    session.leave();
+    heard.wait_for(0, "closed");
+
+    // Let go of in the background, then asked for again.
+    result.release_displays();
+    let made = result.picture_of(&crate::PictureOf::Display).unwrap().unwrap();
+    let size = made.size();
+    assert_eq!((size.width, size.height), (H, W), "turned a quarter");
+    let mean = |p: &Picture| {
+        let base = p.base(128).unwrap();
+        base.bgra.iter().skip(1).step_by(4).map(|&g| f64::from(g)).sum::<f64>()
+            / f64::from(base.width * base.height)
+    };
+    assert!(mean(&made) > mean(&plain) + 20.0, "{} {}", mean(&made), mean(&plain));
+}

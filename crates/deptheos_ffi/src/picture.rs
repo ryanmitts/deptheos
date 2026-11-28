@@ -13,7 +13,7 @@ use std::path::PathBuf;
 use std::sync::Arc;
 
 use deptheos_app::engine::work::Lane;
-use deptheos_app::{Adjustments, Look, PresentedImage, RawBackend};
+use deptheos_app::{PresentedImage, RawBackend};
 
 use crate::request::{Ask, on_pool};
 use crate::{DisplayImage, Engine, Request, Result, StackResult, Told, level_image};
@@ -285,11 +285,11 @@ impl StackResult {
                 if let Some(held) = self.held(false) {
                     return Ok(Some(Picture::shared(held)));
                 }
-                let made = self.engine.present_pixels(
-                    Look::shown(&self.stack, &Adjustments::NEUTRAL),
-                    &self.stack.pixels,
-                );
-                Some(made.told(self.engine.words())?)
+                // Under the render's adjustments, read after its pending
+                // writes; a result not saved has none.
+                let words = self.engine.words();
+                let saved = self.saved_adjustments()?;
+                Some(self.engine.present_display(&self.stack, &saved).told(words)?)
             }
             PictureOf::Map => {
                 if let Some(held) = self.held(true) {

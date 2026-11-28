@@ -414,6 +414,15 @@ impl StackResult {
         *displays = Displays::Released;
     }
 
+    /// The adjustments of the render it is, read after their pending
+    /// writes; a result not saved has none.
+    pub(crate) fn saved_adjustments(&self) -> Result<RenderAdjustments> {
+        match self.saved.get() {
+            Some((history, id)) => history.adjustments_to_export(id).told(self.engine.words()),
+            None => Ok(RenderAdjustments::NONE),
+        }
+    }
+
     /// To `directory` as `<name>.<extension>` with `save`; returns the path.
     fn export_saved(
         &self,
@@ -424,12 +433,7 @@ impl StackResult {
     ) -> Result<PathBuf> {
         let words = self.engine.words();
         let path = export_target(&self.stack, directory, name, format).told(words)?;
-        // A saved render's adjustments, read after its pending writes; a
-        // result not saved has none.
-        let saved = match self.saved.get() {
-            Some((history, id)) => history.adjustments_to_export(id).told(words)?,
-            None => RenderAdjustments::NONE,
-        };
+        let saved = self.saved_adjustments()?;
         self.engine.save(Look::saved(&self.stack, &saved), &path, save).told(words)?;
         Ok(path)
     }

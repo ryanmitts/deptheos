@@ -53,7 +53,7 @@ struct AdjustSessionView: View {
                         .background(.background.secondary)
                 }
             }
-            .onGeometryChange(for: DeckPlace.self) { DeckPlace(for: $0.size) } action: { place = $0 }
+            .measure("adjust deck place", for: DeckPlace.self) { DeckPlace(for: $0.size) } action: { place = $0 }
             #if DEBUG
             .background { if E2E.adjusting != nil { E2EAdjustHook() } }
             #endif

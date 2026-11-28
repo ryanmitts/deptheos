@@ -42,7 +42,7 @@ pub use load::{
     set_host_decoder, standard_header, supported_extensions,
 };
 pub use prefetch::{FramePrefetcher, Loader};
-pub use profile::{IccProfile, ToSrgb};
+pub use profile::{IccProfile, RgbConversion};
 pub use replace::{is_temporary, rename_retrying, sync_file, sync_folder, write_replacing};
 pub use save::{
     Encoding, dither_rgb_to_u8, quantize_u16, rgba_row_to_rgb_u16, save_rgb16, u16_to_u8,

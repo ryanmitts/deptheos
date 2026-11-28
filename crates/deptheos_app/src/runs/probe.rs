@@ -209,7 +209,8 @@ impl AdjustTicks {
         measure("a settle's full picture", || {
             let full = copies.draw_full(engine, &constants);
             crate::adjust::histogram::clipping(engine, &full, None)?;
-            let shown = engine.present(&full, None)?;
+            let shown = engine
+                .present(&full, &crate::engine::present::ToDisplay::drawn(constants.output()))?;
             drop(full);
             Ok(shown)
         })

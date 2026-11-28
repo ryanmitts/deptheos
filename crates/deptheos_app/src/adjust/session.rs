@@ -21,7 +21,7 @@ use std::sync::{Arc, Condvar, Mutex, Weak};
 use std::time::{Duration, Instant};
 
 use deptheos_render::reframe::Size;
-use deptheos_render::{Adjustments, Draw, Reframe};
+use deptheos_render::{Adjustments, Reframe};
 
 use super::copies::{GpuCopies, RenderMemory};
 use super::eyedropper::eyedrop;
@@ -30,6 +30,7 @@ use super::machine::{Action, AdjustClosed, Event, Machine, Phase, Report, Reques
 use super::preview::{Draft, FlatPicture, FlatSlot, Shown};
 use super::sliders::{Panel, Slider};
 use crate::engine::orient::Orient;
+use crate::engine::present::ToDisplay;
 use crate::engine::store::store;
 use crate::engine::work::{self, Key, Lane};
 use crate::library::adjustments::rules::{pasted, reset_all};
@@ -80,6 +81,14 @@ enum Drawn {
     Preview { picture: FlatPicture, histogram: Histogram },
     Settled { key: RenderId, picture: PresentedImage, histogram: Histogram },
     Histogram { key: RenderId, histogram: Histogram },
+}
+
+/// What a value of a render draws with: `shown` on screen, in the
+/// screen's space, and `counted`, the same in sRGB, which the histogram
+/// counts whatever the screen (the same as `shown` but on Display P3).
+struct Drawing {
+    shown: deptheos_render::dng_render::Constants,
+    counted: deptheos_render::dng_render::Constants,
 }
 
 /// The GPU copies, of render `key`, made by the upload of `epoch`.
@@ -765,10 +774,10 @@ impl Inner {
                 let Some(inner) = me.upgrade() else { return };
                 let counted = {
                     let mut held = crate::lock(&inner.copies);
-                    Self::copies_for(&mut held, &open, &value).and_then(|(copies, constants)| {
+                    Self::copies_for(&mut held, &open, &value).and_then(|(copies, drawing)| {
                         copies.histogram(
                             &inner.engine,
-                            &constants,
+                            &drawing.counted,
                             value.reframe.crop,
                             Draft::Settled,
                         )
@@ -823,18 +832,30 @@ impl Inner {
     }
 
     /// The full picture of `value` of `open`, its clipping counted over
-    /// every pixel.
+    /// every pixel. On a Display P3 screen the clipping is counted over a
+    /// second full draw, in sRGB, after the first is let go of.
     fn drawing(&self, open: &Opened, value: &RenderAdjustments) -> crate::Result<Drawn> {
         let engine = &self.engine;
         let mut held = crate::lock(&self.copies);
-        let (copies, constants) = Self::copies_for(&mut held, open, value)?;
+        let (copies, drawing) = Self::copies_for(&mut held, open, value)?;
         let crop = value.reframe.crop;
-        let full = copies.draw_full(engine, &constants);
-        let clipping = histogram::clipping(engine, &full, crop)?;
-        let picture = Self::orient(open, value).presented(engine.present(&full, None)?);
-        drop(full);
-        let histogram =
-            copies.histogram(engine, &constants, crop, Draft::Settled)?.with_clipping(clipping);
+        let full = copies.draw_full(engine, &drawing.shown);
+        let (picture, clipping) = match drawing.counted == drawing.shown {
+            true => {
+                let clipping = histogram::clipping(engine, &full, crop)?;
+                (engine.present(&full, &ToDisplay::drawn(drawing.shown.output()))?, clipping)
+            }
+            false => {
+                let picture = engine.present(&full, &ToDisplay::drawn(drawing.shown.output()))?;
+                drop(full);
+                let counted = copies.draw_full(engine, &drawing.counted);
+                (picture, histogram::clipping(engine, &counted, crop)?)
+            }
+        };
+        let picture = Self::orient(open, value).presented(picture);
+        let histogram = copies
+            .histogram(engine, &drawing.counted, crop, Draft::Settled)?
+            .with_clipping(clipping);
         Ok(Drawn::Settled { key: open.key.clone(), picture, histogram })
     }
 
@@ -849,10 +870,10 @@ impl Inner {
     ) -> crate::Result<(FlatPicture, Histogram)> {
         let engine = &self.engine;
         let mut held = crate::lock(&self.copies);
-        let (copies, constants) = Self::copies_for(&mut held, open, value)?;
-        let picture = copies.draw_preview(engine, &constants, shown, draft, &self.slot)?;
+        let (copies, drawing) = Self::copies_for(&mut held, open, value)?;
+        let picture = copies.draw_preview(engine, &drawing.shown, shown, draft, &self.slot)?;
         let picture = picture.oriented(&Self::orient(open, value), &self.slot);
-        let histogram = copies.histogram(engine, &constants, value.reframe.crop, draft)?;
+        let histogram = copies.histogram(engine, &drawing.counted, value.reframe.crop, draft)?;
         Ok((picture, histogram))
     }
 
@@ -867,16 +888,20 @@ impl Inner {
         held: &'a mut Option<Held>,
         open: &Opened,
         value: &RenderAdjustments,
-    ) -> crate::Result<(&'a mut GpuCopies, Box<deptheos_render::dng_render::Constants>)> {
+    ) -> crate::Result<(&'a mut GpuCopies, Drawing)> {
         let copies = match held.as_mut() {
             Some(held) if held.key == open.key => &mut held.copies,
             _ => return Err(crate::Error::InvalidState("no GPU copies to draw from".into())),
         };
         let look = Look::adjusting(&open.stack, &value.adjustments, value.reframe);
-        let Draw::Rendered(constants) = look.resolve() else {
+        let (Some(shown), Some(srgb)) = (look.constants(), look.in_srgb().constants()) else {
             return Err(crate::Error::InvalidState("Adjust draws on the GPU".into()));
         };
-        Ok((copies, constants))
+        let counted = match shown.output() {
+            deptheos_render::OutputSpace::DisplayP3 => srgb,
+            _ => shown.clone(),
+        };
+        Ok((copies, Drawing { shown, counted }))
     }
 
     fn eyedrop(&self, at: (f64, f64)) {

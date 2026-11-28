@@ -111,7 +111,13 @@ impl Orient {
         let Some(first) = image.levels.first() else { return image };
         let first = self.image(&first.assemble());
         let whole = self.turned(Size { width: image.width(), height: image.height() });
-        PresentedImage::from_first(first, image.levels.len(), image.first_level, whole)
+        PresentedImage::from_first(
+            first,
+            image.levels.len(),
+            image.first_level,
+            whole,
+            image.space(),
+        )
     }
 }
 
@@ -143,12 +149,14 @@ mod tests {
     fn a_picture_turned_is_its_pixels_turned_and_its_levels_made_again() {
         for reframe in every() {
             let orient = Orient::of(reframe, PICTURE);
-            let whole = PresentedImage::from_first(picture(), 3, 0, PICTURE);
+            let whole =
+                PresentedImage::from_first(picture(), 3, 0, PICTURE, crate::ScreenSpace::Srgb);
             let turned = orient.presented(whole);
             let want = orient.image(&picture());
             assert_eq!((turned.width(), turned.height()), (want.width, want.height), "{reframe:?}");
             assert!(turned.levels[0].assemble().pixels == want.pixels, "{reframe:?}");
-            let again = PresentedImage::from_first(want, 3, 0, orient.size());
+            let again =
+                PresentedImage::from_first(want, 3, 0, orient.size(), crate::ScreenSpace::Srgb);
             for (a, b) in turned.levels.iter().zip(&again.levels) {
                 assert!(a.assemble().pixels == b.assemble().pixels, "{reframe:?}: levels");
             }

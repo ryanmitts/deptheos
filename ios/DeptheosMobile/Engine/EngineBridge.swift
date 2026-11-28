@@ -44,12 +44,19 @@ nonisolated final class StackObserverBridge: StackObserver, @unchecked Sendable 
     }
 }
 
+extension ScreenSpace {
+    /// The space an image in these colors is tagged with.
+    nonisolated var cgColorSpace: CGColorSpace? {
+        CGColorSpace(name: self == .displayP3 ? CGColorSpace.displayP3 : CGColorSpace.sRGB)
+    }
+}
+
 extension DisplayImage {
-    /// 8-bit BGRA as an sRGB image, without a copy.
+    /// 8-bit BGRA as an image tagged with its space, without a copy.
     nonisolated func makeCGImage() -> CGImage? {
         guard width > 0, height > 0,
               let provider = CGDataProvider(data: bgra as CFData),
-              let space = CGColorSpace(name: CGColorSpace.sRGB)
+              let space = self.space.cgColorSpace
         else { return nil }
         let info = CGBitmapInfo(
             rawValue: CGImageAlphaInfo.noneSkipFirst.rawValue
@@ -82,8 +89,7 @@ extension AdjustPreview {
             held.release()
             return nil
         }
-        let name = space() == .displayP3 ? CGColorSpace.displayP3 : CGColorSpace.sRGB
-        guard let space = CGColorSpace(name: name) else { return nil }
+        guard let space = space().cgColorSpace else { return nil }
         let info = CGBitmapInfo(
             rawValue: CGImageAlphaInfo.noneSkipFirst.rawValue
                 | CGBitmapInfo.byteOrder32Little.rawValue)

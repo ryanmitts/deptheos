@@ -211,7 +211,7 @@ fn unadjusted(
         .find(|l| u64::from(long) * u64::from(l.width) >= u64::from(THUMBNAIL_SIDE * picture.width))
         .or(shown.levels.first())
         .expect("a display has a level");
-    let image = level.assemble().to_rgb();
+    let image = crate::engine::present::in_srgb(level.assemble().to_rgb(), shown.space());
     let (sx, sy) = (
         image.width() as f64 / picture.width as f64,
         image.height() as f64 / picture.height as f64,

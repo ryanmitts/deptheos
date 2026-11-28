@@ -73,7 +73,7 @@ impl RectRenderer {
             Draw::Rendered(constants) => constants,
             Draw::Stored { profile, output } => {
                 let mut out = vec![0; w * h * 4];
-                display_rgb16(pixels, &mut out, conversion(profile, output).as_ref());
+                display_rgb16(pixels, &mut out, conversion(profile, output).convert.as_ref());
                 return Ok(CpuImage { width, height, pixels: out });
             }
         };

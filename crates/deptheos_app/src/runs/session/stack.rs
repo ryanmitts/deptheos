@@ -565,7 +565,7 @@ pub(crate) fn export_pixels<'p>(
         Draw::Rendered(constants) => {
             Cow::Owned(render_pixels(engine, pixels, width, height, &constants)?)
         }
-        Draw::Stored { profile, output } => match conversion(profile, output) {
+        Draw::Stored { profile, output } => match conversion(profile, output).convert {
             Some(to_srgb) => {
                 let mut out = vec![0; pixels.len()];
                 to_srgb.convert(pixels, &mut out);

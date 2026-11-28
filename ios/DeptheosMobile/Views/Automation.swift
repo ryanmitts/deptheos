@@ -445,7 +445,7 @@ nonisolated final class AutomationStackResult: StackResult, @unchecked Sendable 
             context.fill(CGRect(x: 0, y: 0, width: width, height: height))
             return true
         }
-        return drawn ? DisplayImage(width: UInt32(width), height: UInt32(height), bgra: Data(bgra)) : nil
+        return drawn ? DisplayImage(width: UInt32(width), height: UInt32(height), bgra: Data(bgra), space: .srgb) : nil
     }
 }
 #endif

@@ -8,10 +8,14 @@
 //! sampling at a core's edge matches a whole image, and every image fits
 //! GPUI's atlas (four tiles fill a 1024² page).
 //!
-//! The display is sRGB: pixels in another ICC profile are converted here,
-//! clipping out-of-gamut colors on screen only ([`set_color_managed`]).
+//! The display is sRGB or Display P3, as the app's screen is
+//! ([`set_screen`]): pixels in another space are converted here, clipping
+//! colors outside it on screen only ([`set_color_managed`]). Every image
+//! names the space it is in ([`PresentedImage::space`]), which the app tags
+//! it with or converts it from.
 
 use std::sync::Mutex;
+use std::sync::OnceLock;
 use std::sync::atomic::{AtomicBool, Ordering};
 
 use deptheos_core::{FramePlane, PlaneRamp, UNLIT, io};
@@ -97,26 +101,45 @@ pub struct PresentedImage {
     height: u32,
     pub first_level: u32,
     pub levels: Vec<TiledLevel>,
+    space: ScreenSpace,
 }
 
 impl PresentedImage {
-    /// A single full-size level, no reductions.
+    /// A single full-size level, no reductions, in sRGB.
     pub fn single(image: CpuImage) -> Self {
         let (width, height) = (image.width, image.height);
         let plane = Plane { width: width as usize, height: height as usize, pixels: image.pixels };
-        Self { width, height, first_level: 0, levels: vec![tile(&plane)] }
+        let levels = vec![tile(&plane)];
+        Self { width, height, first_level: 0, levels, space: ScreenSpace::Srgb }
     }
 
-    /// `first` as level `first_level` of a `full`-sized picture, its
-    /// smaller levels made from it, `count` levels in all.
-    pub(crate) fn from_first(first: CpuImage, count: usize, first_level: u32, full: Size) -> Self {
+    /// `first` as level `first_level` of a `full`-sized picture in `space`,
+    /// its smaller levels made from it, `count` levels in all.
+    pub(crate) fn from_first(
+        first: CpuImage,
+        count: usize,
+        first_level: u32,
+        full: Size,
+        space: ScreenSpace,
+    ) -> Self {
         let (w, h) = (first.width as usize, first.height as usize);
         let mut levels = Levels::new(w, h, count.max(1));
         for band in first.pixels.chunks(BAND_ROWS * w * 4) {
             levels.fill(band.len() / (w * 4), |rows| rows.copy_from_slice(band));
         }
         let made = levels.finish();
-        Self { width: full.width, height: full.height, first_level, levels: made.levels }
+        let (width, height) = (full.width, full.height);
+        Self { width, height, first_level, levels: made.levels, space }
+    }
+
+    /// The space its pixels are in, which the app tags it with.
+    pub fn space(&self) -> ScreenSpace {
+        self.space
+    }
+
+    /// It, its pixels said to be in `space`.
+    pub(crate) fn in_space(self, space: ScreenSpace) -> Self {
+        Self { space, ..self }
     }
 
     /// Full-size width, whatever the first level's.
@@ -246,7 +269,7 @@ pub fn present_frame_map(map: &Gray16Image, lit: Option<&PlaneRamp>) -> Presente
         }
         level = pick_half(values, *w, *h);
     }
-    PresentedImage { width, height, first_level: 1, levels }
+    PresentedImage { width, height, first_level: 1, levels, space: ScreenSpace::Srgb }
 }
 
 /// A one-channel image at half size, each pixel its 2×2 block's top-left;
@@ -263,74 +286,165 @@ fn pick_half(src: &[u16], w: usize, h: usize) -> (usize, usize, Vec<u16>) {
     (hw, hh, out)
 }
 
-/// Whether display images convert wide-gamut pixels to sRGB.
+/// Whether display images convert pixels to the screen's space.
 static COLOR_MANAGED: AtomicBool = AtomicBool::new(true);
 
-/// Turns the conversion to sRGB on or off (on by default), for images
-/// presented from then on.
+/// Whether the screen is Display P3 ([`set_screen`]).
+static SCREEN_P3: AtomicBool = AtomicBool::new(false);
+
+/// Turns the conversion to the screen's space on or off (on by default),
+/// for images presented from then on.
 pub fn set_color_managed(on: bool) {
     COLOR_MANAGED.store(on, Ordering::Relaxed);
 }
 
-/// Whether the display converts wide-gamut pixels to sRGB.
+/// Whether the display converts pixels to the screen's space.
 pub fn color_managed() -> bool {
     COLOR_MANAGED.load(Ordering::Relaxed)
 }
 
-/// The conversion from `profile` to the screen: to sRGB, or `None` for
-/// sRGB or while color management is off.
-pub(crate) fn display_to_srgb(profile: Option<&io::IccProfile>) -> Option<io::ToSrgb> {
-    profile_to_srgb(profile.filter(|_| color_managed())?)
+/// The colors of a picture for the screen, which the app tags it with.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub enum ScreenSpace {
+    /// sRGB, and a standard stack's own values with Color Management off,
+    /// shown as they are.
+    #[default]
+    Srgb,
+    DisplayP3,
+}
+
+impl ScreenSpace {
+    /// The space a draw into `output` is shown in.
+    pub fn of(output: OutputSpace) -> Self {
+        match output {
+            OutputSpace::DisplayP3 => Self::DisplayP3,
+            _ => Self::Srgb,
+        }
+    }
+}
+
+/// Sets the space the app's screen shows (sRGB by default): Display P3 on
+/// a wide-gamut screen that the app draws in it, for images presented from
+/// then on.
+pub fn set_screen(space: ScreenSpace) {
+    let was = SCREEN_P3.swap(space == ScreenSpace::DisplayP3, Ordering::Relaxed);
+    if was != (space == ScreenSpace::DisplayP3) {
+        tracing::debug!("the screen is now {space:?}");
+    }
+}
+
+/// The space the app's screen shows.
+pub fn screen() -> ScreenSpace {
+    match SCREEN_P3.load(Ordering::Relaxed) {
+        true => ScreenSpace::DisplayP3,
+        false => ScreenSpace::Srgb,
+    }
+}
+
+/// The conversion from `profile` to sRGB, or `None` for sRGB or while
+/// color management is off: for sRGB pictures such as thumbnails.
+pub(crate) fn display_to_srgb(profile: Option<&io::IccProfile>) -> Option<io::RgbConversion> {
+    cached(profile.filter(|_| color_managed())?, ScreenSpace::Srgb)
+}
+
+/// How stored values become the screen's on the CPU: the conversion, if
+/// any, and the space they are then in.
+#[derive(Clone, Debug)]
+pub struct ToDisplay {
+    pub convert: Option<io::RgbConversion>,
+    pub space: ScreenSpace,
+}
+
+impl ToDisplay {
+    /// Values already in sRGB, or shown as they are.
+    pub const SRGB: Self = Self { convert: None, space: ScreenSpace::Srgb };
+
+    /// Values the GPU drew into `output`.
+    pub fn drawn(output: OutputSpace) -> Self {
+        Self { convert: None, space: ScreenSpace::of(output) }
+    }
 }
 
 /// The CPU conversion a draw of stored values in `profile` (`None`: sRGB)
-/// into `output` needs; `None` when they pass through.
-pub(crate) fn conversion(
-    profile: Option<&io::IccProfile>,
-    output: OutputSpace,
-) -> Option<io::ToSrgb> {
+/// into `output` needs, and the space it lands in.
+pub(crate) fn conversion(profile: Option<&io::IccProfile>, output: OutputSpace) -> ToDisplay {
     match output {
-        // `resolve` draws a standard stack's wide spaces in sRGB.
-        OutputSpace::Srgb
-        | OutputSpace::DisplayP3
-        | OutputSpace::AdobeRgb
-        | OutputSpace::ProPhoto => profile_to_srgb(profile?),
-        OutputSpace::StackProfile => None,
+        OutputSpace::DisplayP3 => {
+            // A profile that can't be built is shown as sRGB is.
+            let convert = profile
+                .and_then(|p| cached(p, ScreenSpace::DisplayP3))
+                .or_else(|| srgb_to_display_p3().clone());
+            ToDisplay { convert, space: ScreenSpace::DisplayP3 }
+        }
+        // `resolve` draws a standard stack's other wide spaces in sRGB.
+        OutputSpace::Srgb | OutputSpace::AdobeRgb | OutputSpace::ProPhoto => ToDisplay {
+            convert: profile.and_then(|p| cached(p, ScreenSpace::Srgb)),
+            space: ScreenSpace::Srgb,
+        },
+        OutputSpace::StackProfile => ToDisplay::SRGB,
     }
 }
 
-/// The screen's space: sRGB while Color Management is on, else a standard
-/// image's own, its values shown as they are.
+/// The screen's space: sRGB or Display P3 while Color Management is on,
+/// else a standard image's own, its values shown as they are.
 pub(crate) fn display_space() -> OutputSpace {
-    match color_managed() {
-        true => OutputSpace::Srgb,
-        false => OutputSpace::StackProfile,
+    match (color_managed(), screen()) {
+        (false, _) => OutputSpace::StackProfile,
+        (true, ScreenSpace::Srgb) => OutputSpace::Srgb,
+        (true, ScreenSpace::DisplayP3) => OutputSpace::DisplayP3,
     }
 }
 
-/// The conversion from `profile` to sRGB. The last one is cached, as paint
-/// asks every stroke.
-fn profile_to_srgb(profile: &io::IccProfile) -> Option<io::ToSrgb> {
-    static LAST: Mutex<Option<(io::IccProfile, Option<io::ToSrgb>)>> = Mutex::new(None);
+/// `rgb`, shown in `space`, in sRGB: for what is kept or written, which
+/// stays sRGB whatever the screen.
+pub(crate) fn in_srgb(rgb: image::RgbImage, space: ScreenSpace) -> image::RgbImage {
+    static MADE: OnceLock<Option<io::RgbConversion>> = OnceLock::new();
+    let convert = match space {
+        ScreenSpace::Srgb => return rgb,
+        ScreenSpace::DisplayP3 => MADE.get_or_init(io::RgbConversion::display_p3_to_srgb),
+    };
+    let Some(convert) = convert else { return rgb };
+    let (w, h) = rgb.dimensions();
+    let wide: Vec<u16> = rgb.as_raw().iter().map(|&v| u16::from(v) * 257).collect();
+    let mut out = vec![0; wide.len()];
+    convert.convert(&wide, &mut out);
+    let narrow = out.into_iter().map(io::u16_to_u8).collect();
+    image::RgbImage::from_raw(w, h, narrow).expect("as many values as it had")
+}
+
+fn srgb_to_display_p3() -> &'static Option<io::RgbConversion> {
+    static MADE: OnceLock<Option<io::RgbConversion>> = OnceLock::new();
+    MADE.get_or_init(io::RgbConversion::srgb_to_display_p3)
+}
+
+/// The conversion from `profile` into `space`. The last one is cached, as
+/// paint asks every stroke.
+fn cached(profile: &io::IccProfile, space: ScreenSpace) -> Option<io::RgbConversion> {
+    type Last = Option<(io::IccProfile, ScreenSpace, Option<io::RgbConversion>)>;
+    static LAST: Mutex<Last> = Mutex::new(None);
     let mut last = LAST.lock().unwrap_or_else(|e| e.into_inner());
-    if let Some((p, t)) = last.as_ref()
+    if let Some((p, s, t)) = last.as_ref()
         && p == profile
+        && *s == space
     {
         return t.clone();
     }
-    let built = profile.to_srgb();
+    let built = match space {
+        ScreenSpace::Srgb => profile.to_srgb(),
+        ScreenSpace::DisplayP3 => profile.to_display_p3(),
+    };
     if built.is_none() {
         tracing::warn!(
             "{} can't be converted for display; shown as sRGB",
             profile.name().as_deref().unwrap_or("an unnamed profile")
         );
     }
-    *last = Some((profile.clone(), built.clone()));
+    *last = Some((profile.clone(), space, built.clone()));
     built
 }
 
 /// Display pixels for interleaved RGB u16 `src`, through `to_srgb` if any.
-pub(crate) fn display_rgb16(src: &[u16], dst: &mut [u8], to_srgb: Option<&io::ToSrgb>) {
+pub(crate) fn display_rgb16(src: &[u16], dst: &mut [u8], to_srgb: Option<&io::RgbConversion>) {
     let converted;
     let src = match to_srgb {
         Some(t) => {
@@ -346,15 +460,16 @@ pub(crate) fn display_rgb16(src: &[u16], dst: &mut [u8], to_srgb: Option<&io::To
     }
 }
 
-/// [`present_rgb`] for u16 pixels, through `to_srgb` if any
-/// ([`conversion`]).
+/// [`present_rgb`] for u16 pixels, through `to` ([`conversion`]).
 pub(crate) fn present_rgb16(
     pixels: &[u16],
     width: u32,
     height: u32,
-    to_srgb: Option<&io::ToSrgb>,
+    to: &ToDisplay,
 ) -> PresentedImage {
-    present_rows(pixels, width, height, |src, dst| display_rgb16(src, dst, to_srgb))
+    let to_screen = to.convert.as_ref();
+    present_rows(pixels, width, height, |src, dst| display_rgb16(src, dst, to_screen))
+        .in_space(to.space)
 }
 
 /// Where red, green and blue sit in a [`DISPLAY_FORMAT`] pixel.
@@ -411,13 +526,14 @@ fn present_rows<T: Sync>(
 }
 
 /// A rendered Rgba16Unorm or Rgba32Float texture as displayed, read back
-/// in bands and converted through `to_srgb` ([`conversion`]) straight from
-/// the mapping.
+/// in bands and converted through `to` ([`conversion`]) straight from the
+/// mapping.
 pub fn present_texture(
     ctx: &GpuContext,
     texture: &wgpu::Texture,
-    to_srgb: Option<&io::ToSrgb>,
+    to: &ToDisplay,
 ) -> Result<PresentedImage> {
+    let to_srgb = to.convert.as_ref();
     let source = texture.format();
     let texel = match source {
         wgpu::TextureFormat::Rgba16Unorm => 8,
@@ -444,7 +560,7 @@ pub fn present_texture(
         },
     )
     .map_err(|e| Error::Core(e.into()))?;
-    Ok(levels.finish())
+    Ok(levels.finish().in_space(to.space))
 }
 
 /// The RGB u16 codes of one Rgba16Unorm (8-byte) or Rgba32Float (16-byte)
@@ -549,7 +665,7 @@ impl Levels {
     fn finish(self) -> PresentedImage {
         let (width, height) = (self.levels[0].width as u32, self.levels[0].height as u32);
         let levels = self.levels.into_iter().map(Strip::finish).collect();
-        PresentedImage { width, height, first_level: 0, levels }
+        PresentedImage { width, height, first_level: 0, levels, space: ScreenSpace::Srgb }
     }
 }
 
@@ -1256,8 +1372,7 @@ mod tests {
         let p3 = moxcms::ColorProfile::new_display_p3().encode().unwrap();
         let p3 = io::IccProfile::from_bytes(p3).unwrap();
         let pixel = [202u16, 74, 81].map(|v| v * 257);
-        let shown =
-            |profile| present_rgb16(&pixel, 1, 1, conversion(profile, display_space()).as_ref());
+        let shown = |profile| present_rgb16(&pixel, 1, 1, &conversion(profile, display_space()));
         let rgb = |image: PresentedImage| {
             let [b, g, r, _] = image.levels[0].assemble().pixels[..4] else { unreachable!() };
             vec![r, g, b]
@@ -1271,6 +1386,28 @@ mod tests {
         let unmanaged = rgb(shown(Some(&p3)));
         set_color_managed(true);
         assert_eq!(unmanaged, [202, 74, 81]);
+    }
+
+    /// On a Display P3 screen a P3 pixel is shown as it is and an sRGB one
+    /// as its P3 values, each image saying it is in P3.
+    #[test]
+    fn a_display_p3_screen_keeps_wide_gamut_pixels() {
+        let p3 = moxcms::ColorProfile::new_display_p3().encode().unwrap();
+        let p3 = io::IccProfile::from_bytes(p3).unwrap();
+        let shown = |pixel: [u16; 3], profile| {
+            let image = present_rgb16(&pixel, 1, 1, &conversion(profile, OutputSpace::DisplayP3));
+            let [b, g, r, _] = image.levels[0].assemble().pixels[..4] else { unreachable!() };
+            (image.space(), [r, g, b])
+        };
+        let near = |(space, got): (ScreenSpace, [u8; 3]), want: [u8; 3]| {
+            assert_eq!(space, ScreenSpace::DisplayP3);
+            assert!(got.iter().zip(want).all(|(g, w)| g.abs_diff(w) <= 1), "{got:?}");
+        };
+        near(shown([202u16, 74, 81].map(|v| v * 257), Some(&p3)), [202, 74, 81]);
+        // Pure P3 red, outside sRGB, is not clipped.
+        near(shown([65535, 0, 0], Some(&p3)), [255, 0, 0]);
+        near(shown([219u16, 61, 77].map(|v| v * 257), None), [202, 74, 81]);
+        assert_eq!(present_rgb16(&[0; 3], 1, 1, &ToDisplay::SRGB).space(), ScreenSpace::Srgb);
     }
 
     #[test]

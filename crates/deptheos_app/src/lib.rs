@@ -29,7 +29,7 @@ pub use deptheos_render::{
 };
 pub use engine::look::Look;
 pub use engine::present::{
-    CpuImage, PresentedImage, TILE_CORE, TiledLevel, fit_long_edge, level_index,
+    CpuImage, PresentedImage, ScreenSpace, TILE_CORE, TiledLevel, fit_long_edge, level_index,
 };
 pub use engine::preview::decode_linear_with_metadata;
 pub use engine::{Engine, LIVE_PREVIEW_SIDE, Overlay, PresentedStack};

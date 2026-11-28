@@ -305,7 +305,7 @@ extension AppModel {
                 let start = DispatchTime.now()
                 let tick = try probe.tick(step: UInt32(step), screenWidth: sw, screenHeight: sh, region: region)
                 let drawn = DispatchTime.now()
-                let pixels = DisplayImage(width: tick.width, height: tick.height, bgra: probe.bgra())
+                let pixels = DisplayImage(width: tick.width, height: tick.height, bgra: probe.bgra(), space: .srgb)
                 let copied = DispatchTime.now()
                 guard let cgImage = pixels.makeCGImage() else { continue }
                 let made = DispatchTime.now()

@@ -280,6 +280,8 @@ struct Mirror {
     /// Full size first. Level 0 has no tiles: they are in `full`.
     levels: Vec<TiledLevel>,
     full: FullTiles,
+    /// The space the canvas's display is in, its patches' too.
+    space: crate::ScreenSpace,
 }
 
 /// Some full-size tiles, by `[tx, ty]`.
@@ -356,11 +358,13 @@ impl Observer for Forward {
                         rows: l.rows,
                     })
                     .collect();
+                let space = display.space().into();
                 let mut tiled = display.levels;
                 if let Some(full) = tiled.first_mut() {
                     full.tiles = Vec::new();
                 }
-                let mirror = Mirror { key: key.clone(), levels: tiled, full: FullTiles::default() };
+                let full = FullTiles::default();
+                let mirror = Mirror { key: key.clone(), levels: tiled, full, space };
                 *crate::lock(&self.mirror) = Some(mirror);
                 self.observer.opened(key.as_str().to_string(), levels);
             }
@@ -526,7 +530,7 @@ impl PaintSession {
     /// kept).
     pub fn canvas_image(&self) -> Option<DisplayImage> {
         // Level 0's tiles are only some, in `full`.
-        self.mirror(|m| crate::levels_image(m.levels.get(1..)?, self.display_side))
+        self.mirror(|m| crate::levels_image(m.levels.get(1..)?, self.display_side, m.space))
     }
 
     /// The render's paint is saved, its sources let go.
@@ -760,7 +764,8 @@ impl PaintSession {
             } else {
                 tiled.tiles.get((ty * tiled.cols + tx) as usize)?
             };
-            Some(DisplayImage { width: tile.width, height: tile.height, bgra: tile.pixels.clone() })
+            let (width, height, bgra) = (tile.width, tile.height, tile.pixels.clone());
+            Some(DisplayImage { width, height, bgra, space: mirror.space })
         })
     }
 
@@ -1273,8 +1278,12 @@ pub(crate) mod tests {
         let key = crate::render_id(&format!("{:032x}", 7)).unwrap();
         let mut full = FullTiles::default();
         full.requested.insert([0, 0]);
-        let mirror =
-            Arc::new(Mutex::new(Some(Mirror { key: key.clone(), levels: Vec::new(), full })));
+        let mirror = Arc::new(Mutex::new(Some(Mirror {
+            key: key.clone(),
+            levels: Vec::new(),
+            full,
+            space: crate::ScreenSpace::Srgb,
+        })));
         let (tx, heard) = channel();
         let forward = Forward {
             mirror: mirror.clone(),
@@ -1297,7 +1306,8 @@ pub(crate) mod tests {
         let level = TiledLevel { width: 4, height: 1, cols: 4, rows: 1, tiles: Vec::new() };
         let mut full = FullTiles::default();
         full.requested.extend((0..4).map(|x| [x, 0]));
-        let mirror = Mirror { key: key.clone(), levels: vec![level], full };
+        let mirror =
+            Mirror { key: key.clone(), levels: vec![level], full, space: crate::ScreenSpace::Srgb };
         let (tx, _heard) = channel();
         let forward = Forward {
             mirror: Arc::new(Mutex::new(Some(mirror))),
@@ -1329,7 +1339,12 @@ pub(crate) mod tests {
         let key = crate::render_id(&format!("{:032x}", 7)).unwrap();
         let other = crate::render_id(&format!("{:032x}", 8)).unwrap();
         let level = TiledLevel { width: 1, height: 1, cols: 1, rows: 1, tiles: Vec::new() };
-        let mirror = Mirror { key, levels: vec![level], full: FullTiles::default() };
+        let mirror = Mirror {
+            key,
+            levels: vec![level],
+            full: FullTiles::default(),
+            space: crate::ScreenSpace::Srgb,
+        };
         let (tx, heard) = channel();
         let forward = Forward {
             mirror: Arc::new(Mutex::new(Some(mirror))),

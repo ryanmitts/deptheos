@@ -19,8 +19,16 @@ A stack's stored pixels become colors on screen, in compares, Retouch, exports, 
   - `redrawn`: the render in a file through the adjusted path even when neutral, with a reframe: the redraw command's (ADR-103).
   - `adjusting`: Adjust's screen, through the adjusted path even when neutral, with a reframe, in the display's space: every drag tick and the picture it settles on (ADR-138).
 - **`Adjustments` lives in `deptheos_adjust`**, a crate with no Deptheos dependency, and carries its process version. A neutral value draws exactly as none: the tests check this bit for bit at every site.
-- **`OutputSpace` is Srgb, StackProfile or a camera RAW stack's wide space.** The screen is sRGB while Color Management is on, else the stack's own profile, which the look resolves as it draws. StackProfile passes an unadjusted standard stack's values through, and the export carries the profile (`Look::icc`).
+- **`OutputSpace` is Srgb, StackProfile or a camera RAW stack's wide space.** The screen is sRGB or Display P3 while Color Management is on, else the stack's own profile, which the look resolves as it draws. StackProfile passes an unadjusted standard stack's values through, and the export carries the profile (`Look::icc`).
 - **A camera RAW stack also exports in Display P3, Adobe RGB or ProPhoto**, each with moxcms's profile (`OutputSpace::wide_icc`). The linear shader's last matrix and encoding are that profile's, as the embedded file reads back: sRGB's curve for P3, a pure power for the other two. A standard stack draws a wide space in sRGB, which its export then says. ProPhoto exports at 16 bits only, as 8 bits band across its gamut; the export refuses a JPEG or 8-bit file. An adjusted export of an 8-bit standard stack takes 16 bits when asked, since the adjustments make values between its codes (`Look::is_adjusted`).
+
+### The screen's space
+
+- **The screen is a space the app sets** (`present::set_screen`, `crates/deptheos_app/src/engine/present.rs`): sRGB by default, Display P3 where the app draws a wide-gamut screen in it. Its draw is the render's last stage, as an export's is: a camera RAW stack on a P3 screen takes the very constants of a P3 export, and a standard stack is converted to P3, on the CPU unadjusted and in `standard.wgsl` adjusted (P3 shares sRGB's curve, so only the matrix differs). A standard stack's file still draws a wide space in sRGB; only the screen takes P3 (`Look::output`).
+- **Every display image names its space** (`PresentedImage::space`), carried through turns and flips and into paint's canvas, so an app tags or converts what it is handed and never guesses.
+- **What is kept or counted stays sRGB.** Render thumbnails and their rewrites are converted back to sRGB (`present::in_srgb`). Adjust's histogram and clipping count an sRGB draw: on a P3 screen the settle draws the full picture twice, the second only for the clipping, after the first is let go of, so the memory budget holds.
+- **Color Management off turns it all off:** the stack's values are shown as stored, whatever the screen.
+- **On an sRGB screen nothing changes,** which `just handoff-check` proves bit for bit.
 
 ### The resolve step
 
@@ -94,5 +102,5 @@ A long dispatch on a large picture risks the operating system's GPU watchdog, an
 
 - `crates/deptheos_adjust/src/lib.rs`.
 - `crates/deptheos_render/src/resolve.rs`, `crates/deptheos_render/src/local_tone.rs`, `crates/deptheos_render/src/dng_render/mod.rs`, `crates/deptheos_render/src/dng_render/draw.rs`, `crates/deptheos_render/src/dng_render/reduce.rs`, `crates/deptheos_render/src/dng_render/standard.rs`, `crates/deptheos_render/src/dng_render/standard.wgsl`.
-- `crates/deptheos_app/src/engine/look.rs`, `crates/deptheos_app/src/engine.rs`, `crates/deptheos_app/src/runs/session/stack.rs`, `crates/deptheos_app/src/paint/render.rs`.
+- `crates/deptheos_app/src/engine/look.rs`, `crates/deptheos_app/src/engine/present.rs`, `crates/deptheos_app/src/engine.rs`, `crates/deptheos_app/src/runs/session/stack.rs`, `crates/deptheos_app/src/paint/render.rs`.
 - `crates/deptheos_render/tests/integration/regions.rs`, `crates/deptheos_render/tests/integration/standard.rs`, `crates/deptheos_render/src/dng_render/reference.rs`, `crates/deptheos_app/src/engine/handoff_tests.rs`.

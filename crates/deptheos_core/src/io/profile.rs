@@ -88,33 +88,55 @@ fn profile_description(bytes: &[u8]) -> Option<String> {
     description.map(|s| s.trim_end_matches('\0').trim().to_owned()).filter(|s| !s.is_empty())
 }
 
-/// A 16-bit RGB conversion from a profile's space to sRGB, for the screen
-/// only (relative colorimetric, clipping); exports keep the profile.
+/// A 16-bit RGB conversion for the screen (relative colorimetric,
+/// clipping): from a profile's space to sRGB or Display P3, or from sRGB to
+/// Display P3. Exports keep the profile.
 #[derive(Clone)]
-pub struct ToSrgb(Arc<moxcms::Transform16BitExecutor>);
+pub struct RgbConversion(Arc<moxcms::Transform16BitExecutor>);
 
-impl fmt::Debug for ToSrgb {
+impl fmt::Debug for RgbConversion {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        f.write_str("ToSrgb")
+        f.write_str("RgbConversion")
     }
 }
 
 impl IccProfile {
     /// The conversion from this profile to sRGB; `None` when the profile
     /// cannot be built into one (then its pixels are shown as they are).
-    pub fn to_srgb(&self) -> Option<ToSrgb> {
+    pub fn to_srgb(&self) -> Option<RgbConversion> {
         let source = moxcms::ColorProfile::new_from_slice(&self.0).ok()?;
+        RgbConversion::between(&source, &moxcms::ColorProfile::new_srgb())
+    }
+
+    /// [`Self::to_srgb`], to Display P3.
+    pub fn to_display_p3(&self) -> Option<RgbConversion> {
+        let source = moxcms::ColorProfile::new_from_slice(&self.0).ok()?;
+        RgbConversion::between(&source, &moxcms::ColorProfile::new_display_p3())
+    }
+}
+
+impl RgbConversion {
+    /// sRGB's values in Display P3.
+    pub fn srgb_to_display_p3() -> Option<Self> {
+        let p3 = moxcms::ColorProfile::new_display_p3();
+        Self::between(&moxcms::ColorProfile::new_srgb(), &p3)
+    }
+
+    /// Display P3's values in sRGB, clipped.
+    pub fn display_p3_to_srgb() -> Option<Self> {
+        let srgb = moxcms::ColorProfile::new_srgb();
+        Self::between(&moxcms::ColorProfile::new_display_p3(), &srgb)
+    }
+
+    fn between(source: &moxcms::ColorProfile, target: &moxcms::ColorProfile) -> Option<Self> {
         let options = moxcms::TransformOptions {
             rendering_intent: moxcms::RenderingIntent::RelativeColorimetric,
             ..Default::default()
         };
-        let srgb = moxcms::ColorProfile::new_srgb();
         let layout = moxcms::Layout::Rgb;
-        source.create_transform_16bit(layout, &srgb, layout, options).ok().map(ToSrgb)
+        source.create_transform_16bit(layout, target, layout, options).ok().map(Self)
     }
-}
 
-impl ToSrgb {
     /// `src`, interleaved RGB, converted into `dst` (the same length).
     pub fn convert(&self, src: &[u16], dst: &mut [u16]) {
         if self.0.transform(src, dst).is_err() {

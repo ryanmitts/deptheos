@@ -11,7 +11,7 @@
 use std::path::PathBuf;
 use std::time::Instant;
 
-use deptheos_app::engine::present::present_texture;
+use deptheos_app::engine::present::{ToDisplay, present_texture};
 use deptheos_gpu::GpuContext;
 use deptheos_gpu::gpu_utils::download_texture_rows;
 use deptheos_render::dng_render::{DngRenderPipeline, PreparedRender, Region, Source};
@@ -146,7 +146,7 @@ fn main() {
             let r = ms(t);
 
             let t = Instant::now();
-            let shown = present_texture(&ctx, &output, None).unwrap();
+            let shown = present_texture(&ctx, &output, &ToDisplay::SRGB).unwrap();
             let d = ms(t);
 
             // One tick as the viewer would see it: render, then the
@@ -154,7 +154,7 @@ fn main() {
             let t = Instant::now();
             let region = Region { x: 0, y: 0, width: case.region[0], height: case.region[1] };
             pipeline.draw(&ctx, &prepared, Source::whole(&source), region, &output);
-            let again = present_texture(&ctx, &output, None).unwrap();
+            let again = present_texture(&ctx, &output, &ToDisplay::SRGB).unwrap();
             let k = ms(t);
 
             tiles = shown.levels.iter().map(|l| l.tiles.len()).sum();

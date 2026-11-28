@@ -25,7 +25,7 @@ use deptheos_render::dng_render::Region;
 use deptheos_render::reframe::{Flip, Rect, Size, Turn};
 use deptheos_render::{Reframe, slider::Track};
 
-use crate::{DisplayImage, Engine, Picture, Result, StackResult, Told, level_image};
+use crate::{DisplayImage, Engine, Picture, Result, ScreenSpace, StackResult, Told, level_image};
 
 /// An adjustment slider (`deptheos_app::adjust::Slider`).
 #[uniffi::remote(Enum)]
@@ -315,24 +315,6 @@ pub struct PictureRegion {
 impl From<Region> for PictureRegion {
     fn from(r: Region) -> Self {
         Self { x: r.x, y: r.y, width: r.width, height: r.height }
-    }
-}
-
-/// The colors a picture for the screen is in.
-#[derive(Clone, Copy, Debug, PartialEq, Eq, uniffi::Enum)]
-pub enum ScreenSpace {
-    /// sRGB, and a standard stack's own values with Color Management off,
-    /// shown as they are.
-    Srgb,
-    DisplayP3,
-}
-
-impl From<deptheos_render::OutputSpace> for ScreenSpace {
-    fn from(space: deptheos_render::OutputSpace) -> Self {
-        match space {
-            deptheos_render::OutputSpace::DisplayP3 => Self::DisplayP3,
-            _ => Self::Srgb,
-        }
     }
 }
 

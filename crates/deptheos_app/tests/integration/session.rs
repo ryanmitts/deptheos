@@ -1037,7 +1037,7 @@ fn reversed_alignment_replays_exactly() {
 /// with levels down to the 1024 px floor; other formats are refused.
 #[test]
 fn display_readback_matches_in_both_result_formats() {
-    use deptheos_app::engine::present::present_texture;
+    use deptheos_app::engine::present::{ToDisplay, present_texture};
     use deptheos_core::io::quantize_u16;
 
     let Some(ctx) = GpuContext::new_or_skip() else { return };
@@ -1070,8 +1070,8 @@ fn display_readback_matches_in_both_result_formats() {
     let f32_texture = upload(wgpu::TextureFormat::Rgba32Float, bytemuck::cast_slice(&floats), 16);
     let u16_texture = upload(wgpu::TextureFormat::Rgba16Unorm, bytemuck::cast_slice(&unorm), 8);
 
-    let from_f32 = present_texture(&ctx, &f32_texture, None).unwrap();
-    let from_u16 = present_texture(&ctx, &u16_texture, None).unwrap();
+    let from_f32 = present_texture(&ctx, &f32_texture, &ToDisplay::SRGB).unwrap();
+    let from_u16 = present_texture(&ctx, &u16_texture, &ToDisplay::SRGB).unwrap();
     let sizes: Vec<_> = from_u16.levels.iter().map(|l| (l.width, l.height)).collect();
     assert_eq!(
         sizes,
@@ -1092,7 +1092,7 @@ fn display_readback_matches_in_both_result_formats() {
         wgpu::TextureUsages::COPY_SRC,
         "rgba8",
     );
-    assert!(present_texture(&ctx, &rgba8, None).is_err());
+    assert!(present_texture(&ctx, &rgba8, &ToDisplay::SRGB).is_err());
     let _ = ctx.device.poll(wgpu::PollType::wait_indefinitely());
 }
 

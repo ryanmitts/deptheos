@@ -160,7 +160,12 @@ fn main() {
             );
             let _ = ctx.device.poll(wgpu::PollType::wait_indefinitely());
             let shown = measure("present_texture", || {
-                deptheos_app::engine::present::present_texture(&ctx, &texture, None).unwrap()
+                deptheos_app::engine::present::present_texture(
+                    &ctx,
+                    &texture,
+                    &deptheos_app::engine::present::ToDisplay::SRGB,
+                )
+                .unwrap()
             });
             println!("  the pyramid holds {}", mb(shown.bytes()));
         }

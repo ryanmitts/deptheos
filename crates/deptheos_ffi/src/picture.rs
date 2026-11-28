@@ -231,7 +231,8 @@ impl Picture {
             return None;
         }
         let tile = tiled.tiles.get((ty * tiled.cols + tx) as usize)?;
-        Some(DisplayImage { width: tile.width, height: tile.height, bgra: tile.pixels.clone() })
+        let (width, height, bgra) = (tile.width, tile.height, tile.pixels.clone());
+        Some(DisplayImage { width, height, bgra, space: self.image.space().into() })
     }
 }
 
@@ -363,7 +364,7 @@ mod tests {
                 }
             }
         }
-        DisplayImage { width: l.width, height: l.height, bgra }
+        DisplayImage { width: l.width, height: l.height, bgra, space: picture.image.space().into() }
     }
 
     /// Every level's tiles together are that level, odd sizes and short

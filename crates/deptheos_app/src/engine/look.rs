@@ -38,8 +38,8 @@ enum Adjusted<'a> {
 /// Where a look's colors go.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 enum Target {
-    /// The screen: sRGB while Color Management is on, else a standard
-    /// stack's values in its own profile.
+    /// The screen: its space while Color Management is on, else a
+    /// standard stack's values in its own profile ([`display_space`]).
     Display,
     File(OutputSpace),
 }
@@ -131,6 +131,12 @@ impl<'a> Look<'a> {
         Self { stack, adjusted: Adjusted::Redrawn(adjustments), reframe, target: Target::Display }
     }
 
+    /// It drawn into sRGB whatever the screen's space: what Adjust's
+    /// histogram counts.
+    pub fn in_srgb(self) -> Self {
+        Self { target: Target::File(OutputSpace::Srgb), ..self }
+    }
+
     /// The shader's constants it draws with, when it draws on the GPU (an
     /// Adjust look always does): for benches and probes.
     pub fn constants(&self) -> Option<Constants> {
@@ -159,11 +165,17 @@ impl<'a> Look<'a> {
         self.stack
     }
 
-    /// The space this look's colors go to, the screen's as it is now.
+    /// The space this look's colors go to, the screen's as it is now. A
+    /// standard stack's file is never in a wide space: it draws them in
+    /// sRGB, which its export then says (ADR-135).
     pub fn output(&self) -> OutputSpace {
-        match self.target {
-            Target::Display => display_space(),
-            Target::File(output) => output,
+        match (self.target, &self.stack.color) {
+            (Target::Display, _) => display_space(),
+            (Target::File(output), StackColor::Linear { .. }) => output,
+            (Target::File(output), StackColor::Srgb { .. }) => match output.wide_profile() {
+                Some(_) => OutputSpace::Srgb,
+                None => output,
+            },
         }
     }
 

@@ -91,8 +91,13 @@ impl StandardConstants {
             (OutputSpace::StackProfile, Some(source)) => {
                 (output, prophoto.transform_matrix(source), true)
             }
+            // Display P3 shares sRGB's curve, so only the matrix differs.
+            (OutputSpace::DisplayP3, _) => {
+                let p3 = OutputSpace::DisplayP3.wide_profile().expect("moxcms makes Display P3");
+                (output, prophoto.transform_matrix(&p3), false)
+            }
             (OutputSpace::StackProfile | OutputSpace::Srgb, _)
-            | (OutputSpace::DisplayP3 | OutputSpace::AdobeRgb | OutputSpace::ProPhoto, _) => {
+            | (OutputSpace::AdobeRgb | OutputSpace::ProPhoto, _) => {
                 (OutputSpace::Srgb, prophoto.transform_matrix(&srgb), false)
             }
         };

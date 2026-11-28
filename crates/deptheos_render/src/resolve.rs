@@ -11,8 +11,9 @@ use crate::chroma::Chroma;
 use crate::curve::Curve;
 use crate::dng_render::{Constants, Exposure, LocalTone, Stages};
 
-/// Where a draw's colors go. The screen is sRGB, or a standard stack's
-/// own profile while Color Management is off.
+/// Where a draw's colors go. The screen is sRGB or Display P3, as the
+/// display is, or a standard stack's own profile while Color Management is
+/// off.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum OutputSpace {
     Srgb,
@@ -20,7 +21,8 @@ pub enum OutputSpace {
     /// unadjusted; a linear stack's render is sRGB.
     StackProfile,
     /// A camera RAW stack's export spaces, each with moxcms's profile; a
-    /// standard stack draws them in sRGB.
+    /// standard stack draws Adobe RGB and ProPhoto in sRGB. Display P3 is
+    /// also a wide-gamut screen's, for either kind.
     DisplayP3,
     AdobeRgb,
     /// At 16 bits only: its gamut needs more than 8.
@@ -85,9 +87,9 @@ pub fn resolve<'a>(
     adjustments: Option<&Adjustments>,
     output: OutputSpace,
 ) -> Draw<'a> {
-    // A standard stack draws the wide spaces in sRGB.
-    let output = match (color, output.wide_profile()) {
-        (Color::Standard(_), Some(_)) => OutputSpace::Srgb,
+    // A standard stack draws Adobe RGB and ProPhoto in sRGB.
+    let output = match (color, output) {
+        (Color::Standard(_), OutputSpace::AdobeRgb | OutputSpace::ProPhoto) => OutputSpace::Srgb,
         _ => output,
     };
     match (color, adjustments) {
@@ -300,7 +302,8 @@ mod tests {
     /// as they go, a gain for the rest, the shoulder for what is raised
     /// past white.
     /// A linear stack draws into a wide space, whose profile reads back
-    /// with its own primaries; a standard stack draws it in sRGB.
+    /// with its own primaries; a standard stack draws Display P3, a
+    /// screen's, and the others in sRGB.
     #[test]
     fn the_wide_spaces_are_a_linear_stacks() {
         let (params, profile) = (params(), IccProfile::adobe_rgb_compatible());
@@ -310,11 +313,15 @@ mod tests {
         for wide in [OutputSpace::DisplayP3, OutputSpace::AdobeRgb, OutputSpace::ProPhoto] {
             let linear = resolve(Color::Linear(&params), None, wide);
             assert_eq!(linear.output(), wide);
+            let drawn = match wide {
+                OutputSpace::DisplayP3 => wide,
+                _ => OutputSpace::Srgb,
+            };
             let standard = resolve(Color::Standard(Some(&profile)), None, wide);
-            assert_eq!(standard.output(), OutputSpace::Srgb);
+            assert_eq!(standard.output(), drawn);
             let adjusted = Adjustments { exposure: 1.0, ..Adjustments::NEUTRAL };
             let standard = resolve(Color::Standard(Some(&profile)), Some(&adjusted), wide);
-            assert_eq!(standard.output(), OutputSpace::Srgb);
+            assert_eq!(standard.output(), drawn);
             let read = wide.wide_profile().unwrap();
             let made = match wide {
                 OutputSpace::DisplayP3 => moxcms::ColorProfile::new_display_p3(),

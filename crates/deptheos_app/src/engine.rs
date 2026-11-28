@@ -50,7 +50,7 @@ use deptheos_render::{Adjustments, Color, Draw, Reframe, resolve};
 use crate::engine::orient::Orient;
 use look::Look;
 use present::{
-    PresentedImage, conversion, display_space, present_map, present_rgb, present_rgb16,
+    PresentedImage, ToDisplay, conversion, display_space, present_map, present_rgb, present_rgb16,
     present_texture,
 };
 
@@ -101,7 +101,7 @@ pub enum SourceInput<'a> {
 /// conversion left for the CPU ([`Engine::colored`]).
 struct Colored {
     texture: PooledTexture,
-    to_srgb: Option<io::ToSrgb>,
+    to: ToDisplay,
 }
 
 /// A finished stack with its display and half-size map ready to show,
@@ -121,9 +121,9 @@ impl PresentedStack {
 }
 
 impl PresentedImage {
-    /// A render thumbnail in sRGB: the smallest level still
-    /// [`THUMBNAIL_SIDE`] on its long side (the store reduces the rest), or
-    /// the full image when smaller.
+    /// A render thumbnail in sRGB, whatever the screen's space: the
+    /// smallest level still [`THUMBNAIL_SIDE`] on its long side (the store
+    /// reduces the rest), or the full image when smaller.
     pub fn thumbnail(&self) -> Option<RgbImage> {
         let level = self
             .levels
@@ -131,7 +131,7 @@ impl PresentedImage {
             .rev()
             .find(|l| l.width.max(l.height) >= THUMBNAIL_SIDE)
             .or(self.levels.first())?;
-        Some(level.assemble().to_rgb())
+        Some(present::in_srgb(level.assemble().to_rgb(), self.space()))
     }
 }
 
@@ -257,8 +257,8 @@ impl Engine {
         if !backend.decodes_linear(path) {
             let frame =
                 io::load_frame(path, io::FileCache::Use, backend.camera_raw(), io::Target::Own)?;
-            let to_srgb = conversion(frame.profile.as_ref(), display_space());
-            return Ok(present_image(&frame.image, to_srgb.as_ref()));
+            let to = conversion(frame.profile.as_ref(), display_space());
+            return Ok(present_image(&frame.image, &to));
         }
         let (image, metadata) = preview::decode_linear_with_metadata(path, self.camera_profile())?;
         let params = render_params_or_identity(&metadata);
@@ -295,7 +295,7 @@ impl Engine {
     ) -> Result<PresentedImage> {
         let stack = look.stack();
         let aligned = self.aligned_source(path, frame_index, stack)?;
-        let Colored { texture, to_srgb } = self.colored(aligned, look.resolve());
+        let Colored { texture, to } = self.colored(aligned, look.resolve());
         let texture = match (overlay, frame_index, stack.frame_map.as_ref()) {
             (Overlay::Contribution, Some(index), Some(map))
                 if !stack.geometry.is_left_out(index) =>
@@ -311,7 +311,7 @@ impl Engine {
             }
             _ => texture,
         };
-        self.show(Colored { texture, to_srgb })
+        self.show(Colored { texture, to })
     }
 
     /// [`Self::load_compare`] as a full-size image, for the CLI.
@@ -327,7 +327,7 @@ impl Engine {
             .levels
             .first()
             .ok_or_else(|| Error::InvalidState("the compare source has no pixels".into()))?;
-        Ok(level.assemble().to_rgb())
+        Ok(present::in_srgb(level.assemble().to_rgb(), presented.space()))
     }
 
     /// [`Self::load_compare`] for another render: `other`'s stack in
@@ -398,13 +398,13 @@ impl Engine {
         let stack = look.stack();
         match look.resolve() {
             Draw::Stored { profile, output } => {
-                let to_srgb = conversion(profile, output);
-                Ok(present_rgb16(pixels, stack.width, stack.height, to_srgb.as_ref()))
+                let to = conversion(profile, output);
+                Ok(present_rgb16(pixels, stack.width, stack.height, &to))
             }
             Draw::Rendered(constants) => {
                 let texture = self.upload_for(&constants, pixels, stack.width, stack.height)?;
                 let texture = self.color.render(&self.gpu, &texture, &constants);
-                self.show(Colored { texture, to_srgb: None })
+                self.show(Colored { texture, to: ToDisplay::drawn(constants.output()) })
             }
         }
     }
@@ -415,18 +415,18 @@ impl Engine {
         match draw {
             Draw::Rendered(constants) => Colored {
                 texture: self.color.render(&self.gpu, &texture, &constants),
-                to_srgb: None,
+                to: ToDisplay::drawn(constants.output()),
             },
             Draw::Stored { profile, output } => Colored {
                 texture: PooledTexture::unpooled(texture),
-                to_srgb: conversion(profile, output),
+                to: conversion(profile, output),
             },
         }
     }
 
     /// A [`Colored`] texture read back for display.
     fn show(&self, colored: Colored) -> Result<PresentedImage> {
-        self.present(&colored.texture, colored.to_srgb.as_ref())
+        self.present(&colored.texture, &colored.to)
     }
 
     /// Runs a stack on the calling thread. With [`SessionOptions::live_map`],
@@ -486,9 +486,10 @@ impl Engine {
             )
         })?;
         let display = match (output.display, Look::shown(&output.stack, adjustments).resolve()) {
-            (Some(display), Draw::Rendered(constants)) => {
-                Some(display.render(&self.color, &constants))
-            }
+            (Some(display), Draw::Rendered(constants)) => Some(Colored {
+                texture: display.render(&self.color, &constants),
+                to: ToDisplay::drawn(constants.output()),
+            }),
             _ => None,
         };
         let saved = RenderAdjustments { adjustments: adjustments.clone(), reframe: Reframe::NONE };
@@ -577,7 +578,8 @@ impl Engine {
                 let _t = cpu_scope("present: display render");
                 let (w, h) = (stack.width, stack.height);
                 let input = self.upload_for(&constants, &stack.pixels, w, h)?;
-                Some(self.color.render(&self.gpu, &input, &constants))
+                let texture = self.color.render(&self.gpu, &input, &constants);
+                Some(Colored { texture, to: ToDisplay::drawn(constants.output()) })
             }
             Draw::Stored { .. } => None,
         };
@@ -643,13 +645,13 @@ impl Engine {
         }
     }
 
-    /// A texture read back for display, through `to_srgb` if any.
+    /// A texture read back for display, through `to`.
     pub(crate) fn present(
         &self,
         texture: &wgpu::Texture,
-        to_srgb: Option<&io::ToSrgb>,
+        to: &ToDisplay,
     ) -> Result<PresentedImage> {
-        present_texture(&self.gpu, texture, to_srgb)
+        present_texture(&self.gpu, texture, to)
     }
 
     /// The display and map for `stack` under `adjustments`. A rendered
@@ -659,12 +661,12 @@ impl Engine {
         &self,
         stack: CompletedStack,
         saved: &RenderAdjustments,
-        display: Option<PooledTexture>,
+        display: Option<Colored>,
     ) -> PresentedStack {
         let display = {
             let _t = cpu_scope("present: display");
             match display {
-                Some(texture) => self.present(&texture, None),
+                Some(colored) => self.show(colored),
                 None => self.present_pixels(Look::shown_saved(&stack, saved), &stack.pixels),
             }
             .inspect_err(|e| tracing::warn!("the stack's display readback failed: {e}"))
@@ -741,13 +743,13 @@ impl Engine {
     }
 }
 
-/// A non-RAW file as displayed through `to_srgb` if any; anything but RGB8
-/// or RGB16, or converted, is widened to RGB16 first.
-fn present_image(image: &DynamicImage, to_srgb: Option<&io::ToSrgb>) -> PresentedImage {
+/// A non-RAW file as displayed through `to`; anything but RGB8 or RGB16,
+/// or converted, is widened to RGB16 first.
+fn present_image(image: &DynamicImage, to: &ToDisplay) -> PresentedImage {
     let (w, h) = (image.width(), image.height());
-    if to_srgb.is_some() {
+    if to.convert.is_some() {
         let rgb = image.to_rgb16();
-        return present_rgb16(rgb.as_raw(), w, h, to_srgb);
+        return present_rgb16(rgb.as_raw(), w, h, to);
     }
     match image {
         DynamicImage::ImageRgb8(i) => present_rgb(i.as_raw(), w, h, |v| v),

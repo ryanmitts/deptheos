@@ -152,6 +152,41 @@ fn neutral_draws_as_unadjusted_within_a_bound() {
     }
 }
 
+/// On a Display P3 screen a standard stack draws in P3 through the
+/// adjusted path as the CPU converts it, so a settle doesn't shift color,
+/// and a P3 stack keeps the colors sRGB can't show.
+#[test]
+fn neutral_draws_into_a_display_p3_screen_as_the_cpu_converts() {
+    let Some(ctx) = GpuContext::new_or_skip() else { return };
+    let pixels = scene();
+    let whole = Region::whole(SIZE[0], SIZE[1]);
+    let p3 = profile(ColorProfile::new_display_p3());
+    let profiles = [("sRGB", None), ("Display P3", Some(p3.clone()))];
+    for (name, icc) in &profiles {
+        let constants = resolve_adjusted(
+            Color::Standard(icc.as_ref()),
+            &Adjustments::NEUTRAL,
+            OutputSpace::DisplayP3,
+        );
+        assert_eq!(constants.output(), OutputSpace::DisplayP3, "{name}");
+        let to_p3 = match icc {
+            Some(icc) => icc.to_display_p3(),
+            None => deptheos_core::io::RgbConversion::srgb_to_display_p3(),
+        };
+        let mut converted = vec![0; pixels.len()];
+        to_p3.expect("a conversion to P3").convert(&pixels, &mut converted);
+        let drawn = draw(&ctx, &constants, &pixels, whole);
+        let off = largest(&drawn, &converted);
+        assert!(off <= SRGB_BOUND, "{name}: Display P3 off by {off}");
+    }
+    // Pure P3 red stays pure red: nothing clips it to sRGB.
+    let red = [65535u16, 0, 0].repeat((SIZE[0] * SIZE[1]) as usize);
+    let constants =
+        resolve_adjusted(Color::Standard(Some(&p3)), &Adjustments::NEUTRAL, OutputSpace::DisplayP3);
+    let drawn = draw(&ctx, &constants, &red, whole);
+    assert!(largest(&drawn, &red) <= OWN_BOUND, "P3 red clipped");
+}
+
 /// A region of a standard stack draws as that region of the whole.
 #[test]
 fn a_region_draws_as_the_whole_picture_does() {

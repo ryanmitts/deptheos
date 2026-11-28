@@ -354,6 +354,15 @@ impl StackResult {
         self.stack.width
     }
 
+    /// The size of a rendered export (not DNG, which keeps the whole
+    /// picture): its reframe's crop, turned.
+    pub fn output_size(&self) -> crate::picture::PictureSize {
+        let whole =
+            deptheos_render::reframe::Size { width: self.stack.width, height: self.stack.height };
+        let size = self.reframe.output_size(whole).unwrap_or(whole);
+        crate::picture::PictureSize { width: size.width, height: size.height }
+    }
+
     pub fn height(&self) -> u32 {
         self.stack.height
     }

@@ -149,11 +149,27 @@ struct ExportSheet: View {
                             .font(.footnote).foregroundStyle(.secondary)
                     }
                 } footer: {
+                    // A DNG keeps the whole picture, its crop a tag.
+                    let size = format == .dng
+                        ? PictureSize(width: result.width(), height: result.height()) : result.outputSize()
                     Text(
-                        "\(result.width().formatted(.number.grouping(.never))) × \(result.height().formatted(.number.grouping(.never))) pixels",
+                        "\(size.width.formatted(.number.grouping(.never))) × \(size.height.formatted(.number.grouping(.never))) pixels",
                         comment: "Export sheet footer: the exported picture's size. The placeholders are its width and height in pixels, as numbers in the user's locale.")
                 }
                 Section {
+                    #if DEBUG
+                    if E2E.exports != nil {
+                        // Not translated: debug builds only, for the test; first, so
+                        // it shows at the sheet's first height.
+                        Button {
+                            Task { await send(to: .testFolder) }
+                        } label: {
+                            Label { Text(verbatim: "Save to Test Folder") } icon: { Image(systemName: "testtube.2") }
+                        }
+                        .disabled(export.destination != nil)
+                        .accessibilityIdentifier("export-test-folder")
+                    }
+                    #endif
                     row(
                         .photos,
                         LocalizedStringResource("Save to Photos", comment: "Export sheet: saves the exported file directly to the Photos library."),
@@ -169,18 +185,6 @@ struct ExportSheet: View {
                         .files,
                         LocalizedStringResource("Save to Files…", comment: "Export sheet: saves the exported file in the Files app."),
                         systemImage: "folder")
-                    #if DEBUG
-                    if E2E.exports != nil {
-                        // Not translated: debug builds only, for the test.
-                        Button {
-                            Task { await send(to: .testFolder) }
-                        } label: {
-                            Label { Text(verbatim: "Save to Test Folder") } icon: { Image(systemName: "testtube.2") }
-                        }
-                        .disabled(export.destination != nil)
-                        .accessibilityIdentifier("export-test-folder")
-                    }
-                    #endif
                 }
             }
             .navigationTitle(LocalizedStringResource("Export", comment: "Title of the Export sheet."))

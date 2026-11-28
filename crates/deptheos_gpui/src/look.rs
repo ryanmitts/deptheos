@@ -9,7 +9,7 @@ use gpui::{
 };
 use gpui_kit::component::{ActiveTheme as _, Theme, ThemeMode};
 
-use crate::brand::{HUD, HUD_BORDER, HUD_TEXT};
+use crate::color::brand;
 use crate::prefs::{Appearance, Prefs, prefs};
 
 /// The theme now: the chosen one, or with System the `system` appearance.
@@ -70,14 +70,17 @@ pub(crate) fn overlay_surface(fill: Fill, cx: &App) -> Div {
     let theme = cx.theme();
     let el = div().border_1().rounded(theme.radius).shadow_md();
     match fill {
-        Fill::Hud => el.bg(rgba(HUD)).border_color(rgba(HUD_BORDER)).text_color(rgba(HUD_TEXT)),
+        Fill::Hud => {
+            let brand = brand();
+            el.bg(rgba(brand.hud)).border_color(rgba(brand.hud_border)).text_color(hud_text())
+        }
         Fill::Controls => el.bg(theme.popover).border_color(theme.border),
     }
 }
 
 /// Text and icons on [`Fill::Hud`].
 pub(crate) fn hud_text() -> Hsla {
-    rgba(HUD_TEXT).into()
+    rgba(brand().hud_text).into()
 }
 
 /// What is selected: the accent's tint.
@@ -158,7 +161,7 @@ mod tests {
                 let mut hud = overlay_surface(Fill::Hud, cx);
                 let mut controls = overlay_surface(Fill::Controls, cx);
                 let style = hud.style().clone();
-                assert_eq!(style.background, Some(gpui::rgba(HUD).into()));
+                assert_eq!(style.background, Some(gpui::rgba(brand().hud).into()));
                 assert_eq!(style.text.color, Some(hud_text()));
                 assert_eq!(controls.style().background, Some(cx.theme().popover.into()));
                 looks.push(style);

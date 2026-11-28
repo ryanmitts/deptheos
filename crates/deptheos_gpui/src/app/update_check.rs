@@ -3,7 +3,7 @@
 use std::sync::Arc;
 
 use gpui::prelude::*;
-use gpui::{App, ClipboardItem, Context, FontWeight, Image, ImageFormat, Window, div, img, px};
+use gpui::{App, ClipboardItem, Context, FontWeight, RenderImage, Window, div, img, px};
 use gpui_kit::component::button::{Button, ButtonVariants as _};
 use gpui_kit::component::dialog::DialogButtonProps;
 use gpui_kit::component::{ActiveTheme as _, Sizable as _, WindowExt as _, h_flex, v_flex};
@@ -179,13 +179,23 @@ const APP_ICON: &[u8] = include_bytes!(
     "../../../../packaging/linux/icons/hicolor/256x256/apps/com.deptheos.Deptheos.png"
 );
 
-/// [`APP_ICON`] as an image to draw, made once: About and the welcome
-/// share it.
-pub(super) fn app_icon() -> Arc<Image> {
-    static ICON: std::sync::LazyLock<Arc<Image>> = std::sync::LazyLock::new(|| {
-        Arc::new(Image::from_bytes(ImageFormat::Png, APP_ICON.to_vec()))
+/// [`APP_ICON`] as an image to draw in the space shown, made once for
+/// each space: About and the welcome share it.
+pub(super) fn app_icon() -> Arc<RenderImage> {
+    use deptheos_app::ScreenSpace;
+    static ICONS: std::sync::LazyLock<[Arc<RenderImage>; 2]> = std::sync::LazyLock::new(|| {
+        let mut pixels = image::load_from_memory(APP_ICON).expect("the icon is a PNG").into_rgba8();
+        // GPUI's images are BGRA.
+        pixels.pixels_mut().for_each(|p| p.0.swap(0, 2));
+        let (width, height) = pixels.dimensions();
+        let icon = deptheos_app::CpuImage { width, height, pixels: pixels.into_raw() };
+        [ScreenSpace::Srgb, ScreenSpace::DisplayP3]
+            .map(|space| crate::images::render_srgb(icon.clone(), space))
     });
-    ICON.clone()
+    match crate::color::shown() {
+        ScreenSpace::Srgb => ICONS[0].clone(),
+        ScreenSpace::DisplayP3 => ICONS[1].clone(),
+    }
 }
 
 /// What Copy Version copies: the version and build, the system and the GPU,

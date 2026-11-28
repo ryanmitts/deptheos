@@ -218,7 +218,7 @@ impl Library {
                 .flex_shrink_0()
                 .rounded_md()
                 .overflow_hidden()
-                .bg(gpui::rgb(crate::brand::VIEWER_BACKGROUND))
+                .bg(gpui::rgb(crate::color::brand().viewer_background))
                 .when_some(picture, |el, image| {
                     el.child(img(image).size_full().object_fit(ObjectFit::Contain))
                 }),

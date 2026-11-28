@@ -15,12 +15,18 @@
 //! the UI thread, kept only while on screen and under [`CRISP_BUDGET`]. Off
 //! while retouching ([`Atlas::set_crisp`]): each patch would drop its copy,
 //! leaving soft tiles under the brush beside sharp ones.
+//!
+//! A picture shows in the window's space ([`crate::color::shown`], read by
+//! [`Atlas::begin_frame`]). A tile in another space is converted as it is
+//! painted, so a space change converts only what is seen; in the same
+//! space nothing is converted.
 
 use std::sync::Arc;
 use std::time::Duration;
 
+use deptheos_app::engine::present::convert_display;
 use deptheos_app::paint::DisplayPatch;
-use deptheos_app::{CpuImage, PresentedImage, TILE_CORE, TiledLevel, level_index};
+use deptheos_app::{CpuImage, PresentedImage, ScreenSpace, TILE_CORE, TiledLevel, level_index};
 use gpui::{App, Bounds, Pixels, RenderImage, Window, point, px, size};
 use image::{Frame, RgbaImage};
 
@@ -49,6 +55,10 @@ pub struct TiledImage {
     /// for an image handed over whole.
     pixels: Arc<PresentedImage>,
     levels: Vec<Level>,
+    /// The space its pixels are in.
+    source: ScreenSpace,
+    /// The space its copied tiles and enlarged copies were made in.
+    shown: ScreenSpace,
 }
 
 struct Level {
@@ -70,22 +80,25 @@ struct Tile {
 /// A tile's pixels as GPUI draws them.
 ///
 /// Lifecycle: `Shared`, `Copied` or `Own`, changed only by [`Atlas`] and
-/// [`TiledImage::apply`]. `Shared` → `Copied` (painted or enlarged) →
-/// `Shared` (dropped from the atlas). Any → `Own` (paint's new pixels).
+/// [`TiledImage::apply`]. `Shared` → `Copied` (painted or enlarged, in the
+/// space shown) → `Shared` (dropped from the atlas, or the space shown
+/// changed). Any → `Own` (paint's new pixels). `Own` → `Own` (painted in
+/// another space than its own: converted).
 enum TileImage {
     /// Only in the image's shared pixels.
     Shared,
-    /// Copied from the shared pixels; goes with its atlas copy.
+    /// Copied from the shared pixels, in the image's space shown; goes with
+    /// its atlas copy.
     Copied(Arc<RenderImage>),
-    /// Held only here (handed over whole, or a paint patch): kept when its
-    /// atlas copy goes.
-    Own(Arc<RenderImage>),
+    /// Held only here (handed over whole, or a paint patch), in the space
+    /// given: kept when its atlas copy goes.
+    Own(Arc<RenderImage>, ScreenSpace),
 }
 
 impl Tile {
-    fn own(image: CpuImage) -> Self {
+    fn own(image: CpuImage, space: ScreenSpace) -> Self {
         let bytes = image.pixels.len();
-        Self::new(TileImage::Own(render_image(image)), bytes)
+        Self::new(TileImage::Own(render_image(image), space), bytes)
     }
 
     fn new(image: TileImage, bytes: usize) -> Self {
@@ -96,15 +109,16 @@ impl Tile {
     fn made(&self) -> Option<&Arc<RenderImage>> {
         match &self.image {
             TileImage::Shared => None,
-            TileImage::Copied(image) | TileImage::Own(image) => Some(image),
+            TileImage::Copied(image) | TileImage::Own(image, _) => Some(image),
         }
     }
 
-    /// Its GPUI image, copied out of `shared` if it has none.
-    fn image(&mut self, shared: &CpuImage) -> Arc<RenderImage> {
+    /// Its GPUI image, copied out of `shared` (in `spaces.0`) into
+    /// `spaces.1` if it has none.
+    fn image(&mut self, shared: &CpuImage, spaces: (ScreenSpace, ScreenSpace)) -> Arc<RenderImage> {
         if let TileImage::Shared = self.image {
             tracing::debug!("display tile: shared -> copied");
-            self.image = TileImage::Copied(render_image(shared.clone()));
+            self.image = TileImage::Copied(render_in(shared.clone(), spaces.0, spaces.1));
         }
         self.made().expect("made above").clone()
     }
@@ -161,11 +175,29 @@ impl TiledImage {
     pub fn from_presented(presented: impl Into<Arc<PresentedImage>>) -> Self {
         let mut pixels = presented.into();
         let (width, height, first_level) = (pixels.width(), pixels.height(), pixels.first_level);
+        let source = pixels.space();
         let levels = match Arc::get_mut(&mut pixels) {
-            Some(whole) => whole.levels.iter_mut().map(Level::own).collect(),
+            Some(whole) => whole.levels.iter_mut().map(|l| Level::own(l, source)).collect(),
             None => pixels.levels.iter().map(Level::shared).collect(),
         };
-        Self { width, height, first_level, pixels, levels }
+        Self { width, height, first_level, pixels, levels, source, shown: source }
+    }
+
+    /// Show in the atlas's space: copies and enlarged copies made in
+    /// another go (its own tiles convert as painted).
+    fn follow(&mut self, atlas: &mut Atlas) {
+        if self.shown == atlas.shown {
+            return;
+        }
+        tracing::debug!("display image: shown in {:?} -> {:?}", self.shown, atlas.shown);
+        self.shown = atlas.shown;
+        for tile in self.tiles_mut() {
+            atlas.drop_crisp(tile);
+            if let TileImage::Copied(_) = tile.image {
+                tracing::debug!("display tile: copied -> shared");
+                atlas.unload(tile);
+            }
+        }
     }
 
     /// The tiles to paint for the image drawn at `rect`, clipped to `clip`,
@@ -178,6 +210,8 @@ impl TiledImage {
         clip: Bounds<Pixels>,
         scale: f32,
     ) -> Vec<TileDraw> {
+        self.follow(atlas);
+        let spaces = (self.source, self.shown);
         let k = level_index(scale, self.first_level, self.levels.len());
         // Screen pixels per stored pixel of level `k`.
         let texel = scale * (1u32 << (self.first_level as usize + k).min(31)) as f32;
@@ -187,19 +221,20 @@ impl TiledImage {
             1
         };
         let pixels = &self.pixels.levels;
-        let mut draws = self.levels[k].draws(atlas, &pixels[k], rect, clip, factor);
+        let mut draws = self.levels[k].draws(atlas, &pixels[k], spaces, rect, clip, factor);
         // Counted as painted though drawn only if a finer tile fails: the
         // budget runs slightly early, but a fallback in the atlas is counted.
         if let Some(coarser) = self.levels.get_mut(k + 1) {
             for draw in &mut draws {
-                draw.fallback = coarser.draws(atlas, &pixels[k + 1], rect, draw.mask, 1);
+                draw.fallback = coarser.draws(atlas, &pixels[k + 1], spaces, rect, draw.mask, 1);
             }
         }
         draws
     }
 
-    /// Swap in one tile's new pixels (paint), freeing the old atlas copy
-    /// after the delay; a patch for another layout is ignored.
+    /// Swap in one tile's new pixels (paint), in the image's space,
+    /// freeing the old atlas copy after the delay; a patch for another
+    /// layout is ignored.
     pub fn apply(&mut self, atlas: &mut Atlas, patch: DisplayPatch) {
         let Some(level) = self.levels.get_mut(patch.level) else { return };
         if patch.tx >= level.cols || patch.ty >= level.rows {
@@ -207,7 +242,7 @@ impl TiledImage {
         }
         let tile = &mut level.tiles[(patch.ty * level.cols + patch.tx) as usize];
         // Its enlarged copy goes with it, and one being made is not taken.
-        atlas.retire(std::mem::replace(tile, Tile::own(patch.tile)));
+        atlas.retire(std::mem::replace(tile, Tile::own(patch.tile, self.source)));
     }
 
     /// Take `job`'s enlarged copy if its tile still wants it; `true` if taken.
@@ -254,10 +289,10 @@ impl TiledImage {
 }
 
 impl Level {
-    /// `level`'s tiles, their pixels moved out of it.
-    fn own(level: &mut TiledLevel) -> Self {
+    /// `level`'s tiles, their pixels in `space` moved out of it.
+    fn own(level: &mut TiledLevel, space: ScreenSpace) -> Self {
         let moved = |t: &mut CpuImage| CpuImage { pixels: std::mem::take(&mut t.pixels), ..*t };
-        let tiles = level.tiles.iter_mut().map(|t| Tile::own(moved(t))).collect();
+        let tiles = level.tiles.iter_mut().map(|t| Tile::own(moved(t), space)).collect();
         Self::with(level, tiles)
     }
 
@@ -320,11 +355,13 @@ impl Level {
         (x0, x1, y0, y1)
     }
 
-    /// The tiles meeting `clip`, from `factor`× copies where made.
+    /// The tiles meeting `clip`, from `factor`× copies where made, shown
+    /// in `spaces.1` from pixels in `spaces.0`.
     fn draws(
         &mut self,
         atlas: &mut Atlas,
         pixels: &TiledLevel,
+        spaces: (ScreenSpace, ScreenSpace),
         rect: Bounds<Pixels>,
         clip: Bounds<Pixels>,
         factor: u32,
@@ -340,11 +377,12 @@ impl Level {
                 }
                 let i = (ty * self.cols + tx) as usize;
                 let (tile, shared) = (&mut self.tiles[i], &pixels.tiles[i]);
-                let data = match atlas.crisp(tile, shared, factor) {
+                atlas.convert_own(tile, spaces.1);
+                let data = match atlas.crisp(tile, shared, spaces, factor) {
                     Some(crisp) => crisp,
                     None => {
                         atlas.touch(tile);
-                        tile.image(shared)
+                        tile.image(shared, spaces)
                     }
                 };
                 draws.push(TileDraw { mask, image: stored, data, fallback: Vec::new() });
@@ -381,6 +419,8 @@ pub struct Atlas {
     jobs: Vec<CrispJob>,
     /// No enlarged copies are drawn (retouching).
     crisp_off: bool,
+    /// The space pictures show in, read each frame.
+    shown: ScreenSpace,
 }
 
 impl Atlas {
@@ -388,6 +428,7 @@ impl Atlas {
     /// while drops are pending.
     pub fn begin_frame(&mut self, window: &mut Window, cx: &mut App) {
         self.frame += 1;
+        self.shown = crate::color::shown();
         let frame = self.frame;
         let (due, waiting) = std::mem::take(&mut self.drops)
             .into_iter()
@@ -453,12 +494,31 @@ impl Atlas {
         tile.painted = Some(self.frame);
     }
 
+    /// The space pictures show in this frame.
+    pub fn shown(&self) -> ScreenSpace {
+        self.shown
+    }
+
+    /// Convert `tile`'s own pixels to `shown` if they are in another space,
+    /// its old copies let go.
+    fn convert_own(&mut self, tile: &mut Tile, shown: ScreenSpace) {
+        let TileImage::Own(image, space) = &tile.image else { return };
+        let Some(converted) = reshown(image, *space, shown) else { return };
+        tracing::debug!("display tile: own in {space:?} -> own in {shown:?}");
+        self.drop_crisp(tile);
+        let old = std::mem::replace(&mut tile.image, TileImage::Own(converted, shown));
+        if let TileImage::Own(old, _) = old {
+            self.queue(old);
+        }
+    }
+
     /// `tile`'s `factor`× copy if made; else request it (within
     /// [`CRISP_BUDGET`]), dropping one at another factor. `None` for 1.
     fn crisp(
         &mut self,
         tile: &mut Tile,
         shared: &CpuImage,
+        spaces: (ScreenSpace, ScreenSpace),
         factor: u32,
     ) -> Option<Arc<RenderImage>> {
         if factor <= 1 {
@@ -478,7 +538,7 @@ impl Atlas {
             self.crisp += bytes;
             tracing::debug!("enlarged tile: none -> making (×{factor})");
             tile.crisp = Crisp::Making { factor };
-            self.jobs.push(CrispJob { source: tile.image(shared), factor });
+            self.jobs.push(CrispJob { source: tile.image(shared, spaces), factor });
         }
         None
     }
@@ -542,19 +602,26 @@ impl Atlas {
             if self.uploaded <= ATLAS_BUDGET {
                 break;
             }
+            self.unload(tile);
+        }
+    }
+
+    /// Take `tile` out of the atlas: a copy goes back to the shared pixels,
+    /// its own pixels are kept for upload again.
+    fn unload(&mut self, tile: &mut Tile) {
+        if tile.painted.take().is_some() {
             self.uploaded -= tile.bytes;
-            tile.painted = None;
-            match std::mem::replace(&mut tile.image, TileImage::Shared) {
-                TileImage::Copied(image) => {
-                    tracing::debug!("display tile: copied -> shared");
-                    self.queue(image);
-                }
-                TileImage::Own(image) => {
-                    self.queue(image.clone());
-                    tile.image = TileImage::Own(image);
-                }
-                TileImage::Shared => {}
+        }
+        match std::mem::replace(&mut tile.image, TileImage::Shared) {
+            TileImage::Copied(image) => {
+                tracing::debug!("display tile: copied -> shared");
+                self.queue(image);
             }
+            TileImage::Own(image, space) => {
+                self.queue(image.clone());
+                tile.image = TileImage::Own(image, space);
+            }
+            TileImage::Shared => {}
         }
     }
 
@@ -573,7 +640,7 @@ impl Atlas {
         if tile.painted.is_some() {
             self.uploaded -= tile.bytes;
         }
-        if let TileImage::Copied(image) | TileImage::Own(image) = tile.image {
+        if let TileImage::Copied(image) | TileImage::Own(image, _) = tile.image {
             self.queue(image);
         }
     }
@@ -620,10 +687,38 @@ fn enlarge(source: &RenderImage, factor: u32) -> Arc<RenderImage> {
 
 /// Wraps the BGRA8 straight-alpha bytes `present` wrote, which is GPUI's
 /// `RenderImage` layout, without conversion.
-pub fn render_image(image: CpuImage) -> Arc<RenderImage> {
+fn render_image(image: CpuImage) -> Arc<RenderImage> {
     let buffer = RgbaImage::from_raw(image.width, image.height, image.pixels)
         .expect("display images are width*height*4 bytes");
     Arc::new(RenderImage::new(vec![Frame::new(buffer)]))
+}
+
+/// `image`, in `from`, as GPUI draws it in `to`; converted only if they
+/// differ.
+pub fn render_in(mut image: CpuImage, from: ScreenSpace, to: ScreenSpace) -> Arc<RenderImage> {
+    convert_display(&mut image.pixels, from, to);
+    render_image(image)
+}
+
+/// An sRGB picture the app made or read (a thumbnail, the Library's
+/// picture) as GPUI draws it in `to`.
+pub fn render_srgb(image: CpuImage, to: ScreenSpace) -> Arc<RenderImage> {
+    render_in(image, ScreenSpace::Srgb, to)
+}
+
+/// `image`, in `from`, made again in `to`; `None` when they are the same.
+pub fn reshown(
+    image: &RenderImage,
+    from: ScreenSpace,
+    to: ScreenSpace,
+) -> Option<Arc<RenderImage>> {
+    if from == to {
+        return None;
+    }
+    let size = image.size(0);
+    let (width, height) = (size.width.0.max(0) as u32, size.height.0.max(0) as u32);
+    let pixels = image.as_bytes(0).unwrap_or_default().to_vec();
+    Some(render_in(CpuImage { width, height, pixels }, from, to))
 }
 
 #[cfg(test)]
@@ -733,7 +828,7 @@ mod tests {
             image(side, side),
         ];
         assert!(Arc::ptr_eq(&images[0].pixels, &shared), "the maker's pixels");
-        assert!(images[1].tiles().all(|t| matches!(t.image, TileImage::Own(_))));
+        assert!(images[1].tiles().all(|t| matches!(t.image, TileImage::Own(..))));
         assert_eq!(copied(&images[0]), 0);
         let mut atlas = Atlas::default();
         let at = rect(0.0, 0.0, side as f32, side as f32);
@@ -753,7 +848,7 @@ mod tests {
         assert_eq!(copied(&images[0]), 81);
         atlas.evict(images.iter_mut());
         assert_eq!(copied(&images[0]), 81 - 68);
-        assert!(images[1].tiles().all(|t| matches!(t.image, TileImage::Own(_))), "kept");
+        assert!(images[1].tiles().all(|t| matches!(t.image, TileImage::Own(..))), "kept");
         assert_eq!(Arc::strong_count(&shared), 2);
         for img in images {
             atlas.release(img);
@@ -959,5 +1054,106 @@ mod tests {
             atlas.release(img);
         }
         assert_eq!(atlas.crisp, 0);
+    }
+
+    /// A picture all one BGRA `pixel`, in `space`; `shared` keeps a
+    /// reference so its tiles are copied as painted.
+    fn plain(pixel: [u8; 4], space: ScreenSpace, shared: bool) -> TiledImage {
+        let (w, h) = (1100, 600);
+        let pixels = pixel.repeat((w * h) as usize);
+        let image = PresentedImage::single(CpuImage { width: w, height: h, pixels });
+        let image = Arc::new(image.in_space(space));
+        let held = shared.then(|| image.clone());
+        let tiled = TiledImage::from_presented(image);
+        drop(held);
+        tiled
+    }
+
+    /// Every pixel of every tile, made or shared, as BGRA.
+    fn colors(img: &TiledImage) -> Vec<[u8; 4]> {
+        let mut colors: Vec<[u8; 4]> = img.pixels().as_chunks::<4>().0.to_vec();
+        colors.dedup();
+        colors
+    }
+
+    fn near(got: &[[u8; 4]], want: [u8; 4]) -> bool {
+        got.iter().all(|g| g.iter().zip(want).all(|(a, b)| a.abs_diff(b) <= 1))
+    }
+
+    /// Display P3's red, (234, 51, 35), is sRGB's pure red.
+    const P3_RED: [u8; 4] = [35, 51, 234, 255];
+    const SRGB_RED: [u8; 4] = [0, 0, 255, 255];
+
+    /// In the space shown, a picture's bytes are its own and no tile is made
+    /// again; in another, each tile painted is converted.
+    #[test]
+    fn a_picture_in_another_space_converts_as_painted() {
+        use ScreenSpace::{DisplayP3, Srgb};
+        let at = rect(0.0, 0.0, 1100.0, 600.0);
+        for shared in [false, true] {
+            let mut same = plain(SRGB_RED, Srgb, shared);
+            let mut atlas = Atlas::default();
+            let first = same.draws(&mut atlas, at, at, 1.0);
+            let again = same.draws(&mut atlas, at, at, 1.0);
+            assert!(first.iter().zip(&again).all(|(a, b)| Arc::ptr_eq(&a.data, &b.data)));
+            assert_eq!(colors(&same), [SRGB_RED]);
+            assert!(atlas.drops.is_empty());
+
+            let mut wide = plain(P3_RED, DisplayP3, shared);
+            let drawn = wide.draws(&mut atlas, at, at, 1.0);
+            let bytes = drawn[0].data.as_bytes(0).unwrap();
+            assert!(near(bytes.as_chunks::<4>().0, SRGB_RED), "{:?}", &bytes[..4]);
+            assert!(near(&colors(&wide), SRGB_RED), "{shared}: {:?}", colors(&wide));
+        }
+    }
+
+    /// When the space shown changes, the tiles painted are converted, their
+    /// old copies let go, and back again they return to their colors.
+    #[test]
+    fn a_space_change_converts_the_tiles_held() {
+        use ScreenSpace::{DisplayP3, Srgb};
+        let at = rect(0.0, 0.0, 1100.0 * 3.0, 600.0 * 3.0);
+        for shared in [false, true] {
+            let mut img = plain(SRGB_RED, Srgb, shared);
+            let mut atlas = Atlas::default();
+            img.draws(&mut atlas, at, at, 3.0);
+            make_all(&mut atlas, &mut img);
+            atlas.frame += 1;
+            img.draws(&mut atlas, at, at, 3.0);
+            assert_eq!(crisp_count(&img), 6);
+            let uploaded = atlas.uploaded();
+
+            atlas.frame += 1;
+            atlas.shown = DisplayP3;
+            img.draws(&mut atlas, at, at, 3.0);
+            assert_eq!(crisp_count(&img), 0, "enlarged in the old space");
+            assert!(near(&colors(&img), P3_RED), "{shared}: {:?}", colors(&img));
+            assert_eq!(atlas.uploaded(), uploaded);
+            assert!(atlas.drops.len() >= 6 + 6, "the old tiles and their copies");
+            make_all(&mut atlas, &mut img);
+            assert_eq!(crisp_count(&img), 6, "made again from the converted tiles");
+
+            atlas.frame += 1;
+            atlas.shown = Srgb;
+            img.draws(&mut atlas, at, at, 3.0);
+            assert!(near(&colors(&img), SRGB_RED), "{shared}: {:?}", colors(&img));
+            atlas.release(img);
+            assert_eq!((atlas.uploaded(), atlas.crisp), (0, 0));
+        }
+    }
+
+    /// Paint's new pixels are in the picture's space, and show in the
+    /// window's.
+    #[test]
+    fn a_patch_shows_in_the_space_shown() {
+        let mut img = plain(SRGB_RED, ScreenSpace::Srgb, false);
+        let mut atlas = Atlas { shown: ScreenSpace::DisplayP3, ..Atlas::default() };
+        let at = rect(0.0, 0.0, 1100.0, 600.0);
+        img.draws(&mut atlas, at, at, 1.0);
+        let pixels = SRGB_RED.repeat(512 * 512);
+        let tile = CpuImage { width: 512, height: 512, pixels };
+        img.apply(&mut atlas, DisplayPatch { level: 0, tx: 0, ty: 0, tile });
+        img.draws(&mut atlas, at, at, 1.0);
+        assert!(near(&colors(&img), P3_RED), "{:?}", colors(&img));
     }
 }

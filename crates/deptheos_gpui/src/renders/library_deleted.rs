@@ -245,16 +245,22 @@ impl Library {
         self.set_page(Page::Deleted(RecentlyDeleted::Listed { list, changes }), cx);
     }
 
+    /// The deleted records' thumbnails held.
+    pub(super) fn deleted_thumbs_mut(&mut self) -> impl Iterator<Item = &mut Arc<RenderImage>> {
+        self.page.list_mut().into_iter().flat_map(|l| l.thumbs.values_mut().flatten())
+    }
+
     /// Thumbnails read: taken by the records still listed without one.
     fn deleted_thumbs_read(
         &mut self,
         read: Vec<(DeletedId, Option<CpuImage>)>,
         cx: &mut Context<Self>,
     ) {
+        let shown = self.shown;
         let Some(list) = self.page.list_mut() else { return };
         for (id, image) in read {
             if list.items.iter().any(|i| i.id == id) && !list.thumbs.contains_key(&id) {
-                list.thumbs.insert(id, image.map(render_image));
+                list.thumbs.insert(id, image.map(|image| render_srgb(image, shown)));
             }
         }
         cx.notify();

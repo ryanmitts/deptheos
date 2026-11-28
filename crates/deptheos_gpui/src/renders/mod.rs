@@ -392,6 +392,11 @@ impl Renders {
                 .ok();
             })
         };
+        cx.observe_global::<crate::color::Screen>(|this, cx| {
+            this.thumbnails.follow(crate::color::shown(), cx);
+            cx.notify();
+        })
+        .detach();
         // Redraw when the result or its render changes, not every tick.
         let _shown = cx.observe(&stacking, |this, stacking, cx| {
             let stacking = stacking.read(cx);

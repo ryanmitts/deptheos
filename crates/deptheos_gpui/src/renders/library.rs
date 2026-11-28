@@ -52,7 +52,7 @@ use super::menus::entity_item;
 use super::tiles::{edited_pill, overlay_pill, render_title, thumb_box};
 use super::{LibraryRead, Renders};
 use crate::AppIcon;
-use crate::images::render_image;
+use crate::images::{render_srgb, reshown};
 use crate::look::{Fill, Pickable as _, hud_text, overlay_surface};
 use crate::multi_select::{Click, MultiSelect};
 use crate::words::{DesktopWords, Wording as _, say};
@@ -138,6 +138,9 @@ pub struct Library {
     /// by [`Library::set_cover`]; shared with the preview
     /// ([`Library::picture_read`]).
     cover: Option<Picture>,
+    /// The space the pictures and deleted thumbnails are shown in
+    /// ([`Library::follow_screen`]).
+    shown: deptheos_app::ScreenSpace,
     _subscriptions: Vec<Subscription>,
 }
 
@@ -290,6 +293,13 @@ impl Preview {
             Self::Open { picture, .. } => picture.as_ref(),
         }
     }
+
+    fn picture_mut(&mut self) -> Option<&mut Picture> {
+        match self {
+            Self::Closed => None,
+            Self::Open { picture, .. } => picture.as_mut(),
+        }
+    }
 }
 
 impl std::fmt::Debug for Preview {
@@ -318,6 +328,7 @@ impl Library {
                 this.deleted_maybe_changed(cx);
                 cx.notify();
             }),
+            cx.observe_global::<crate::color::Screen>(|this, cx| this.follow_screen(cx)),
             cx.observe_global::<crate::prefs::Prefs>(|this, cx| {
                 this.decoder_choice = decoder_choice();
                 cx.notify();
@@ -347,6 +358,7 @@ impl Library {
             decoder_choice: decoder_choice(),
             preview: Preview::Closed,
             cover: None,
+            shown: crate::color::shown(),
             _subscriptions: subscriptions,
         }
     }
@@ -663,6 +675,32 @@ impl Library {
         cx.notify();
     }
 
+    /// The pictures and deleted thumbnails shown in the window's space now,
+    /// the old images leaving the atlas; one picture shared by the cover
+    /// and the preview stays shared.
+    fn follow_screen(&mut self, cx: &mut Context<Self>) {
+        let (from, to) = (self.shown, crate::color::shown());
+        self.shown = to;
+        let mut made: Vec<(Arc<RenderImage>, Arc<RenderImage>)> = Vec::new();
+        let mut convert = |image: &mut Arc<RenderImage>| {
+            if let Some((_, new)) = made.iter().find(|(old, _)| Arc::ptr_eq(old, image)) {
+                *image = new.clone();
+            } else if let Some(new) = reshown(image, from, to) {
+                made.push((std::mem::replace(image, new.clone()), new));
+            }
+        };
+        for picture in [self.cover.as_mut(), self.preview.picture_mut()].into_iter().flatten() {
+            if let Picture::Shown { image: Some(image), .. } = picture {
+                convert(image);
+            }
+        }
+        self.deleted_thumbs_mut().for_each(&mut convert);
+        for (old, _) in made {
+            cx.defer(move |cx| cx.drop_image(old, None));
+        }
+        cx.notify();
+    }
+
     /// A picture no longer held leaves the atlas, unless the other holder
     /// shows it.
     fn release(&self, left: Option<&Picture>, cx: &mut Context<Self>) {
@@ -704,7 +742,7 @@ impl Library {
         if !cover && !preview {
             return;
         }
-        let image = image.map(render_image);
+        let image = image.map(|image| render_srgb(image, self.shown));
         let shown = || Picture::Shown { render: render.clone(), image: image.clone() };
         if cover {
             self.set_cover(Some(shown()), cx);

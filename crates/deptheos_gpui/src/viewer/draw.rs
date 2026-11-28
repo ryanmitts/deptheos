@@ -135,6 +135,7 @@ impl Viewer {
         }
         if let Some(&(clip, rect)) = self.panes.last() {
             self.sync_adjust_view(clip, rect, cx);
+            self.follow_flat();
             frame.flat = self.flat().map(|f| (clip, self.flat_rect(f, rect), f.image.clone()));
         }
         // No brush over the depth map.
@@ -400,7 +401,7 @@ impl Viewer {
     ) {
         let divider_color: Hsla = gpui::white();
         let separator_color: Hsla = gpui::opaque_grey(0.5, 0.5);
-        let knob_color: Hsla = gpui::rgb(crate::brand::ACCENT_ON_PHOTO).into();
+        let knob_color: Hsla = gpui::rgb(crate::color::brand().accent_on_photo).into();
 
         window.with_content_mask(Some(ContentMask { bounds }), |window| {
             for d in &frame.draws {

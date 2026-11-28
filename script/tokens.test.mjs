@@ -6,7 +6,7 @@ import { readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 
-import { validate } from "./tokens.mjs";
+import { toDisplayP3, validate } from "./tokens.mjs";
 
 const root = join(dirname(fileURLToPath(import.meta.url)), "..");
 const tokens = () => JSON.parse(readFileSync(join(root, "design/tokens.json"), "utf8"));
@@ -37,4 +37,22 @@ test("the hud tokens are there", () => {
   const t = tokens();
   delete t.color["hud-text"];
   assert.throws(() => validate(t), /color.hud-text is missing/);
+});
+
+test("a color in Display P3 is the same color, grays as they are", () => {
+  assert.equal(toDisplayP3("#ff0000"), "#ea3323");
+  assert.equal(toDisplayP3("#00ff00"), "#75fb4c");
+  assert.equal(toDisplayP3("#0000ff"), "#0000f5");
+  for (const gray of ["#000000", "#1a1a1a", "#808080", "#ffffff"]) assert.equal(toDisplayP3(gray), gray);
+  assert.equal(toDisplayP3("#ff000080"), "#ea332380", "the alpha is kept");
+});
+
+test("the Display P3 theme is the sRGB one converted, key for key", () => {
+  const read = (name) => JSON.parse(readFileSync(join(root, "crates/deptheos_gpui/themes", name), "utf8"));
+  const [srgb, p3] = [read("deptheos.json"), read("deptheos-p3.json")];
+  assert.equal(p3.themes.length, srgb.themes.length);
+  srgb.themes.forEach((theme, i) => {
+    assert.equal(p3.themes[i].name, theme.name);
+    for (const [key, color] of Object.entries(theme.colors)) assert.equal(p3.themes[i].colors[key], toDisplayP3(color), key);
+  });
 });

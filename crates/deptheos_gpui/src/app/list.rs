@@ -755,7 +755,7 @@ fn drop_target(cx: &App) -> gpui::Div {
         .flex_col()
         .border_2()
         .border_dashed()
-        .border_color(gpui::rgb(crate::brand::ACCENT_ON_PHOTO))
+        .border_color(gpui::rgb(crate::color::brand().accent_on_photo))
 }
 
 /// Remember where `paths` came from: the open dialog starts there next.

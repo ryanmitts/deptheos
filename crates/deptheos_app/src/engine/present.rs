@@ -138,7 +138,7 @@ impl PresentedImage {
     }
 
     /// It, its pixels said to be in `space`.
-    pub(crate) fn in_space(self, space: ScreenSpace) -> Self {
+    pub fn in_space(self, space: ScreenSpace) -> Self {
         Self { space, ..self }
     }
 
@@ -398,10 +398,9 @@ pub(crate) fn display_space() -> OutputSpace {
 /// `rgb`, shown in `space`, in sRGB: for what is kept or written, which
 /// stays sRGB whatever the screen.
 pub(crate) fn in_srgb(rgb: image::RgbImage, space: ScreenSpace) -> image::RgbImage {
-    static MADE: OnceLock<Option<io::RgbConversion>> = OnceLock::new();
     let convert = match space {
         ScreenSpace::Srgb => return rgb,
-        ScreenSpace::DisplayP3 => MADE.get_or_init(io::RgbConversion::display_p3_to_srgb),
+        ScreenSpace::DisplayP3 => display_p3_to_srgb(),
     };
     let Some(convert) = convert else { return rgb };
     let (w, h) = rgb.dimensions();
@@ -415,6 +414,47 @@ pub(crate) fn in_srgb(rgb: image::RgbImage, space: ScreenSpace) -> image::RgbIma
 fn srgb_to_display_p3() -> &'static Option<io::RgbConversion> {
     static MADE: OnceLock<Option<io::RgbConversion>> = OnceLock::new();
     MADE.get_or_init(io::RgbConversion::srgb_to_display_p3)
+}
+
+fn display_p3_to_srgb() -> &'static Option<io::RgbConversion> {
+    static MADE: OnceLock<Option<io::RgbConversion>> = OnceLock::new();
+    MADE.get_or_init(io::RgbConversion::display_p3_to_srgb)
+}
+
+/// Pixels a chunk of [`convert_display`] takes, on one thread.
+const CONVERT_CHUNK: usize = 1 << 18;
+
+/// Display pixels ([`DISPLAY_FORMAT`]) in `from` converted in place to
+/// `to`, alpha kept: for an app showing a picture in another space than
+/// it was drawn in. Nothing is done when the spaces are the same. Up to
+/// [`CONVERT_CHUNK`] pixels run on the calling thread, more in parallel.
+pub fn convert_display(pixels: &mut [u8], from: ScreenSpace, to: ScreenSpace) {
+    let convert = match (from, to) {
+        (ScreenSpace::Srgb, ScreenSpace::Srgb)
+        | (ScreenSpace::DisplayP3, ScreenSpace::DisplayP3) => {
+            return;
+        }
+        (ScreenSpace::Srgb, ScreenSpace::DisplayP3) => srgb_to_display_p3(),
+        (ScreenSpace::DisplayP3, ScreenSpace::Srgb) => display_p3_to_srgb(),
+    };
+    let Some(convert) = convert else { return };
+    let chunk = |chunk: &mut [u8]| {
+        let pixels = chunk.as_chunks_mut::<4>().0;
+        let wide: Vec<u16> =
+            pixels.iter().flat_map(|&p| rgb_of_display(p)).map(|v| u16::from(v) * 257).collect();
+        let mut out = vec![0; wide.len()];
+        convert.convert(&wide, &mut out);
+        for (p, rgb) in pixels.iter_mut().zip(out.as_chunks::<3>().0) {
+            let alpha = p[3];
+            *p = display_pixel(rgb.map(io::u16_to_u8));
+            p[3] = alpha;
+        }
+    };
+    if pixels.len() <= CONVERT_CHUNK * 4 {
+        chunk(pixels);
+    } else {
+        pixels.par_chunks_mut(CONVERT_CHUNK * 4).for_each(chunk);
+    }
 }
 
 /// The conversion from `profile` into `space`. The last one is cached, as
@@ -1423,5 +1463,36 @@ mod tests {
         assert_eq!(level_index(0.5, 1, 3), 0);
         assert_eq!(level_index(0.25, 1, 3), 1);
         assert_eq!(level_index(0.01, 1, 3), 2);
+    }
+
+    /// Display pixels convert between the screen's spaces: not at all when
+    /// the spaces match, pure sRGB red to Display P3's (234, 51, 35) and
+    /// back, grays as they are, alpha kept.
+    #[test]
+    fn display_pixels_convert_between_screen_spaces() {
+        use ScreenSpace::{DisplayP3, Srgb};
+        let all: Vec<u8> = (0..=255u8).flat_map(|v| [v, v.wrapping_mul(7), v ^ 0x5a, v]).collect();
+        for space in [Srgb, DisplayP3] {
+            let mut same = all.clone();
+            convert_display(&mut same, space, space);
+            assert_eq!(same, all, "{space:?} to itself");
+        }
+        let mut red = display_pixel([255, 0, 0]).to_vec();
+        red[3] = 128;
+        convert_display(&mut red, Srgb, DisplayP3);
+        let [b, g, r, a] = red[..] else { unreachable!() };
+        for (got, want) in [r, g, b].into_iter().zip([234u8, 51, 35]) {
+            assert!(got.abs_diff(want) <= 1, "{:?}", [r, g, b]);
+        }
+        assert_eq!(a, 128);
+        convert_display(&mut red, DisplayP3, Srgb);
+        let [b, g, r, _] = red[..] else { unreachable!() };
+        assert!(r >= 254 && g <= 1 && b <= 1, "{:?}", [r, g, b]);
+        let grays: Vec<u8> = (0..=255u8).flat_map(|v| display_pixel([v, v, v])).collect();
+        for (from, to) in [(Srgb, DisplayP3), (DisplayP3, Srgb)] {
+            let mut converted = grays.clone();
+            convert_display(&mut converted, from, to);
+            assert_eq!(converted, grays, "{from:?} to {to:?}");
+        }
     }
 }

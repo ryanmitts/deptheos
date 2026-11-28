@@ -12,7 +12,8 @@
 //   ios/DeptheosMobile/Assets.xcassets/Edited         the dot that marks edited
 //   ios/DeptheosMobile/Assets.xcassets/Hud*           chrome over the photo (fill, border, text)
 //   crates/deptheos_gpui/themes/deptheos.json         gpui-kit light and dark themes
-//   crates/deptheos_gpui/src/brand.rs                 colors the desktop app paints itself
+//   crates/deptheos_gpui/themes/deptheos-p3.json      the same in Display P3, for a wide-gamut screen
+//   crates/deptheos_gpui/src/brand.rs                 colors the desktop app paints itself, in both spaces
 
 import { readFileSync, writeFileSync, mkdirSync, existsSync } from "node:fs";
 import { dirname, join } from "node:path";
@@ -41,6 +42,25 @@ export function validate(tokens) {
   for (const name of ["hud", "hud-border", "hud-text"]) {
     if (!c[name]) throw new Error(`color.${name} is missing`);
   }
+}
+
+// sRGB to Display P3, both D65, on linear values.
+const SRGB_TO_P3 = [
+  [0.822461968714, 0.177538031286, 0],
+  [0.03319419885, 0.96680580115, 0],
+  [0.017082630603, 0.072397440673, 0.910519928724],
+];
+
+// #rrggbb or #rrggbbaa, an sRGB color, as the same color in Display P3:
+// decoded, through the matrix, encoded with sRGB's curve (P3 shares it)
+// and rounded to 8 bits; the alpha is kept and grays come out as they went in.
+export function toDisplayP3(hex) {
+  const decode = (c) => (c <= 0.04045 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4);
+  const encode = (c) => (c <= 0.0031308 ? c * 12.92 : 1.055 * c ** (1 / 2.4) - 0.055);
+  const linear = [1, 3, 5].map((i) => decode(parseInt(hex.slice(i, i + 2), 16) / 255));
+  const p3 = SRGB_TO_P3.map((row) => row.reduce((sum, m, i) => sum + m * linear[i], 0));
+  const byte = (c) => Math.round(Math.min(1, Math.max(0, encode(c))) * 255).toString(16).padStart(2, "0");
+  return `#${p3.map(byte).join("")}${hex.slice(7)}`;
 }
 
 // Only when run, not when the tests import `validate`.
@@ -162,18 +182,19 @@ function generate() {
     "base.yellow": "warning",
     "base.red": "danger",
   };
-  function gpuiColors(mode) {
+  // The colors in sRGB, or through `space` (toDisplayP3).
+  function gpuiColors(mode, space) {
     const out = {};
     for (const [key, ref] of Object.entries(gpuiMap)) {
-      if (ref.startsWith("#")) { out[key] = ref; continue; }
+      if (ref.startsWith("#")) { out[key] = space(ref); continue; }
       const [name, alpha = ""] = ref.split(" ");
       if (!c[name]) throw new Error(`gpui key ${key} names unknown token ${name}`);
       if (alpha && c[name][mode].length !== 7) throw new Error(`gpui key ${key} adds an alpha to see-through ${name}`);
-      out[key] = c[name][mode] + alpha;
+      out[key] = space(c[name][mode] + alpha);
     }
     return out;
   }
-  const gpuiTheme = JSON.stringify({
+  const gpuiTheme = (space) => JSON.stringify({
     $comment: HEADER,
     name: "Deptheos",
     author: "Deptheos",
@@ -183,9 +204,10 @@ function generate() {
       mode,
       radius: tokens.radius.md.value,
       "radius.lg": tokens.radius.lg.value,
-      colors: gpuiColors(mode),
+      colors: gpuiColors(mode, space),
     })),
   }, null, 2) + "\n";
+  const asIs = (h) => h;
 
   // ---- Desktop: colors painted outside gpui-kit's components ----
   const hex = (h) => {
@@ -194,20 +216,36 @@ function generate() {
   };
   // #rrggbb or #rrggbbaa as 0xrrggbbaa, opaque when no alpha is given.
   const rgba = (h) => `0x${h.slice(1)}${h.length === 7 ? "ff" : ""}`;
+  const brand = (space) => `Brand {
+    viewer_background: ${hex(space(c.viewer.dark))},
+    accent_on_photo: ${hex(space(c.accent.dark))},
+    edited: [${hex(space(c.edited.light))}, ${hex(space(c.edited.dark))}],
+    hud: ${rgba(space(c.hud.dark))},
+    hud_border: ${rgba(space(c["hud-border"].dark))},
+    hud_text: ${rgba(space(c["hud-text"].dark))},
+}`;
   const brandRs = `// ${HEADER}
-//! Brand colors the app paints itself, outside gpui-kit's themed components.
+//! Brand colors the app paints itself, outside gpui-kit's themed components,
+//! in sRGB and in Display P3 (\`crate::color::brand\` picks the screen's).
 
-/// The photo backdrop: neutral and dark in both modes, so photos read true.
-pub const VIEWER_BACKGROUND: u32 = ${hex(c.viewer.dark)};
-/// The accent's light form, for marks drawn over a photo.
-pub const ACCENT_ON_PHOTO: u32 = ${hex(c.accent.dark)};
-/// The dot that marks edited, in light and dark mode.
-pub const EDITED: [u32; 2] = [${hex(c.edited.light)}, ${hex(c.edited.dark)}];
-/// Chrome over the photo, the same in both modes, as RGBA (\`gpui::rgba\`):
-/// its fill, its edge and its text.
-pub const HUD: u32 = ${rgba(c.hud.dark)};
-pub const HUD_BORDER: u32 = ${rgba(c["hud-border"].dark)};
-pub const HUD_TEXT: u32 = ${rgba(c["hud-text"].dark)};
+/// The colors, in one space.
+pub struct Brand {
+    /// The photo backdrop: neutral and dark in both modes, so photos read true.
+    pub viewer_background: u32,
+    /// The accent's light form, for marks drawn over a photo.
+    pub accent_on_photo: u32,
+    /// The dot that marks edited, in light and dark mode.
+    pub edited: [u32; 2],
+    /// Chrome over the photo, the same in both modes, as RGBA
+    /// (\`gpui::rgba\`): its fill, its edge and its text.
+    pub hud: u32,
+    pub hud_border: u32,
+    pub hud_text: u32,
+}
+
+pub const SRGB: Brand = ${brand(asIs)};
+
+pub const DISPLAY_P3: Brand = ${brand(toDisplayP3)};
 `;
 
   // ---- Write or check ----
@@ -220,7 +258,8 @@ pub const HUD_TEXT: u32 = ${rgba(c["hud-text"].dark)};
     "ios/DeptheosMobile/Assets.xcassets/Hud.colorset/Contents.json": iosColorSet(c.hud),
     "ios/DeptheosMobile/Assets.xcassets/HudBorder.colorset/Contents.json": iosColorSet(c["hud-border"]),
     "ios/DeptheosMobile/Assets.xcassets/HudText.colorset/Contents.json": iosColorSet(c["hud-text"]),
-    "crates/deptheos_gpui/themes/deptheos.json": gpuiTheme,
+    "crates/deptheos_gpui/themes/deptheos.json": gpuiTheme(asIs),
+    "crates/deptheos_gpui/themes/deptheos-p3.json": gpuiTheme(toDisplayP3),
     "crates/deptheos_gpui/src/brand.rs": brandRs,
   };
   const check = process.argv.includes("--check");

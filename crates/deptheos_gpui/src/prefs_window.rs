@@ -66,7 +66,7 @@ pub fn open_preferences(cx: &mut App) {
         ..Default::default()
     };
     let build = |window: &mut gpui::Window, cx: &mut gpui::App| {
-        crate::color::tag_window(window, deptheos_app::engine::present::color_managed());
+        crate::color::tag_window(window);
         crate::follow_system_appearance(window);
         let view = cx.new(PreferencesView::new);
         // Focused, so ⌘W and Esc reach it.

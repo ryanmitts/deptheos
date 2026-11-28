@@ -794,7 +794,7 @@ impl Render for Viewer {
             .min_h_0()
             .relative()
             .overflow_hidden()
-            .bg(rgb(crate::brand::VIEWER_BACKGROUND))
+            .bg(rgb(crate::color::brand().viewer_background))
             .child(viewport)
             .when(dimmed, |el| {
                 el.child(div().absolute().inset_0().bg(gpui::opaque_grey(0.0, 0.45)))

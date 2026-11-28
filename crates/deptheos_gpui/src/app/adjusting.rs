@@ -544,9 +544,9 @@ fn paint_histogram(
     let column = w / BINS as f32;
     let colors: [Hsla; 4] = [
         gpui::opaque_grey(0.6, 0.55),
-        gpui::rgba(0xff505099).into(),
-        gpui::rgba(0x50e05099).into(),
-        gpui::rgba(0x5080ff99).into(),
+        gpui::rgba(crate::color::srgba(0xff505099)).into(),
+        gpui::rgba(crate::color::srgba(0x50e05099)).into(),
+        gpui::rgba(crate::color::srgba(0x5080ff99)).into(),
     ];
     for (counts, color) in [luminance].into_iter().chain(channels.iter()).zip(colors) {
         for (i, &n) in counts.iter().enumerate() {

@@ -55,11 +55,12 @@ pub enum AdjustEvent {
 }
 
 /// One flat picture as GPUI draws it, covering `covers` of the stored
-/// picture.
+/// picture, in `space`.
 #[derive(Clone)]
 pub struct Flat {
     pub image: Arc<RenderImage>,
     pub covers: Region,
+    pub space: deptheos_app::ScreenSpace,
 }
 
 /// The session's updates, a flat picture's pixels copied for GPUI on the
@@ -83,13 +84,17 @@ impl Observer for ToUi {
     }
 }
 
-/// `picture` as a GPUI image; its buffer goes back to the session from the
-/// UI thread.
+/// `picture` as a GPUI image in the window's space; its buffer goes back
+/// to the session from the UI thread.
 fn flat(picture: FlatPicture, histogram: Histogram) -> Heard {
-    let buffer = RgbaImage::from_raw(picture.width, picture.height, picture.pixels.clone())
+    let mut pixels = picture.pixels.clone();
+    let space = crate::color::shown();
+    let drawn = deptheos_app::ScreenSpace::of(picture.space);
+    deptheos_app::engine::present::convert_display(&mut pixels, drawn, space);
+    let buffer = RgbaImage::from_raw(picture.width, picture.height, pixels)
         .unwrap_or_else(|| RgbaImage::new(picture.width.max(1), picture.height.max(1)));
     let image = Arc::new(RenderImage::new(vec![Frame::new(buffer)]));
-    let flat = Flat { image, covers: picture.covers };
+    let flat = Flat { image, covers: picture.covers, space };
     Heard::Flat { flat, picture, histogram }
 }
 

@@ -638,7 +638,7 @@ impl RailDrawing {
     /// Frame `i`'s legend color on the depth map.
     fn legend(&self, i: usize) -> Option<Hsla> {
         let [r, g, b] = self.legend.as_ref()?.get(i).copied().flatten()?;
-        Some(gpui::rgb(u32::from_be_bytes([0, r, g, b])).into())
+        Some(gpui::rgb(crate::color::srgb(u32::from_be_bytes([0, r, g, b]))).into())
     }
 }
 

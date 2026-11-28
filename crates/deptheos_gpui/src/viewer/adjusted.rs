@@ -25,6 +25,17 @@ impl Viewer {
         self.on(ViewEvent::Previewed, cx);
     }
 
+    /// The flat picture shown in the atlas's space: converted once if the
+    /// space changed since it was made.
+    pub(super) fn follow_flat(&mut self) {
+        let Some(flat) = self.flat.as_mut() else { return };
+        let shown = self.atlas.shown();
+        let Some(image) = crate::images::reshown(&flat.image, flat.space, shown) else { return };
+        tracing::debug!("adjust's flat picture: {:?} -> {shown:?}", flat.space);
+        flat.space = shown;
+        self.atlas.let_go(std::mem::replace(&mut flat.image, image));
+    }
+
     /// The flat picture goes (Adjust left).
     pub fn clear_flat(&mut self, cx: &mut Context<Self>) {
         if let Some(old) = self.flat.take() {

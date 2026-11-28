@@ -317,13 +317,12 @@ impl AppView {
     }
 }
 
-/// Toggle color management to compare by eye: the window's sRGB tag changes
-/// at once; wide-gamut conversion applies to images shown afterward.
+/// Toggle color management to compare by eye: the windows' tags, theme
+/// and pictures held change at once; the engine's conversion applies to
+/// images drawn afterward.
 pub(super) fn toggle_color_management(window: &mut Window, cx: &mut App) {
-    use deptheos_app::engine::present;
-    let on = !present::color_managed();
-    present::set_color_managed(on);
-    crate::color::tag_window(window, on);
+    let on = !deptheos_app::engine::present::color_managed();
+    crate::color::set_color_managed(on, window, cx);
     let message = if on {
         say!(cx, "viewer-color-management-on")
     } else {

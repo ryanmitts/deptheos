@@ -771,7 +771,7 @@ struct Marks {
 
 /// The edited dot's color in the current mode.
 pub(crate) fn edited_color(cx: &App) -> gpui::Hsla {
-    let [light, dark] = crate::brand::EDITED;
+    let [light, dark] = crate::color::brand().edited;
     gpui::rgb(if cx.theme().mode.is_dark() { dark } else { light }).into()
 }
 

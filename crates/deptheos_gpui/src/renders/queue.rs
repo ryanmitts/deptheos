@@ -19,7 +19,6 @@ use image::RgbImage;
 
 use super::{Renders, RendersEvent, THUMB_DECODE_HEIGHT, Writer};
 use crate::bookmarks::RESOLVE_WITHIN;
-use crate::images::render_image;
 use crate::notices::{Details, Subject, Worded};
 use crate::words::{DesktopWords, Wording as _, say};
 use crate::work;
@@ -229,7 +228,7 @@ impl Renders {
                     Ok(Ok(Done::Saved(saved))) => {
                         let (render, thumbnail, stack, from) = *saved;
                         let id = render.id.clone();
-                        this.thumbnails.saved(&id, render_image(thumbnail), cx);
+                        this.thumbnails.saved(&id, thumbnail, cx);
                         // The store drops its stack's failure as it saves.
                         this.failures.retain(|f| f.stack != render.stack);
                         // A restore's listing may have taken it already.

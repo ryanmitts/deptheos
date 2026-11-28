@@ -98,8 +98,9 @@ pub(crate) fn give_back_memory() {
 }
 
 /// The Deptheos light and dark themes, generated from `design/tokens.json`
-/// by `script/tokens.mjs`.
+/// by `script/tokens.mjs`, in sRGB and in Display P3.
 const BRAND_THEME: &str = include_str!("../themes/deptheos.json");
+const BRAND_THEME_P3: &str = include_str!("../themes/deptheos-p3.json");
 /// The application id: the Wayland app_id and X11 WM_CLASS matching
 /// packaging/linux's com.deptheos.Deptheos.desktop, and the Mac's bundle id.
 pub(crate) const APP_ID: &str = "com.deptheos.Deptheos";
@@ -115,14 +116,19 @@ pub(crate) fn follow_system_appearance(window: &Window) {
         .detach();
 }
 
-fn brand_theme() -> ThemeSet {
-    serde_json::from_str(BRAND_THEME).expect("themes/deptheos.json is valid")
+fn brand_theme(space: deptheos_app::ScreenSpace) -> ThemeSet {
+    let json = match space {
+        deptheos_app::ScreenSpace::Srgb => BRAND_THEME,
+        deptheos_app::ScreenSpace::DisplayP3 => BRAND_THEME_P3,
+    };
+    serde_json::from_str(json).expect("the themes in themes/ are valid")
 }
 
-/// Makes the brand themes the ones light and dark mode load.
-fn install_brand_theme(cx: &mut App) {
+/// Makes the brand themes in `space` the ones light and dark mode load;
+/// [`look::apply_appearance`] then applies them.
+pub(crate) fn install_brand_theme(space: deptheos_app::ScreenSpace, cx: &mut App) {
     let theme = Theme::global_mut(cx);
-    for config in brand_theme().themes {
+    for config in brand_theme(space).themes {
         if config.mode.is_dark() {
             theme.dark_theme = config.into();
         } else {
@@ -225,7 +231,7 @@ fn main() {
         app::away::answer_clicks(cx);
         gpui_kit::init(cx);
         words::install(words.clone(), cx);
-        install_brand_theme(cx);
+        install_brand_theme(color::shown(), cx);
         app::place_notices(cx);
         prefs::Prefs::install(preferences.clone(), preferences_path.clone(), cx);
         // Light or dark as chosen, before any window paints.
@@ -374,7 +380,7 @@ fn open_library(cx: &mut App, launch: start::Launch) {
         ..Default::default()
     };
     gpui_kit::open_window(options, cx, |window, cx| {
-        color::tag_window(window, deptheos_app::engine::present::color_managed());
+        color::tag_window(window);
         follow_system_appearance(window);
         cx.new(|_| start::LibraryStart::new(refusal, launch))
     })
@@ -426,11 +432,14 @@ fn open_main_window(
         ..options
     };
     let (handle, view) = gpui_kit::open_window(options, cx, |window, cx| {
-        color::tag_window(window, deptheos_app::engine::present::color_managed());
+        color::tag_window(window);
         follow_system_appearance(window);
         cx.new(|cx| AppView::new(engine.clone(), args, opened, window, cx))
     })
     .unwrap_or_else(|e| window_failed(e, cx));
+    handle
+        .update(cx, |_, window, cx| view.update(cx, |_, cx| color::follow_main_window(window, cx)))
+        .ok();
     app::quit::set_main_view(&view, cx);
     // Settings ▸ Library asks it about the Library, and deletes it there.
     app::library_delete::register(handle, &view, cx);
@@ -511,7 +520,7 @@ fn open_startup_error(
     prefs_path: Option<PathBuf>,
 ) {
     gpui_kit::open_window(options, cx, |window, cx| {
-        color::tag_window(window, deptheos_app::engine::present::color_managed());
+        color::tag_window(window);
         follow_system_appearance(window);
         cx.new(|_| StartupError { message: message.clone(), prefs_path })
     })
@@ -800,15 +809,18 @@ mod tests {
     /// back to stock colors silently.
     #[test]
     fn brand_theme_keys_are_all_known() {
-        let set = brand_theme();
-        assert_eq!(set.themes.len(), 2);
-        assert!(set.themes.iter().any(|t| t.mode.is_dark()));
-        assert!(set.themes.iter().any(|t| !t.mode.is_dark()));
-        let raw: serde_json::Value = serde_json::from_str(BRAND_THEME).unwrap();
-        for (config, raw) in set.themes.iter().zip(raw["themes"].as_array().unwrap()) {
-            let parsed = serde_json::to_value(&config.colors).unwrap();
-            for (key, value) in raw["colors"].as_object().unwrap() {
-                assert_eq!(&parsed[key], value, "{}: unknown key {key}", config.name);
+        use deptheos_app::ScreenSpace::{DisplayP3, Srgb};
+        for (space, json) in [(Srgb, BRAND_THEME), (DisplayP3, BRAND_THEME_P3)] {
+            let set = brand_theme(space);
+            assert_eq!(set.themes.len(), 2);
+            assert!(set.themes.iter().any(|t| t.mode.is_dark()));
+            assert!(set.themes.iter().any(|t| !t.mode.is_dark()));
+            let raw: serde_json::Value = serde_json::from_str(json).unwrap();
+            for (config, raw) in set.themes.iter().zip(raw["themes"].as_array().unwrap()) {
+                let parsed = serde_json::to_value(&config.colors).unwrap();
+                for (key, value) in raw["colors"].as_object().unwrap() {
+                    assert_eq!(&parsed[key], value, "{}: unknown key {key}", config.name);
+                }
             }
         }
     }

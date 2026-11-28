@@ -1,6 +1,7 @@
 //! Render thumbnails for the strip, the Library and Render Info: the engine's
 //! policy ([`deptheos_app::library::thumbnails`], ADR-144) decides what to
-//! read, keep and drop; this holds the GPUI images and the read in flight.
+//! read, keep and drop; this holds the GPUI images, in the window's space
+//! ([`Thumbnails::follow`]), and the read in flight.
 
 use std::collections::HashMap;
 #[cfg(test)]
@@ -8,14 +9,14 @@ use std::collections::HashSet;
 use std::sync::Arc;
 use std::time::{Duration, Instant};
 
-use deptheos_app::CpuImage;
 use deptheos_app::library::history::RenderId;
 #[cfg(test)]
 use deptheos_app::library::thumbnails::Thumb;
 use deptheos_app::library::thumbnails::{Action, Event, ReadToken};
+use deptheos_app::{CpuImage, ScreenSpace};
 use gpui::{App, RenderImage, Task};
 
-use crate::images::render_image;
+use crate::images::{render_srgb, reshown};
 
 /// The most thumbnails kept (about 170 KB each, plus an atlas copy), more
 /// than a Library screen shows; the least wanted go first and reload in view.
@@ -33,6 +34,8 @@ pub(super) struct Thumbnails {
     loading: Option<Task<()>>,
     /// Added to the clock (a test's wait for a retry).
     skew: Duration,
+    /// The space the images are shown in.
+    shown: ScreenSpace,
 }
 
 impl Default for Thumbnails {
@@ -42,6 +45,7 @@ impl Default for Thumbnails {
             images: HashMap::new(),
             loading: None,
             skew: Duration::ZERO,
+            shown: crate::color::shown(),
         }
     }
 }
@@ -106,7 +110,7 @@ impl Thumbnails {
         let now = self.now();
         let mut read: HashMap<RenderId, CpuImage> = read.into_iter().collect();
         for id in asked {
-            let image = read.remove(&id).map(render_image);
+            let image = read.remove(&id).map(|image| render_srgb(image, self.shown));
             let ok = image.is_some();
             let landed =
                 image.map(|image| HashMap::from([(id.clone(), image)])).unwrap_or_default();
@@ -116,9 +120,20 @@ impl Thumbnails {
     }
 
     /// `id` was saved with `image`: shown at once.
-    pub(super) fn saved(&mut self, id: &RenderId, image: Arc<RenderImage>, cx: &mut App) {
-        let landed = HashMap::from([(id.clone(), image)]);
+    pub(super) fn saved(&mut self, id: &RenderId, image: CpuImage, cx: &mut App) {
+        let landed = HashMap::from([(id.clone(), render_srgb(image, self.shown))]);
         self.on(Event::Saved { id: id.clone() }, landed, cx);
+    }
+
+    /// Show the thumbnails in `shown`, the old images leaving the atlas.
+    pub(super) fn follow(&mut self, shown: ScreenSpace, cx: &mut App) {
+        let from = std::mem::replace(&mut self.shown, shown);
+        for image in self.images.values_mut() {
+            if let Some(new) = reshown(image, from, shown) {
+                let old = std::mem::replace(image, new);
+                cx.defer(move |cx| cx.drop_image(old, None));
+            }
+        }
     }
 
     /// `id`'s thumbnail file was drawn again: the one held goes, and the
@@ -190,11 +205,12 @@ mod tests {
     fn a_replaced_thumbnail_leaves_the_atlas(cx: &mut gpui::TestAppContext) {
         let a = id(1);
         let mut t = Thumbnails::default();
-        let old = render_image(picture());
-        let held = Arc::downgrade(&old);
+        let held = cx.update(|cx| {
+            t.saved(&a, picture(), cx);
+            Arc::downgrade(&t.get(&a).unwrap())
+        });
         cx.update(|cx| {
-            t.saved(&a, old, cx);
-            t.saved(&a, render_image(picture()), cx);
+            t.saved(&a, picture(), cx);
             assert!(held.upgrade().is_some(), "for drop_image, once no window draws");
         });
         assert!(held.upgrade().is_none(), "then dropped");

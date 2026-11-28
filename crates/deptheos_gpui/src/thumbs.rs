@@ -6,17 +6,18 @@
 //! [`Thumbs::insert`]. A pending thumbnail holds its request, so a file
 //! leaving the list cancels it. Thumbnails live in memory while their file
 //! is listed, and [`Thumbs::retain`] drops the others from GPUI's atlas.
+//! They are shown in the window's space ([`Thumbs::follow`]).
 
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
-use deptheos_app::CpuImage;
 use deptheos_app::engine::work::{self, Key, Lane, Request};
+use deptheos_app::{CpuImage, ScreenSpace};
 use futures::channel::mpsc;
 use gpui::{App, RenderImage, Window};
 
-use crate::images::render_image;
+use crate::images::{render_srgb, reshown};
 
 /// Pixels on a thumbnail's long edge: the list draws them 48 points wide,
 /// so this covers a 2× display with room to spare.
@@ -39,12 +40,15 @@ pub struct Thumbs {
     sender: mpsc::UnboundedSender<Made>,
     /// Taken by the owner's drain task ([`Self::receive`]).
     receiver: Option<mpsc::UnboundedReceiver<Made>>,
+    /// The space the ready ones are shown in.
+    shown: ScreenSpace,
 }
 
 impl Default for Thumbs {
     fn default() -> Self {
         let (sender, receiver) = mpsc::unbounded();
-        Self { entries: HashMap::new(), sender, receiver: Some(receiver) }
+        let shown = crate::color::shown();
+        Self { entries: HashMap::new(), sender, receiver: Some(receiver), shown }
     }
 }
 
@@ -81,7 +85,7 @@ impl Thumbs {
         match self.entries.get_mut(&path) {
             Some(entry @ Thumb::Pending { .. }) => {
                 *entry = match image {
-                    Some(image) => Thumb::Ready(render_image(image)),
+                    Some(image) => Thumb::Ready(render_srgb(image, self.shown)),
                     None => Thumb::Failed,
                 };
                 true
@@ -97,6 +101,21 @@ impl Thumbs {
         for path in gone {
             if let Some(Thumb::Ready(image)) = self.entries.remove(&path) {
                 cx.drop_image(image, Some(window));
+            }
+        }
+    }
+}
+
+impl Thumbs {
+    /// Show the ready ones in `shown`, the old images leaving the atlas.
+    pub fn follow(&mut self, shown: ScreenSpace, cx: &mut App) {
+        let from = std::mem::replace(&mut self.shown, shown);
+        for entry in self.entries.values_mut() {
+            if let Thumb::Ready(image) = entry
+                && let Some(new) = reshown(image, from, shown)
+            {
+                let old = std::mem::replace(image, new);
+                cx.defer(move |cx| cx.drop_image(old, None));
             }
         }
     }

@@ -162,6 +162,11 @@ impl FileList {
                 this.changed(cx);
             });
         let mut thumbs = Thumbs::default();
+        cx.observe_global::<crate::color::Screen>(|this, cx| {
+            this.thumbs.follow(crate::color::shown(), cx);
+            cx.notify();
+        })
+        .detach();
         let mut made = thumbs.receive().expect("a new Thumbs has its receiver");
         // Thumbnails arrive in bursts: take what is there, redraw once.
         let _thumb_results = cx.spawn(async move |this, cx| {

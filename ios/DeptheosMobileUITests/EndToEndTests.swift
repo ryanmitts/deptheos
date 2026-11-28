@@ -41,6 +41,9 @@ final class EndToEndTests: XCTestCase {
         let first = app.staticTexts.matching(NSPredicate(format: "label == '#1'")).firstMatch
         XCTAssert(first.waitForExistence(timeout: long), "render #1")
 
+        if testCase.adjust != nil || testCase.reframe != nil {
+            adjust(in: app)
+        }
         for export in testCase.exports {
             try exportAs(export, space: testCase.space, in: app)
         }
@@ -80,6 +83,10 @@ final class EndToEndTests: XCTestCase {
             throw XCTSkip("end to end: run `just e2e-ios CASE`")
         }
         let json = try XCTUnwrap(environment["DEPTHEOS_E2E_CASE"], "the case")
+        // Contribution and the depth map are a depth stack's.
+        guard try JSONDecoder().decode(Case.self, from: Data(json.utf8)).method == "depth" else {
+            throw XCTSkip("the view's loads: a depth stack's case")
+        }
         let app = XCUIApplication()
         app.launchEnvironment["DEPTHEOS_E2E_FRAMES"] = frames
         app.launchEnvironment["DEPTHEOS_E2E_CASE"] = json
@@ -226,10 +233,30 @@ final class EndToEndTests: XCTestCase {
 
     /// What the test reads of the case (`e2e-check case`).
     struct Case: Decodable {
+        let method: String
         let exports: [String]
         let paint: Bool
         /// "display-p3": a camera RAW stack's output space, when set.
         let space: String?
+        /// Set in Adjust by the app's hook (`E2EAdjustHook`).
+        let adjust: [String: Double?]?
+        let reframe: Present?
+
+        /// Only whether it's there.
+        struct Present: Decodable {}
+    }
+
+    /// Adjust: the case's sliders and reframe set by the app's hook as it
+    /// opens (`E2EAdjustHook`), then Done once the render is saved under them.
+    @MainActor
+    private func adjust(in app: XCUIApplication) {
+        tapToolbar("adjust", "Adjust", in: app)
+        waitUntilEnabled(app.buttons["adjust-undo"].firstMatch, "Undo after the adjustments", timeout: long)
+        // Settled and saved before Done.
+        Thread.sleep(forTimeInterval: 5)
+        let done = app.buttons["adjust-done"].firstMatch
+        done.tap()
+        XCTAssert(done.waitForNonExistence(timeout: long), "Adjust closed")
     }
 
     /// Export as `export` says ("jpeg", "png-8", "tiff-16", "dng"…): the

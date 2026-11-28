@@ -42,6 +42,9 @@ struct AdjustSessionView: View {
                         .background(.background.secondary)
                 }
             }
+            #if DEBUG
+            .background { if E2E.adjusting != nil { E2EAdjustHook() } }
+            #endif
             .navigationTitle(Text(model.adjustTitle))
             .navigationBarTitleDisplayMode(.inline)
             .barsNeverMinimize()

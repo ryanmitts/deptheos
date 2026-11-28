@@ -167,7 +167,7 @@ final class AdjustModel {
     /// `reframe`. Another mode must be closed first.
     func open(_ result: StackResult, renderID: String) {
         guard let session, let app, app.viewing else {
-            stateLog.info("adjust: not opened: \(self.session == nil ? "no session" : "another mode", privacy: .public)")
+            stateLog.debug("adjust: not opened: \(self.session == nil ? "no session" : "another mode", privacy: .public)")
             return
         }
         do {

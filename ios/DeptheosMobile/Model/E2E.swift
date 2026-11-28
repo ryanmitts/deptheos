@@ -17,6 +17,8 @@ private nonisolated let log = AppLog(category: "files")
 /// - `DEPTHEOS_E2E_EXPORTS`: a folder on the Mac. The Export sheet gains
 ///   Save to Test Folder, writing the export there with a note of what was
 ///   asked (`e2e-check notes` reads them), standing in for Save to Files….
+///   Its adjustments and reframe are set once Adjust is first ready
+///   (`E2EAdjustHook`), standing in for setting each slider by hand.
 /// - `DEPTHEOS_PROBE_LOCAL_TONE`: `without`, `whole` or `bands`. At launch
 ///   the engine measures that draw of a synthetic 45 MP stack, the memory
 ///   probe of the sliders that read neighbors (`deptheos_app::runs::probe`),
@@ -43,6 +45,70 @@ nonisolated enum E2E {
             return nil
         }
     }()
+
+    /// The case's adjustments and reframe; nil without either.
+    static let adjusting: Adjusting? = {
+        guard let json = ProcessInfo.processInfo.environment["DEPTHEOS_E2E_CASE"],
+              let data = json.data(using: .utf8),
+              let read = try? JSONDecoder().decode(Adjusting.self, from: data),
+              read.adjust != nil || read.reframe != nil
+        else { return nil }
+        return read
+    }()
+
+    /// As `e2e.toml` writes them: each slider by its key (unset ones null),
+    /// the crop in the stored picture's pixels, the turn in degrees.
+    struct Adjusting: Decodable {
+        let adjust: [String: Double?]?
+        let reframe: CaseReframe?
+
+        struct CaseReframe: Decodable {
+            let crop: [UInt32]?
+            let flip: String?
+            let turn: UInt32?
+        }
+
+        /// As `CaseReframe::reframe` in `crates/deptheos_e2e/src/cases.rs`.
+        var engineReframe: Reframe? {
+            guard let reframe else { return nil }
+            let crop = reframe.crop.flatMap { c in
+                c.count == 4 ? Rect(x: c[0], y: c[1], width: c[2], height: c[3]) : nil
+            }
+            let turns: [Turn] = [.none, .quarter, .half, .threeQuarters]
+            var quarter = Int(reframe.turn ?? 0) / 90 % 4
+            var flip = Flip.none
+            switch reframe.flip {
+            case "horizontal": flip = .horizontal
+            case "vertical":
+                flip = .horizontal
+                quarter = (quarter + 2) % 4
+            default: break
+            }
+            return Reframe(crop: crop, flip: flip, turn: turns[quarter])
+        }
+
+        /// Each slider set and committed, then the reframe.
+        @MainActor func apply(to adjust: AdjustModel) {
+            log.info("e2e: adjusting as the case says")
+            if let values = adjust.panel.map({ $0.groups.flatMap(\.sliders) }) {
+                for (key, value) in self.adjust ?? [:] {
+                    guard let value else { continue }
+                    let name = key == "kelvin" ? "temperature" : key.replacingOccurrences(of: "_", with: "")
+                    guard let info = values.first(where: { String(describing: $0.slider).lowercased() == name })
+                    else {
+                        log.error("e2e: no slider \(key, privacy: .public)")
+                        continue
+                    }
+                    adjust.set(info.slider, to: value)
+                    adjust.commit()
+                }
+            }
+            if let reframe = engineReframe {
+                adjust.setReframe(reframe)
+                adjust.commit()
+            }
+        }
+    }
 
     /// The method and its settings, each nil for its default.
     struct Stacking: Decodable {
@@ -107,6 +173,25 @@ nonisolated enum E2E {
         case .jpeg: "jpeg"
         case .png: "png"
         case .dng: "dng"
+        }
+    }
+}
+
+/// Sets the case's adjustments and reframe the first time Adjust is ready.
+struct E2EAdjustHook: View {
+    @Environment(AppModel.self) private var model
+    @State private var applied = false
+
+    private var ready: Bool {
+        guard let status = model.adjust.status else { return false }
+        return status.phase == AdjustPhase.ready
+    }
+
+    var body: some View {
+        Color.clear.task(id: ready) {
+            guard !applied, ready, let adjusting = E2E.adjusting else { return }
+            applied = true
+            adjusting.apply(to: model.adjust)
         }
     }
 }

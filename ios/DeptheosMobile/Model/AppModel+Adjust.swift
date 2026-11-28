@@ -40,7 +40,7 @@ extension AppModel {
     /// Adjust the result: the view becomes Adjust's (the result alone).
     func startAdjusting() {
         guard canAdjust, let result else {
-            stateLog.info("adjust: not opened: \(self.result == nil ? "no result" : "busy", privacy: .public)")
+            stateLog.debug("adjust: not opened: \(self.result == nil ? "no result" : "busy", privacy: .public)")
             return
         }
         stopPainting()

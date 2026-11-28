@@ -81,9 +81,9 @@ enum Automation {
            model.history.renders.indices.contains(index) {
             model.setPanel(.closed)
             model.setScreen(.stacking)
-            automationLog.info("automation: opening render \(index)")
+            automationLog.debug("automation: opening render \(index)")
             await model.open(model.history.renders.reversed()[index])
-            automationLog.info("automation: render \(index) opened")
+            automationLog.debug("automation: render \(index) opened")
         }
         // `-Retouch YES`: retouch the result; `-RetouchStroke YES` then
         // paints one stroke across its middle.
@@ -123,7 +123,7 @@ enum Automation {
         // `-AdjustCrop YES` opens the crop tool, `-AdjustTurn YES` turns it
         // right, `-AdjustBefore YES` holds Before, `-AdjustDone YES` leaves.
         if Automation.flag("Adjust") {
-            automationLog.info("automation: Adjust")
+            automationLog.debug("automation: Adjust")
             if let wait = Automation.integer("AdjustAfter") {
                 try? await Task.sleep(for: .seconds(wait))
             }

@@ -555,6 +555,15 @@ impl RenderMemory {
         self.source + self.reduced + self.fit + (self.redraw + self.strip / 2).max(self.region)
     }
 
+    /// What Adjust adds to the app's memory at its height, beyond the
+    /// stack's pixels, frame map and display it already holds: the GPU's
+    /// share, a strip's values read back, the preview's flat pictures and
+    /// the second display of a swap. On iOS, where the GPU's memory is the
+    /// app's, an open is refused unless this fits what is left.
+    pub fn added(&self) -> u64 {
+        self.gpu() + self.strip / 2 + self.flat + self.display / 2
+    }
+
     /// The CPU's share at the same moment.
     pub fn cpu(&self) -> u64 {
         self.planes + self.strip / 2 + self.pixels + self.flat + self.frame_map + self.display
@@ -566,14 +575,15 @@ impl std::fmt::Display for RenderMemory {
         let mb = |b: u64| b >> 20;
         write!(
             f,
-            "GPU {} MB (source {}, reduced {}, fit {}, redraw {}), CPU {} MB (planes {})",
+            "GPU {} MB (source {}, reduced {}, fit {}, redraw {}), CPU {} MB (planes {}), {} MB added",
             mb(self.gpu()),
             mb(self.source),
             mb(self.reduced),
             mb(self.fit),
             mb(self.redraw),
             mb(self.cpu()),
-            mb(self.planes)
+            mb(self.planes),
+            mb(self.added())
         )
     }
 }
@@ -598,6 +608,16 @@ mod tests {
         let memory = RenderMemory::of(R5[0], R5[1], 8);
         assert_eq!(memory.reduced, 4096 * 2731 * 8);
         assert!(memory.gpu() <= GPU_BUDGET_45MP, "{memory}");
+    }
+
+    /// What an open adds on iOS: under 2 GiB at 45 MP, past 3 GiB at
+    /// 100 MP, which an 8 GB iPhone's live budget beside the stack may refuse.
+    #[test]
+    fn what_an_open_adds_counts_the_gpu_and_what_the_cpu_newly_holds() {
+        let at_45 = RenderMemory::of(R5[0], R5[1], 8);
+        assert!(at_45.added() > at_45.gpu() && at_45.added() < 2 << 30, "{at_45}");
+        let at_100 = RenderMemory::of(12_240, 8_160, 8);
+        assert!(at_100.added() > 3 << 30, "{at_100}");
     }
 
     /// The real copies of a synthetic stack: their size, and the budget's

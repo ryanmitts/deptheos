@@ -597,7 +597,7 @@ impl Inner {
         let texel = if stack.is_linear() { 8 } else { 16 };
         let need = RenderMemory::of(stack.width, stack.height, texel);
         if let Some(limit) = crate::engine::memory::limit()
-            && need.gpu() > limit
+            && need.added() > limit
         {
             tracing::info!("adjust: {need} won't fit in {} MB", limit >> 20);
             return Err(say!(words, "adjust-no-memory"));

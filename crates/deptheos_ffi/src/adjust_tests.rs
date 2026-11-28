@@ -50,7 +50,9 @@ impl AdjustObserver for Heard {
         self.push("state".into());
     }
     fn previewed(&self, preview: Arc<AdjustPreview>, histogram: AdjustHistogram) {
-        assert_eq!(preview.bgra().len(), (preview.width() * preview.height() * 4) as usize);
+        assert_eq!(preview.byte_count(), u64::from(preview.width() * preview.height() * 4));
+        assert_ne!(preview.bgra_address(), 0);
+        assert_eq!(preview.space(), ScreenSpace::Srgb);
         self.push(format!("preview {}x{} {}", preview.width(), preview.height(), histogram.pixels));
     }
     fn on_screen(&self, preview: Arc<AdjustPreview>, _: AdjustHistogram) {

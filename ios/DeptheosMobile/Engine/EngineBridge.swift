@@ -62,6 +62,39 @@ extension DisplayImage {
     }
 }
 
+extension AdjustPreview {
+    /// Its pixels as an image read where the engine holds them (ADR-139):
+    /// the image keeps this preview alive, and its release lets go, which
+    /// gives the buffer back to the session for a later tick.
+    nonisolated func makeCGImage() -> CGImage? {
+        let address = bgraAddress()
+        let bytes = Int(byteCount())
+        guard width() > 0, height() > 0, bytes == Int(width()) * Int(height()) * 4,
+              let pixels = UnsafeRawPointer(bitPattern: UInt(address))
+        else { return nil }
+        let held = Unmanaged.passRetained(self)
+        guard let provider = CGDataProvider(
+            dataInfo: held.toOpaque(), data: pixels, size: bytes,
+            releaseData: { info, _, _ in
+                if let info { Unmanaged<AdjustPreview>.fromOpaque(info).release() }
+            })
+        else {
+            held.release()
+            return nil
+        }
+        let name = space() == .displayP3 ? CGColorSpace.displayP3 : CGColorSpace.sRGB
+        guard let space = CGColorSpace(name: name) else { return nil }
+        let info = CGBitmapInfo(
+            rawValue: CGImageAlphaInfo.noneSkipFirst.rawValue
+                | CGBitmapInfo.byteOrder32Little.rawValue)
+        return CGImage(
+            width: Int(width()), height: Int(height()),
+            bitsPerComponent: 8, bitsPerPixel: 32, bytesPerRow: Int(width()) * 4,
+            space: space, bitmapInfo: info, provider: provider,
+            decode: nil, shouldInterpolate: true, intent: .defaultIntent)
+    }
+}
+
 /// ImageIO previews (thumbnails, source previews). For camera RAW and DNG
 /// the file's stored preview when large enough and whole, else ImageIO's
 /// RAW decode; other files are decoded.

@@ -53,6 +53,7 @@ of a record, cites only records in this folder.
 - [136](136-the-reframe-is-a-window-of-stored-pixels.md) The reframe is a window of stored pixels, flipped and turned, applied last; the adjustment sliders' numbers
 - [137](137-the-adjustment-stages.md) The adjustment stages: one order on both kinds of stack, each slider's law in the resolve step
 - [138](138-the-adjust-preview.md) The drag preview is one flat picture a tick, from the reduced copy at fit and the full-size source past half zoom; it settles on screen before the whole picture redraws
+- [139](139-the-adjust-preview-is-read-in-place.md) On iOS, Adjust's flat pictures are read where the engine holds them, lent to an image until it lets go
 
 ## The model, the workflow and saved data
 

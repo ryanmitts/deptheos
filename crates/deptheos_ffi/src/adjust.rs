@@ -318,11 +318,31 @@ impl From<Region> for PictureRegion {
     }
 }
 
+/// The colors a picture for the screen is in.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, uniffi::Enum)]
+pub enum ScreenSpace {
+    /// sRGB, and a standard stack's own values with Color Management off,
+    /// shown as they are.
+    Srgb,
+    DisplayP3,
+}
+
+impl From<deptheos_render::OutputSpace> for ScreenSpace {
+    fn from(space: deptheos_render::OutputSpace) -> Self {
+        match space {
+            deptheos_render::OutputSpace::DisplayP3 => Self::DisplayP3,
+            _ => Self::Srgb,
+        }
+    }
+}
+
 /// One flat picture of the drag preview, or of the view on screen as it
 /// settles: `width` × `height` 8-bit BGRA, covering `covers` of the stored
 /// picture turned and flipped as the render's reframe says (the crop left
-/// to the app). Its buffer goes back to the session for the next tick when the
-/// app lets go of it, so let go of each once it is replaced on screen.
+/// to the app). The app reads its pixels where they are
+/// ([`Self::bgra_address`], ADR-139) for as long as it holds it; its buffer
+/// then goes back to the session for the next tick, so let go of each once
+/// it is replaced on screen.
 #[derive(uniffi::Object)]
 pub struct AdjustPreview {
     session: Arc<deptheos_app::adjust::AdjustSession>,
@@ -330,17 +350,20 @@ pub struct AdjustPreview {
     pub(crate) width: u32,
     pub(crate) height: u32,
     covers: Region,
+    space: ScreenSpace,
 }
 
 impl AdjustPreview {
     fn of(session: &Arc<deptheos_app::adjust::AdjustSession>, picture: FlatPicture) -> Arc<Self> {
         let (width, height, covers) = (picture.width, picture.height, picture.covers);
+        let space = picture.space.into();
         Arc::new(Self {
             session: session.clone(),
             picture: Mutex::new(Some(picture)),
             width,
             height,
             covers,
+            space,
         })
     }
 }
@@ -368,9 +391,22 @@ impl AdjustPreview {
         self.covers.into()
     }
 
-    /// Its pixels, copied out: rows tightly packed, BGRA.
-    pub fn bgra(&self) -> Vec<u8> {
-        crate::lock(&self.picture).as_ref().map(|p| p.pixels.clone()).unwrap_or_default()
+    pub fn space(&self) -> ScreenSpace {
+        self.space
+    }
+
+    /// Where its pixels are: `width` × `height` × 4 bytes, rows tightly
+    /// packed, BGRA. They stay there, unchanged, until this preview is let
+    /// go of, so the app reads them in place while it holds it (a
+    /// `CGDataProvider` whose release lets go). Nothing writes them while
+    /// it lives: the buffer goes back to the session only on its drop.
+    pub fn bgra_address(&self) -> u64 {
+        crate::lock(&self.picture).as_ref().map_or(0, |p| p.pixels.as_ptr() as u64)
+    }
+
+    /// The bytes at [`Self::bgra_address`].
+    pub fn byte_count(&self) -> u64 {
+        crate::lock(&self.picture).as_ref().map_or(0, |p| p.pixels.len() as u64)
     }
 }
 

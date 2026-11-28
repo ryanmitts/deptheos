@@ -1,4 +1,5 @@
 import CoreGraphics
+import ImageIO
 @preconcurrency import DeptheosEngine
 import SwiftUI
 
@@ -84,6 +85,17 @@ enum Automation {
             automationLog.debug("automation: opening render \(index)")
             await model.open(model.history.renders.reversed()[index])
             automationLog.debug("automation: render \(index) opened")
+        }
+        // `-DumpShown <path>`: the result's picture as handed to the screen,
+        // written as a PNG with its own color space, for checking the
+        // screen's colors (a Simulator screenshot is always sRGB).
+        if let path = Automation.string("DumpShown"), let image = model.result?.display {
+            let url = URL(fileURLWithPath: path) as CFURL
+            if let file = CGImageDestinationCreateWithURL(url, "public.png" as CFString, 1, nil) {
+                CGImageDestinationAddImage(file, image, nil)
+                let written = CGImageDestinationFinalize(file)
+                automationLog.debug("automation: shown picture written: \(written ? "yes" : "no")")
+            }
         }
         // `-Retouch YES`: retouch the result; `-RetouchStroke YES` then
         // paints one stroke across its middle.

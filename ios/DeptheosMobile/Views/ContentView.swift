@@ -37,6 +37,8 @@ struct ContentView: View {
                     .zIndex(1)
             }
         }
+        // The screen's colors, which pictures are drawn in.
+        .background { ScreenGamutReader() }
         // Stacking's tap on the photo hides the status bar and home
         // indicator too. Set here: from inside Stacking, beside the
         // Library's navigation, the system never read it.

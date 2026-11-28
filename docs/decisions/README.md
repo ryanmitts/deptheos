@@ -86,6 +86,7 @@ of a record, cites only records in this folder.
 - [169](169-ios-layout-reads-flow-one-way.md) On iOS, a measured value never sizes or moves the view it was measured from
 - [170](170-ios-backup-keeps-the-library-but-recently-deleted.md) iOS backs up the Library, all but Recently Deleted
 - [171](171-ios-adjust-screens.md) iOS Adjust is a mode beside Retouch, over Stacking, with the sliders under the photo or in a column, and the crop drawn as a window
+- [172](172-photos-show-in-the-screens-colors.md) Photos show in the screen's colors: iOS tags each picture with its space, and the desktop window follows its screen
 
 ## Earlier records
 

@@ -12,7 +12,8 @@
 //!
 //! `notes` reads the iOS test hook's `<file>.json` beside each export and
 //! checks a plain one as a stack and a retouched one against the plain
-//! TIFF before it. Exits 1 when a check fails.
+//! TIFF before it, against the case as iOS runs it (`Case::on_ios`).
+//! Exits 1 when a check fails.
 
 use std::path::{Path, PathBuf};
 use std::process::ExitCode;
@@ -358,8 +359,8 @@ fn run(args: &[String]) -> Result<Vec<Report>, String> {
         [cmd, set, exports] if *cmd == "notes" => {
             let name = value("--case").ok_or("notes needs --case NAME")?;
             let config = Config::load(&config_path())?;
-            let case = config.case(&name.to_string_lossy())?;
-            notes(Path::new(set), Path::new(exports), value("--references").as_deref(), case, bless)
+            let case = config.case(&name.to_string_lossy())?.on_ios(&config)?;
+            notes(Path::new(set), Path::new(exports), value("--references").as_deref(), &case, bless)
         }
         _ => Err("usage: e2e-check stack SET FILE [--bits N] [--reference PNG] [--bless] | \
                   paint SET PLAIN PAINTED SOURCE_FRAME | manifest SET | notes SET EXPORTS --case NAME [--references DIR] [--bless]"

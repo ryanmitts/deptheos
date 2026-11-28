@@ -109,7 +109,7 @@ pub struct Case {
     pub paint_from: Option<String>,
     /// The desktop's RAW decoder, named so the case runs the same on every
     /// Mac (Automatic depends on Adobe DNG Converter being installed).
-    /// Desktop only.
+    /// Desktop only: a case on iOS too needs an `ios_set`.
     pub decoder: Option<Decoder>,
     /// The set its exports are checked against, when not `set`: the same
     /// frames by name from another decoder (the converter's DNGs, whose
@@ -263,7 +263,8 @@ pub enum OutputSpace {
 }
 
 /// A case's reframe: `crop` as left, top, width and height in the
-/// stack's pixels, then `flip`, then `turn` clockwise in degrees.
+/// stack's pixels of `set`'s frames (iOS scales it to its `ios_set`'s,
+/// [`CaseReframe::scaled`]), then `flip`, then `turn` clockwise in degrees.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Deserialize, Serialize)]
 #[serde(deny_unknown_fields)]
 pub struct CaseReframe {
@@ -297,6 +298,24 @@ impl CaseReframe {
             Some(CaseFlip::Vertical) => (Flip::Horizontal, Turn::Half.then(turn)),
         };
         Reframe { crop, flip, turn }
+    }
+
+    /// The reframe on frames of `to` pixels, its crop given on frames of
+    /// `from`: each axis scaled by its own ratio and rounded, kept inside
+    /// `to`. Flip and turn stay.
+    pub fn scaled(self, from: (u32, u32), to: (u32, u32)) -> CaseReframe {
+        let along = |v: u32, from: u32, to: u32| {
+            let from = u64::from(from.max(1));
+            ((u64::from(v) * u64::from(to) + from / 2) / from) as u32
+        };
+        let crop = self.crop.map(|[x, y, width, height]| {
+            let x = along(x, from.0, to.0).min(to.0.saturating_sub(1));
+            let y = along(y, from.1, to.1).min(to.1.saturating_sub(1));
+            let width = along(width, from.0, to.0).clamp(1, (to.0 - x).max(1));
+            let height = along(height, from.1, to.1).clamp(1, (to.1 - y).max(1));
+            [x, y, width, height]
+        });
+        CaseReframe { crop, ..self }
     }
 
     fn validate(&self) -> Result<(), String> {
@@ -465,18 +484,33 @@ impl Case {
         serde_json::to_string(self).expect("a case is plain data")
     }
 
-    /// The case for `script/e2e-ios.sh`: its JSON plus the Simulator's set
-    /// folder (`setDir`) and that set's readable frames in name order
-    /// (`frames`), which the script copies.
+    /// The case for `script/e2e-ios.sh`: its JSON as iOS runs it
+    /// ([`Case::on_ios`]) plus the Simulator's set folder (`setDir`) and
+    /// that set's readable frames in name order (`frames`), which the
+    /// script copies.
     pub fn for_ios(&self, config: &Config) -> Result<String, String> {
-        self.ios_can_run()?;
+        let case = self.on_ios(config)?;
         let dir = config.sets_dir().join(self.ios_set.as_ref().unwrap_or(&self.set));
         let set = crate::Set::open_checked(&dir)?;
         let mut json: serde_json::Value =
-            serde_json::from_str(&self.to_json()).expect("a case is plain data");
+            serde_json::from_str(&case.to_json()).expect("a case is plain data");
         json["setDir"] = dir.display().to_string().into();
         json["frames"] = set.frames.iter().map(|f| f.display().to_string()).collect();
         Ok(json.to_string())
+    }
+
+    /// The case as iOS runs it: on its `ios_set`, the crop scaled from
+    /// `set`'s frames to the ios_set's ([`CaseReframe::scaled`]).
+    pub fn on_ios(&self, config: &Config) -> Result<Case, String> {
+        let mut case = self.clone();
+        if let (Some(ios_set), Some(reframe)) = (&self.ios_set, &mut case.reframe)
+            && reframe.crop.is_some()
+        {
+            let from = frame_size(&config.sets_dir().join(&self.set))?;
+            let to = frame_size(&config.sets_dir().join(ios_set))?;
+            *reframe = reframe.scaled(from, to);
+        }
+        Ok(case)
     }
 
     /// What its export as `format`, `bits` a channel, should be.
@@ -487,29 +521,6 @@ impl Case {
             reframe: self.reframe.map(|r| r.reframe()).unwrap_or_default(),
             ..Expect::new(format, bits)
         }
-    }
-
-    /// Refuses a case that sets `adjust`, `space` or `reframe` on iOS, which
-    /// has no Adjust to apply them; the desktop's driver applies them in its
-    /// Adjust mode and Export sheet.
-    pub fn ios_can_run(&self) -> Result<(), String> {
-        let set: Vec<&str> = [
-            ("adjust", self.adjust.is_some()),
-            ("space", self.space.is_some()),
-            ("reframe", self.reframe.is_some()),
-        ]
-        .into_iter()
-        .filter_map(|(key, set)| set.then_some(key))
-        .collect();
-        let keys = match set.as_slice() {
-            [] => return Ok(()),
-            [one] => one.to_string(),
-            [rest @ .., last] => format!("{} and {last}", rest.join(", ")),
-        };
-        Err(format!(
-            "case {} sets {keys}, which the iOS app can't apply: it has no Adjust",
-            self.name
-        ))
     }
 
     fn validate(&self) -> Result<(), String> {
@@ -550,8 +561,8 @@ impl Case {
         if self.check_set.is_some() && self.on.contains(&Platform::Ios) {
             return Err("check_set is the desktop's: give on = [\"desktop\"]".into());
         }
-        if self.decoder.is_some() && self.on.contains(&Platform::Ios) {
-            return Err("decoder is the desktop's: give on = [\"desktop\"]".into());
+        if self.decoder.is_some() && self.on.contains(&Platform::Ios) && self.ios_set.is_none() {
+            return Err("decoder is the desktop's: give on = [\"desktop\"] or an ios_set".into());
         }
         let dng = self.exports.iter().any(|e| e.format == ExportFormat::Dng);
         if let Some(adjust) = &self.adjust {
@@ -585,6 +596,16 @@ impl Case {
 /// A setting's name, its value in a case, the method it belongs to and
 /// its range.
 type Setting = (&'static str, Option<f32>, Method, (f32, f32));
+
+/// A set's first frame's upright size from its header, camera RAW as
+/// LibRaw reads it.
+fn frame_size(dir: &Path) -> Result<(u32, u32), String> {
+    let set = crate::Set::open(dir)?;
+    let first = &set.frames[0];
+    deptheos_core::io::header_info(first, deptheos_core::io::CameraRaw::LibRaw)
+        .map(|h| (h.width, h.height))
+        .ok_or_else(|| format!("{}: its size doesn't read", first.display()))
+}
 
 fn expand_home(path: &str) -> PathBuf {
     match path.strip_prefix("~/") {
@@ -674,9 +695,9 @@ mod tests {
     }
 
     /// A case's adjustments, space and reframe read as the engine takes
-    /// them, and the iOS driver refuses it.
+    /// them, and go to iOS.
     #[test]
-    fn adjustments_space_and_reframe_read_and_are_refused_on_ios() {
+    fn adjustments_space_and_reframe_read_and_go_to_ios() {
         let config = parse(
             "sets = \"s\"\n[[case]]\nname = \"a\"\nset = \"a\"\nstack_bits = 16\n\
              adjust = { exposure = 0.5, kelvin = 4300, tint = 12, vibrance = 20, clarity = 15, \
@@ -715,17 +736,55 @@ mod tests {
             b.expect(ExportFormat::Png, 8).adjustments.white_balance,
             WhiteBalance::Relative { temperature: -30.0, tint: 0.0 }
         );
-        let refused = a.ios_can_run().unwrap_err();
-        assert!(refused.contains("adjust, space and reframe"), "{refused}");
-        assert!(a.for_ios(&config).unwrap_err().contains("can't apply"));
-        assert!(b.ios_can_run().unwrap_err().contains("sets adjust,"));
         let back: Case = serde_json::from_str(&a.to_json()).unwrap();
         assert_eq!((back.adjust, back.space, back.reframe), (a.adjust, a.space, a.reframe));
-        // The repository's iOS cases set none of them.
-        let repository = Config::load(&default_path()).unwrap();
-        for case in repository.cases.iter().filter(|c| c.on.contains(&Platform::Ios)) {
-            case.ios_can_run().unwrap();
+    }
+
+    /// A crop on the full set's frames, scaled to a smaller set's: each axis
+    /// by its own ratio, rounded, kept inside the frames; flip and turn kept.
+    #[test]
+    fn a_crop_scales_to_the_ios_sets_frames() {
+        let reframe = |crop| CaseReframe { crop, flip: Some(CaseFlip::Horizontal), turn: 90 };
+        let (full, half) = ((8256, 5504), (4128, 2753));
+        let cases = [
+            (Some([1200, 800, 5200, 3400]), Some([600, 400, 2600, 1701])),
+            (Some([0, 0, 8256, 5504]), Some([0, 0, 4128, 2753])),
+            (Some([8255, 5503, 1, 1]), Some([4127, 2752, 1, 1])),
+            (Some([8000, 0, 600, 5504]), Some([4000, 0, 128, 2753])),
+            (None, None),
+        ];
+        for (crop, scaled) in cases {
+            assert_eq!(reframe(crop).scaled(full, half), reframe(scaled), "{crop:?}");
         }
+        let same = reframe(Some([10, 20, 30, 40]));
+        assert_eq!(same.scaled(full, full), same);
+    }
+
+    /// On iOS a case is sent and checked with its crop on the ios_set's
+    /// frames; the desktop keeps it as given.
+    #[test]
+    fn ios_runs_the_crop_on_its_sets_frames() {
+        let sets = tempfile::tempdir().unwrap();
+        for (name, w, h) in [("full", 400, 300), ("small", 200, 150)] {
+            let dir = sets.path().join(name);
+            std::fs::create_dir(&dir).unwrap();
+            image::RgbImage::new(w, h).save(dir.join("a.png")).unwrap();
+            crate::Set::open(&dir).unwrap().write_manifest().unwrap();
+        }
+        let text = format!(
+            "sets = {:?}\n[[case]]\nname = \"a\"\nset = \"full\"\nios_set = \"small\"\n\
+             stack_bits = 8\nexports = [\"png-8\"]\n\
+             reframe = {{ crop = [40, 30, 200, 100], turn = 90 }}\n",
+            sets.path()
+        );
+        let config = parse(&text).unwrap();
+        let case = &config.cases[0];
+        assert_eq!(case.on_ios(&config).unwrap().reframe.unwrap().crop, Some([20, 15, 100, 50]));
+        let json: serde_json::Value =
+            serde_json::from_str(&case.for_ios(&config).unwrap()).unwrap();
+        assert_eq!(json["reframe"]["crop"], serde_json::json!([20, 15, 100, 50]));
+        assert_eq!(json["reframe"]["turn"], 90);
+        assert_eq!(case.reframe.unwrap().crop, Some([40, 30, 200, 100]));
     }
 
     #[test]

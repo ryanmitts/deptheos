@@ -180,3 +180,17 @@ sim() {
 build sim/jpeg/canon1 sim jpeg/canon1
 build sim/p3/hornet sim p3/hornet
 build sim/tiff16/canon1 sim tiff16/canon1
+
+# A set's camera RAW for the Simulator: linear DNGs by Adobe DNG Converter,
+# `-lossy -side 4128` (half a 45 MP frame's long side, JPEG XL at 16
+# bits), still camera RAW so a kelvin white applies: sim_dngs SET INTO
+sim_dngs() {
+    local converter="/Applications/Adobe DNG Converter.app/Contents/MacOS/Adobe DNG Converter"
+    [[ -x "$converter" ]] || { echo "the Simulator's DNGs need Adobe DNG Converter" >&2; return 1; }
+    "$converter" -lossy -side 4128 -d "$2" "$sets/$1"/*.CR3 >/dev/null 2>&1 || true
+    local made wanted
+    made=$(find "$2" -name '*.dng' | wc -l)
+    wanted=$(find "$sets/$1" -name '*.CR3' | wc -l)
+    ((made == wanted)) || { echo "Adobe DNG Converter made $made of $1's $wanted DNGs" >&2; return 1; }
+}
+build sim/dng/canon1 sim_dngs cr3/canon1

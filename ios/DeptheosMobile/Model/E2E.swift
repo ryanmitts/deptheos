@@ -21,6 +21,12 @@ private nonisolated let log = AppLog(category: "files")
 ///   the engine measures that draw of a synthetic 45 MP stack, the memory
 ///   probe of the sliders that read neighbors (`deptheos_app::runs::probe`),
 ///   and logs its line; `DEPTHEOS_PROBE_BAND` sets the band's rows (512).
+/// - `DEPTHEOS_PROBE_ADJUST_TICK`: `fit`, `region`, `fit-local` or
+///   `region-local`. At launch 40 of Adjust's drag ticks on a synthetic
+///   45 MP stack, each timed from the engine's draw through its pixels'
+///   copy into Swift to a drawn `CGImage`, and read in place, the
+///   median and 95th percentile of each step logged; then three settles'
+///   full pictures with the footprint's peak.
 nonisolated enum E2E {
     static let frames: URL? = folder("DEPTHEOS_E2E_FRAMES")
     static let exports: URL? = folder("DEPTHEOS_E2E_EXPORTS")
@@ -192,6 +198,72 @@ extension AppModel {
                 draw: draw, width: 8192, height: 5464, band: band, request: request)
         }
         log.info("\(line ?? "local tone probe failed", privacy: .public)")
+    }
+
+    /// Adjust's tick probe the launch environment names, logged.
+    func probeAdjustTick() async {
+        guard let kind = ProcessInfo.processInfo.environment["DEPTHEOS_PROBE_ADJUST_TICK"] else { return }
+        let region = kind.hasPrefix("region")
+        let local = kind.hasSuffix("local")
+        let screen = UIScreen.main.nativeBounds.size
+        let (sw, sh) = (UInt32(max(screen.width, screen.height)), UInt32(min(screen.width, screen.height)))
+        guard let probe = await ask({ engine, request in
+            try await engine.probeAdjustTicks(width: 8192, height: 5460, local: local, request: request)
+        }) else {
+            log.error("adjust tick probe: the copies weren't made")
+            return
+        }
+        let lines = try? await Blocking.run { () -> String in
+            var draw: [Double] = [], copy: [Double] = [], image: [Double] = [], shown: [Double] = []
+            var total: [Double] = [], inPlace: [Double] = [], size = ""
+            for step in 1...40 {
+                let start = DispatchTime.now()
+                let tick = try probe.tick(step: UInt32(step), screenWidth: sw, screenHeight: sh, region: region)
+                let drawn = DispatchTime.now()
+                let pixels = DisplayImage(width: tick.width, height: tick.height, bgra: probe.bgra())
+                let copied = DispatchTime.now()
+                guard let cgImage = pixels.makeCGImage() else { continue }
+                let made = DispatchTime.now()
+                // Drawn once, as the layer's first display copies it.
+                let context = CGContext(
+                    data: nil, width: cgImage.width, height: cgImage.height, bitsPerComponent: 8,
+                    bytesPerRow: 0, space: CGColorSpace(name: CGColorSpace.sRGB)!,
+                    bitmapInfo: CGImageAlphaInfo.noneSkipFirst.rawValue | CGBitmapInfo.byteOrder32Little.rawValue)
+                context?.draw(cgImage, in: CGRect(x: 0, y: 0, width: cgImage.width, height: cgImage.height))
+                let end = DispatchTime.now()
+                // The same pixels read where the engine holds them.
+                let address = probe.bgraAddress()
+                let bytes = Int(tick.width * tick.height * 4)
+                if address != 0, let pointer = UnsafeRawPointer(bitPattern: UInt(address)),
+                   let provider = CGDataProvider(dataInfo: nil, data: pointer, size: bytes, releaseData: { _, _, _ in }),
+                   let held = CGImage(
+                       width: Int(tick.width), height: Int(tick.height), bitsPerComponent: 8, bitsPerPixel: 32,
+                       bytesPerRow: Int(tick.width) * 4, space: CGColorSpace(name: CGColorSpace.sRGB)!,
+                       bitmapInfo: CGBitmapInfo(rawValue: CGImageAlphaInfo.noneSkipFirst.rawValue
+                           | CGBitmapInfo.byteOrder32Little.rawValue),
+                       provider: provider, decode: nil, shouldInterpolate: true, intent: .defaultIntent) {
+                    context?.draw(held, in: CGRect(x: 0, y: 0, width: held.width, height: held.height))
+                }
+                let placed = DispatchTime.now()
+                let ms = { (a: DispatchTime, b: DispatchTime) in Double(b.uptimeNanoseconds - a.uptimeNanoseconds) / 1e6 }
+                draw.append(ms(start, drawn)); copy.append(ms(drawn, copied))
+                image.append(ms(copied, made)); shown.append(ms(made, end)); total.append(ms(start, end))
+                inPlace.append(ms(start, drawn) + ms(end, placed))
+                size = "\(tick.width)x\(tick.height)"
+            }
+            let settles = try (1...3).map { try probe.settle(step: UInt32(40 + $0)) }
+            func stats(_ v: [Double]) -> String {
+                let s = v.dropFirst(5).sorted()
+                guard !s.isEmpty else { return "?" }
+                let at = { (q: Double) in s[Int((Double(s.count - 1) * q).rounded())] }
+                return String(format: "%.1f / %.1f", at(0.5), at(0.95))
+            }
+            return "adjust tick probe, \(kind), \(size) on a \(sw)x\(sh) screen, median / p95 ms: "
+                + "draw \(stats(draw)), copy into Swift \(stats(copy)), CGImage \(stats(image)), "
+                + "drawn \(stats(shown)), total \(stats(total)); read in place, total \(stats(inPlace)); "
+                + settles.joined(separator: "; ")
+        }
+        log.info("\(lines ?? "adjust tick probe failed", privacy: .public)")
     }
 
     /// Blocks: off the main actor.

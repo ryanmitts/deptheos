@@ -133,10 +133,123 @@ fn measure<T>(what: &'static str, step: impl FnOnce() -> Result<T>) -> Result<St
     let millis = started.elapsed().as_millis() as u64;
     let step = Step { what, millis, before, peak, after: footprint() };
     tracing::info!(
-        "local tone probe: {what} in {millis} ms, footprint {} MB, peak {} MB, after {} MB",
+        "probe: {what} in {millis} ms, footprint {} MB, peak {} MB, after {} MB",
         before >> 20,
         peak >> 20,
         step.after >> 20
     );
     Ok(step)
+}
+
+/// One drag tick of Adjust on a synthetic standard stack, timed: the GPU
+/// copies made once, then each tick drawn and read back as the session
+/// draws it, so an app can time the rest of its way to the screen
+/// (`DEPTHEOS_PROBE_ADJUST_TICK` in the iOS app's debug build).
+pub struct AdjustTicks {
+    stack: crate::CompletedStack,
+    copies: crate::adjust::GpuCopies,
+    slot: crate::adjust::preview::FlatSlot,
+    base: Adjustments,
+}
+
+impl AdjustTicks {
+    /// A `width`×`height` stack of fine detail, its copies made, with
+    /// Highlights, Shadows and Clarity set when `local`.
+    pub fn new(engine: &crate::Engine, width: u32, height: u32, local: bool) -> Result<Self> {
+        let pixels: Vec<u16> = (0..width as usize * height as usize * 3)
+            .map(|i| {
+                let (x, y) = (i / 3 % width as usize, i / 3 / width as usize);
+                let line = x % 7 == 0 || y % 11 == 0;
+                let base = 0.25 + 0.6 * x as f32 / width as f32;
+                let v = if line { 0.04 } else { base * (0.9 + 0.1 * (i % 3) as f32) };
+                (v * 65535.0) as u16
+            })
+            .collect();
+        let stack = crate::CompletedStack::srgb(width, height, pixels, Vec::new());
+        let generation = crate::engine::generation::Generation::ON_DISK;
+        let copies = crate::adjust::GpuCopies::make(engine, &stack, &stack.pixels, generation)?;
+        let per_pixel = Adjustments { contrast: 20.0, saturation: 10.0, ..Adjustments::NEUTRAL };
+        let base = if local {
+            Adjustments { highlights: -30.0, shadows: 40.0, clarity: 25.0, ..per_pixel }
+        } else {
+            per_pixel
+        };
+        let mut ticks = Self { stack, copies, slot: Default::default(), base };
+        // The first draw makes the planes a drag then reads.
+        let (first, _) = ticks.draw(engine, 0, None, crate::adjust::preview::Draft::Settled)?;
+        ticks.slot.give_back(first);
+        Ok(ticks)
+    }
+
+    /// Tick `step` (each a little more exposure): at fit on a screen
+    /// `screen` pixels on its long side, or with `region` the part of
+    /// that size at 100%. The picture and the draw's time, readback
+    /// included.
+    pub fn tick(
+        &mut self,
+        engine: &crate::Engine,
+        step: u32,
+        screen: [u32; 2],
+        region: bool,
+    ) -> Result<(crate::adjust::preview::FlatPicture, Duration)> {
+        let shown = Some((screen, region));
+        self.draw(engine, step, shown, crate::adjust::preview::Draft::Tick)
+    }
+
+    /// The full picture a drag settles on, at tick `step`, drawn as the
+    /// session draws it (the whole redraw, its clipping counted and its
+    /// display made), measured with the footprint's peak.
+    pub fn settle(&mut self, engine: &crate::Engine, step: u32) -> Result<Step> {
+        let value = Adjustments { exposure: 0.01 * step as f64, ..self.base.clone() };
+        let look = crate::Look::adjusting(&self.stack, &value, deptheos_render::Reframe::NONE);
+        let Some(constants) = look.constants() else {
+            return Err(crate::Error::InvalidState("Adjust draws on the GPU".into()));
+        };
+        let copies = &mut self.copies;
+        measure("a settle's full picture", || {
+            let full = copies.draw_full(engine, &constants);
+            crate::adjust::histogram::clipping(engine, &full, None)?;
+            let shown = engine.present(&full, None)?;
+            drop(full);
+            Ok(shown)
+        })
+    }
+
+    /// The open render's GPU copies, as counted.
+    pub fn memory(&self) -> crate::adjust::RenderMemory {
+        self.copies.memory()
+    }
+
+    /// A picture's buffer, for the next tick.
+    pub fn give_back(&self, picture: crate::adjust::preview::FlatPicture) {
+        self.slot.give_back(picture);
+    }
+
+    fn draw(
+        &mut self,
+        engine: &crate::Engine,
+        step: u32,
+        shown: Option<([u32; 2], bool)>,
+        draft: crate::adjust::preview::Draft,
+    ) -> Result<(crate::adjust::preview::FlatPicture, Duration)> {
+        use crate::adjust::preview::Shown;
+        use deptheos_render::dng_render::Region;
+        let (w, h) = (self.stack.width, self.stack.height);
+        let ([sw, sh], region) = shown.unwrap_or(([2048, 2048], false));
+        let shown = if region {
+            let (vw, vh) = (sw.min(w), sh.min(h));
+            let visible = Region { x: (w - vw) / 2, y: (h - vh) / 2, width: vw, height: vh };
+            Shown { zoom: 1.0, visible }
+        } else {
+            Shown { zoom: sw.max(sh) as f32 / w.max(h) as f32, visible: Region::whole(w, h) }
+        };
+        let value = Adjustments { exposure: 0.01 * step as f64, ..self.base.clone() };
+        let look = crate::Look::adjusting(&self.stack, &value, deptheos_render::Reframe::NONE);
+        let Some(constants) = look.constants() else {
+            return Err(crate::Error::InvalidState("Adjust draws on the GPU".into()));
+        };
+        let started = Instant::now();
+        let picture = self.copies.draw_preview(engine, &constants, shown, draft, &self.slot)?;
+        Ok((picture, started.elapsed()))
+    }
 }

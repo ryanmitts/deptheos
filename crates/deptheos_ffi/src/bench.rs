@@ -160,3 +160,107 @@ impl Engine {
         .await
     }
 }
+
+/// Adjust's drag ticks on a synthetic stack, one at a time, so the app
+/// can time each one's way from the draw to the screen
+/// (`deptheos_app::runs::probe::AdjustTicks`). A debug build's probe.
+#[derive(uniffi::Object)]
+pub struct AdjustTickProbe {
+    engine: Arc<deptheos_app::Engine>,
+    ticks: std::sync::Mutex<deptheos_app::runs::probe::AdjustTicks>,
+    /// The last tick's picture, as an `AdjustPreview` holds it.
+    last: std::sync::Mutex<Option<deptheos_app::adjust::preview::FlatPicture>>,
+}
+
+/// One tick: its size and the draw's time, readback included.
+#[derive(Clone, Debug, uniffi::Record)]
+pub struct AdjustProbeTick {
+    pub width: u32,
+    pub height: u32,
+    pub draw_ms: f64,
+}
+
+#[uniffi::export]
+impl Engine {
+    /// The ticks of a `width`×`height` stack, its GPU copies made first;
+    /// `local`: Highlights, Shadows and Clarity set.
+    pub async fn probe_adjust_ticks(
+        &self,
+        width: u32,
+        height: u32,
+        local: bool,
+        request: Arc<Request>,
+    ) -> Result<Arc<AdjustTickProbe>> {
+        use deptheos_app::runs::probe::AdjustTicks;
+        let engine = self.engine.clone();
+        on_thread(self.engine.words(), "adjust tick probe", &request, move |_| {
+            let ticks = AdjustTicks::new(&engine, width, height, local)
+                .map_err(|e| EngineError::explained(&e, engine.words()))?;
+            Ok(Arc::new(AdjustTickProbe {
+                engine: engine.clone(),
+                ticks: std::sync::Mutex::new(ticks),
+                last: std::sync::Mutex::new(None),
+            }))
+        })
+        .await
+    }
+}
+
+#[uniffi::export]
+impl AdjustTickProbe {
+    /// Tick `step`, at fit on a screen `screen_width`×`screen_height`
+    /// pixels, or with `region` the part of that size at 100%. Blocks.
+    pub fn tick(
+        &self,
+        step: u32,
+        screen_width: u32,
+        screen_height: u32,
+        region: bool,
+    ) -> Result<AdjustProbeTick> {
+        let mut ticks = crate::lock(&self.ticks);
+        let screen = [screen_width, screen_height];
+        let (picture, took) = ticks
+            .tick(&self.engine, step, screen, region)
+            .map_err(|e| EngineError::explained(&e, self.engine.words()))?;
+        let tick = AdjustProbeTick {
+            width: picture.width,
+            height: picture.height,
+            draw_ms: took.as_secs_f64() * 1e3,
+        };
+        if let Some(old) = crate::lock(&self.last).replace(picture) {
+            ticks.give_back(old);
+        }
+        Ok(tick)
+    }
+
+    /// The full picture a drag settles on, at tick `step`: its time,
+    /// the footprint before, at its peak and after, and the open render's
+    /// GPU copies as counted. Blocks.
+    pub fn settle(&self, step: u32) -> Result<String> {
+        let mut ticks = crate::lock(&self.ticks);
+        let left = deptheos_app::engine::memory::left();
+        let s = ticks
+            .settle(&self.engine, step)
+            .map_err(|e| EngineError::explained(&e, self.engine.words()))?;
+        Ok(format!(
+            "settle {} ms, footprint {} MB, peak {} MB, after {} MB, {} MB left before; copies: {}",
+            s.millis,
+            s.before >> 20,
+            s.peak >> 20,
+            s.after >> 20,
+            left.map_or("?".into(), |b| (b >> 20).to_string()),
+            ticks.memory(),
+        ))
+    }
+
+    /// Where the last tick's pixels are, for a read in place: valid until
+    /// the next tick.
+    pub fn bgra_address(&self) -> u64 {
+        crate::lock(&self.last).as_ref().map_or(0, |p| p.pixels.as_ptr() as u64)
+    }
+
+    /// The last tick's pixels, copied out as `AdjustPreview::bgra` does.
+    pub fn bgra(&self) -> Vec<u8> {
+        crate::lock(&self.last).as_ref().map(|p| p.pixels.clone()).unwrap_or_default()
+    }
+}

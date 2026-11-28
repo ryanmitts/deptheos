@@ -518,6 +518,7 @@ final class AppModel {
             #if DEBUG
             await openTestFrames()
             await probeLocalTone()
+            await probeAdjustTick()
             #endif
         } catch {
             engineState = .failed(Self.message(error).string)

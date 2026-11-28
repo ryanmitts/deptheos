@@ -1,8 +1,9 @@
-//! The preferences both apps offer (ADR-150): export format and naming, and
-//! Grid search's limits. Each front end stores and shows them its own way;
-//! this module holds the fields, defaults, ranges, clamping, labels, and how
-//! they reach a stack ([`AlignmentPreferences::apply`]) and an export
-//! ([`ExportPreferences::save_options`], [`ExportPreferences::file_stem`]).
+//! The preferences both apps offer (ADR-150): export format, space and
+//! naming, and Grid search's limits. Each front end stores and shows them
+//! its own way; this module holds the fields, defaults, ranges, clamping,
+//! labels, and how they reach a stack ([`AlignmentPreferences::apply`]) and
+//! an export ([`ExportPreferences::save_options`],
+//! [`ExportPreferences::file_stem`]).
 //!
 //! The serde names are the desktop `preferences.json` keys. A missing key
 //! takes its default; an unknown TIFF compression is ZIP.
@@ -16,7 +17,7 @@ use serde::{Deserialize, Deserializer, Serialize, Serializer};
 use crate::library::export::{self, NameParts};
 use crate::runs::stacker::StackerKind;
 use crate::words::{Words, say};
-use crate::{GridConfig, SaveOptions, SessionOptions, TiffCompression};
+use crate::{ExportSpace, GridConfig, SaveOptions, SessionOptions, TiffCompression};
 
 /// How exports are written and named.
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
@@ -32,6 +33,10 @@ pub struct ExportPreferences {
     pub sixteen_bit: bool,
     #[serde(with = "tiff_key")]
     pub tiff_compression: TiffCompression,
+    /// The space an adjusted camera RAW render exports in: the last choice
+    /// in an Export sheet, not a setting.
+    #[serde(rename = "export_space")]
+    pub space: ExportSpace,
 }
 
 impl Default for ExportPreferences {
@@ -42,6 +47,7 @@ impl Default for ExportPreferences {
             jpeg_quality: save.jpeg_quality,
             sixteen_bit: save.sixteen_bit,
             tiff_compression: save.tiff_compression,
+            space: save.space,
         }
     }
 }
@@ -60,7 +66,7 @@ impl ExportPreferences {
             jpeg_quality: self.clone().sanitized().jpeg_quality,
             sixteen_bit: self.sixteen_bit,
             tiff_compression: self.tiff_compression,
-            space: crate::ExportSpace::Srgb,
+            space: self.space,
         }
     }
 
@@ -324,6 +330,25 @@ mod tests {
         assert_eq!(alignment.grid_rotation_deg, 0.0);
         assert_eq!(alignment.grid_magnification_pct, GridConfig::MAGNIFICATION_PCT_RANGE.1);
         assert_eq!(alignment.grid_horizontal_pct, 0.0);
+    }
+
+    /// The space is kept as `export_space`; only an adjusted camera RAW
+    /// render's JPEG, PNG or TIFF picks one, ProPhoto at 16 bits only.
+    #[test]
+    fn the_space_is_kept_and_offered_for_an_adjusted_raw_render() {
+        use crate::library::export::ExportFormat::{Dng, Jpeg, Tiff};
+        let export: ExportPreferences =
+            serde_json::from_str(r#"{"export_space": "display_p3"}"#).unwrap();
+        assert_eq!(export.save_options().space, ExportSpace::DisplayP3);
+        assert!(ExportSpace::offered(Tiff, true, true));
+        assert!(!ExportSpace::offered(Dng, true, true), "a DNG has no space");
+        assert!(!ExportSpace::offered(Tiff, true, false), "unadjusted: sRGB");
+        assert!(!ExportSpace::offered(Tiff, false, true), "a standard stack keeps its own");
+        assert_eq!(ExportSpace::ProPhoto.for_format(Tiff, true), ExportSpace::ProPhoto);
+        assert_eq!(ExportSpace::ProPhoto.for_format(Jpeg, true), ExportSpace::AdobeRgb);
+        assert!(!ExportSpace::ProPhoto.is_available(Tiff, false));
+        let words = Words::english(Platform::Ios);
+        assert_eq!(ExportSpace::DisplayP3.label(&words), "Display P3");
     }
 
     #[test]

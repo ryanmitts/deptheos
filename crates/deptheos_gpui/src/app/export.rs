@@ -163,7 +163,7 @@ impl AppView {
         let p = prefs(cx);
         let format = p.save_format_for(info.color.is_linear());
         let (sixteen, place, reveal) = (p.export.sixteen_bit, p.export_place, p.reveal_export);
-        let space = p.export_space;
+        let space = p.export.space;
         let dialog =
             cx.new(|cx| ExportDialog::new(info, format, sixteen, space, place, reveal, window, cx));
         let on_event = move |this: &mut Self,
@@ -215,7 +215,7 @@ impl AppView {
                     return;
                 }
                 let name = file_label(&path);
-                let space = prefs(cx).export_space;
+                let space = prefs(cx).export.space;
                 let choice = ExportChoice { format, sixteen_bit, space, place, name, dir, reveal };
                 this.write_export(choice, ExportOf::Shown, window, cx);
             })
@@ -304,7 +304,7 @@ impl AppView {
             p.export_place = choice.place;
             p.reveal_export = choice.reveal;
             if linear {
-                p.export_space = choice.space;
+                p.export.space = choice.space;
             }
             p.save_dir = Some(choice.dir.clone());
         });

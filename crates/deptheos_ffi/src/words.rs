@@ -6,7 +6,9 @@ use std::sync::Arc;
 use deptheos_app::library::export::ExportFormat;
 use deptheos_app::library::history::{self, Batch};
 use deptheos_app::preferences::{self as shared, ExportPreferences, Preference};
-use deptheos_app::{AlignMode, Platform, SettingHelp, TiffCompression, Words as AppWords};
+use deptheos_app::{
+    AlignMode, ExportSpace, Platform, SettingHelp, TiffCompression, Words as AppWords,
+};
 
 use crate::{Algorithm, DeletedInfo};
 
@@ -86,6 +88,16 @@ impl Words {
     /// "ZIP", "LZW", "None": a compression as the choice offers it.
     pub fn tiff_compression_label(&self, compression: TiffCompression) -> String {
         shared::tiff_compression_label(compression, &self.words)
+    }
+
+    /// "Display P3": a space as the Export sheet offers it.
+    pub fn export_space_label(&self, space: ExportSpace) -> String {
+        space.label(&self.words)
+    }
+
+    /// Under the spaces: ProPhoto takes 16 bits.
+    pub fn export_space_prophoto_note(&self) -> String {
+        ExportSpace::prophoto_note(&self.words)
     }
 
     /// "For example: bee-4.jpg": what `export`'s pattern names a sample

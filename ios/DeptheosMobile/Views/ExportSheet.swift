@@ -24,6 +24,10 @@ struct ExportSheet: View {
     /// on the desktop.
     @State private var quality = Double(defaultPreferences().export.jpegQuality)
     @State private var sixteenBit = true
+    /// An adjusted camera RAW render's; the last choice, as on the desktop.
+    @State private var space = ExportSpace.srgb
+    /// Whether the render has adjustments set: `nil` until read.
+    @State private var adjusted: Bool?
     @State private var export = Export.idle {
         didSet { stateLog.debug("export sheet: \(export.name, privacy: .public)") }
     }
@@ -120,13 +124,28 @@ struct ExportSheet: View {
                         Toggle(
                             LocalizedStringResource(
                                 "16 bits per channel", comment: "Export sheet and Settings ▸ Export switch for PNG and TIFF: write 16 bits per color channel rather than 8."),
-                            isOn: $sixteenBit)
-                            .disabled(exportDepthFixed(format: format, source: result.hasSixteenBit()))
+                            isOn: Binding(get: { sixteenWritten }, set: { sixteenBit = $0 }))
+                            .disabled(depthFixed)
                             .accessibilityIdentifier("export-16")
                     case .dng:
                         Text(
                             "DNG keeps the linear camera data, with the frames' camera profile, for your RAW editor to develop.",
                             comment: "Export sheet: the note shown when DNG is the format.")
+                            .font(.footnote).foregroundStyle(.secondary)
+                    }
+                    if offersSpaces {
+                        Picker(
+                            LocalizedStringResource(
+                                "Color", comment: "Export sheet: the picker of the color space an adjusted RAW render is written in."),
+                            selection: Binding(get: { spaceWritten }, set: { space = $0 })
+                        ) {
+                            ForEach(ExportSpace.allCases.filter(isAvailable), id: \.self) { space in
+                                // The engine's name for the space.
+                                Text(verbatim: AppWords.words.exportSpaceLabel(space: space)).tag(space)
+                            }
+                        }
+                        .accessibilityIdentifier("export-space")
+                        Text(verbatim: AppWords.words.exportSpaceProphotoNote())
                             .font(.footnote).foregroundStyle(.secondary)
                     }
                 } footer: {
@@ -180,9 +199,17 @@ struct ExportSheet: View {
             .onChange(of: sixteenBit) { _, sixteenBit in
                 // Only where it's a choice: a result without 16 bits shows
                 // it off.
-                if !exportDepthFixed(format: format, source: result.hasSixteenBit()) {
+                if !depthFixed {
                     model.preferences.export.sixteenBit = sixteenBit
                 }
+            }
+            .onChange(of: space) { _, space in
+                model.preferences.export.space = space
+            }
+            .task {
+                // The sheet is for this result alone: closing it cancels the read.
+                guard let read = await model.exportAdjusted(result), !Task.isCancelled else { return }
+                adjusted = read
             }
             .onChange(of: options) {
                 if case .written(let file) = export {
@@ -204,7 +231,8 @@ struct ExportSheet: View {
                 format = model.preferences.lastFormat(for: kind).flatMap { formats.contains($0) ? $0 : nil } ?? fallback
                 let preferred = model.preferences.export
                 quality = Double(preferred.jpegQuality)
-                sixteenBit = result.hasSixteenBit() && preferred.sixteenBit
+                sixteenBit = preferred.sixteenBit
+                space = preferred.space
             }
             .fileMover(isPresented: presenting(.files), file: export.file) { moved in
                 switch moved {
@@ -257,14 +285,48 @@ struct ExportSheet: View {
         .disabled(export.destination != nil)
     }
 
+    /// As written: the bits and space the format and stack allow.
     private struct Options: Equatable {
         let format: ExportFormat
         let quality: Double
         let sixteenBit: Bool
+        let space: ExportSpace
     }
 
     private var options: Options {
-        Options(format: format, quality: quality, sixteenBit: sixteenBit)
+        Options(format: format, quality: quality, sixteenBit: sixteenWritten, space: spaceWritten)
+    }
+
+    /// 16 bits can be written: the stack has them, or it is adjusted.
+    private var hasSixteen: Bool {
+        result.hasSixteenBit() || adjusted == true
+    }
+
+    /// An adjusted camera RAW render's JPEG, PNG or TIFF picks its space.
+    private var offersSpaces: Bool {
+        result.exportOffersSpaces(format: format, adjusted: adjusted == true)
+    }
+
+    private func isAvailable(_ space: ExportSpace) -> Bool {
+        exportSpaceAvailable(space: space, format: format, source: hasSixteen)
+    }
+
+    /// The space written: ProPhoto only at 16 bits, else Adobe RGB.
+    private var spaceWritten: ExportSpace {
+        exportSpaceForFormat(space: space, format: format, source: hasSixteen)
+    }
+
+    /// ProPhoto holds the depth at 16 bits.
+    private var prophoto: Bool {
+        offersSpaces && spaceWritten == .proPhoto
+    }
+
+    private var depthFixed: Bool {
+        exportDepthFixed(format: format, source: hasSixteen) || prophoto
+    }
+
+    private var sixteenWritten: Bool {
+        exportSixteenBit(format: format, asked: sixteenBit || prophoto, source: hasSixteen)
     }
 
     /// For the format remembered: RAW and DNG stacks can export DNG.
@@ -300,6 +362,7 @@ struct ExportSheet: View {
             var preferences = model.preferences.export
             preferences.jpegQuality = UInt8(asked.quality)
             preferences.sixteenBit = asked.sixteenBit
+            preferences.space = asked.space
             let written = await model.export(
                 result, renderID: renderID, format: asked.format, options: preferences)
             // The sheet closed or the options changed meanwhile: not the
@@ -324,8 +387,7 @@ struct ExportSheet: View {
     #if DEBUG
     /// With a note of what was asked for, in the test's folder.
     private func saveToTestFolder(_ file: URL) {
-        let bits = exportSixteenBit(
-            format: options.format, asked: options.sixteenBit, source: result.hasSixteenBit()) ? 16 : 8
+        let bits = options.sixteenBit ? 16 : 8
         // The frame the render was painted from, while Retouch has it open.
         let paintedFrom = model.paint.painted
             ? model.paint.paintedFrom.sorted().first.map { URL(fileURLWithPath: $0).lastPathComponent }

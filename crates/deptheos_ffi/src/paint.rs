@@ -23,7 +23,6 @@ use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
 use deptheos_app::Engine as AppEngine;
-use deptheos_app::Look;
 use deptheos_app::engine::present::{CpuImage, TiledLevel};
 use deptheos_app::engine::work::Lane;
 use deptheos_app::library::export::ExportFormat;
@@ -38,7 +37,7 @@ use crate::picture::{TileAsk, TileFetched, fetch_tiles};
 use crate::request::{Ask, on_pool};
 use crate::{
     DisplayImage, Engine, EngineError, ExportPreferences, Picture, Request, Result, StackResult,
-    Told, export_target, level_image, shown,
+    Told, export_target, level_image, saved_in, shown,
 };
 use deptheos_app::words::ios::Line;
 
@@ -650,7 +649,7 @@ impl PaintSession {
         // Every failure leads with what didn't happen: paint unreadable, the
         // worker gone, or the write.
         self.engine
-            .save_flattened(Look::saved(&stack, &saved), Some(flattened), &path, save)
+            .save_flattened(saved_in(&stack, &saved, format, save), Some(flattened), &path, save)
             .map_err(|e| EngineError::led(Line::RetouchedExportFailed, &e, self.engine.words()))?;
         Ok(path)
     }

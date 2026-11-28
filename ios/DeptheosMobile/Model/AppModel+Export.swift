@@ -25,6 +25,12 @@ extension AppModel {
         result != nil && stacking == nil && opening == nil
     }
 
+    /// Whether `stack` is a render with adjustments set, which decides what
+    /// the Export sheet offers; `nil` on failure, which is shown.
+    func exportAdjusted(_ stack: StackResult) async -> Bool? {
+        await ask { _, request in try await stack.exportAdjusted(request: request) }
+    }
+
     /// Write `stack` (render `renderID`) with its paint to a temporary file
     /// alone in its folder, as `format` with `options`, named by the
     /// preferences' pattern. The caller deletes the folder when done.

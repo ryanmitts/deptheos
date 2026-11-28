@@ -3,9 +3,9 @@
 //! them to every stack and export, and clamps what it reads through
 //! [`sanitized_preferences`]. Defined in `deptheos_app::preferences`.
 
-use deptheos_app::TiffCompression;
 pub use deptheos_app::preferences::ExportPreferences;
 use deptheos_app::preferences::{AlignmentPreferences, Preference};
+use deptheos_app::{ExportSpace, TiffCompression};
 
 use crate::SettingRange;
 
@@ -34,6 +34,20 @@ pub struct ExportPreferences {
     /// sheet's last choice, which the next starts from.
     pub sixteen_bit: bool,
     pub tiff_compression: TiffCompression,
+    /// The space an adjusted camera RAW render exports in: the Export
+    /// sheet's last choice, which the next starts from.
+    pub space: ExportSpace,
+}
+
+/// The color space an adjusted camera RAW render exports in
+/// (`deptheos_app::ExportSpace`); others keep their own.
+#[uniffi::remote(Enum)]
+pub enum ExportSpace {
+    Srgb,
+    DisplayP3,
+    AdobeRgb,
+    /// At 16 bits only; at 8 it writes Adobe RGB.
+    ProPhoto,
 }
 
 /// Grid search's limits, and whether it compensates exposure; only when

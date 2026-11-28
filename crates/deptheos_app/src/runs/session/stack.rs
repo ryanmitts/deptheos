@@ -17,6 +17,7 @@ use crate::engine::look::Look;
 use crate::engine::present::conversion;
 use crate::engine::present::{PresentedImage, present_frame_map};
 use crate::frames::names::file_label;
+use crate::library::export::ExportFormat;
 use crate::runs::stacker::StackerConfig;
 use crate::words::{Words, say};
 use crate::{Engine, Error, Result};
@@ -60,6 +61,40 @@ impl ExportSpace {
             Self::ProPhoto if sixteen_bit => OutputSpace::ProPhoto,
             Self::ProPhoto => OutputSpace::AdobeRgb,
         }
+    }
+
+    /// Whether an export as `format` picks its space: an adjusted camera
+    /// RAW render's JPEG, PNG or TIFF. A standard stack keeps its own
+    /// profile and a DNG has none.
+    pub fn offered(format: ExportFormat, linear: bool, adjusted: bool) -> bool {
+        linear && adjusted && format != ExportFormat::Dng
+    }
+
+    /// Whether `format` writes it: ProPhoto only where 16 bits can be
+    /// (`source`, the stack has them or is adjusted).
+    pub fn is_available(self, format: ExportFormat, source: bool) -> bool {
+        self != Self::ProPhoto || format.depth(true, source)
+    }
+
+    /// The space written as `format`: Adobe RGB in place of a ProPhoto it
+    /// can't write.
+    pub fn for_format(self, format: ExportFormat, source: bool) -> Self {
+        if self.is_available(format, source) { self } else { Self::AdobeRgb }
+    }
+
+    /// "Display P3": its name in the Export sheet.
+    pub fn label(self, words: &Words) -> String {
+        match self {
+            Self::Srgb => say!(words, "export-space-srgb"),
+            Self::DisplayP3 => say!(words, "export-space-display-p3"),
+            Self::AdobeRgb => say!(words, "export-space-adobe-rgb"),
+            Self::ProPhoto => say!(words, "export-space-prophoto"),
+        }
+    }
+
+    /// Under the spaces: ProPhoto takes 16 bits.
+    pub fn prophoto_note(words: &Words) -> String {
+        say!(words, "export-space-prophoto-note")
     }
 }
 

@@ -1114,6 +1114,16 @@ setup-pair-raw
     RAW
 setup-pair-jpeg
     JPEG
+export-space-srgb
+    sRGB
+export-space-display-p3
+    Display P3
+export-space-adobe-rgb
+    Adobe RGB
+export-space-prophoto
+    ProPhoto RGB
+export-space-prophoto-note
+    ProPhoto RGB is written with 16 bits only.
 pref-jpeg-quality
     JPEG quality
 pref-jpeg-quality-help

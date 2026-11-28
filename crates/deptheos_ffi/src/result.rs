@@ -8,8 +8,8 @@ use deptheos_app::library::adjustments::RenderAdjustments;
 use deptheos_app::library::export::{self, ExportFormat, NameParts};
 use deptheos_app::library::history::{History, RenderId};
 use deptheos_app::{
-    Adjustments, CompletedStack, Engine as AppEngine, Look, PresentedImage, PresentedStack,
-    SaveOptions,
+    Adjustments, CompletedStack, Engine as AppEngine, ExportSpace, Look, PresentedImage,
+    PresentedStack, SaveOptions,
 };
 
 use crate::request::{Ask, on_pool};
@@ -109,6 +109,24 @@ pub fn export_sixteen_bit(format: ExportFormat, asked: bool, source: bool) -> bo
 #[uniffi::export]
 pub fn export_depth_fixed(format: ExportFormat, source: bool) -> bool {
     format.is_depth_fixed(source)
+}
+
+/// Whether `format` writes `space`: ProPhoto only where 16 bits can be
+/// (`source`: the stack has them, or it is adjusted).
+#[uniffi::export]
+pub fn export_space_available(space: ExportSpace, format: ExportFormat, source: bool) -> bool {
+    space.is_available(format, source)
+}
+
+/// The space written as `format`: Adobe RGB in place of a ProPhoto it
+/// can't write.
+#[uniffi::export]
+pub fn export_space_for_format(
+    space: ExportSpace,
+    format: ExportFormat,
+    source: bool,
+) -> ExportSpace {
+    space.for_format(format, source)
 }
 
 /// Where an export of `stack` as `name` goes in `directory`: the name as a
@@ -351,6 +369,21 @@ impl StackResult {
         ExportFormat::offered(self.is_linear())
     }
 
+    /// Whether it is a render with adjustments set, which decides what the
+    /// Export sheet offers; read on the pool for `request`.
+    pub async fn export_adjusted(self: Arc<Self>, request: Arc<Request>) -> Result<bool> {
+        let this = self.clone();
+        let read = move || this.adjusted();
+        on_pool(self.engine.words(), &request, Lane::Interactive, Ask::Own("export-adjusted"), read)
+            .await
+    }
+
+    /// Whether an export as `format` picks its space: a camera RAW stack's
+    /// JPEG, PNG or TIFF, when `adjusted` ([`Self::export_adjusted`]).
+    pub fn export_offers_spaces(&self, format: ExportFormat, adjusted: bool) -> bool {
+        ExportSpace::offered(format, self.is_linear(), adjusted)
+    }
+
     /// The stacked frames' paths, in the order given.
     pub fn frames(&self) -> Vec<PathBuf> {
         self.stack
@@ -426,6 +459,12 @@ impl StackResult {
         *displays = Displays::Released;
     }
 
+    /// Whether it is a render with adjustments set, read after their
+    /// pending writes.
+    pub(crate) fn adjusted(&self) -> Result<bool> {
+        Ok(!self.saved_adjustments()?.adjustments.is_neutral())
+    }
+
     /// The adjustments of the render it is, read after their pending
     /// writes; a result not saved has none.
     pub(crate) fn saved_adjustments(&self) -> Result<RenderAdjustments> {
@@ -446,7 +485,8 @@ impl StackResult {
         let words = self.engine.words();
         let path = export_target(&self.stack, directory, name, format).told(words)?;
         let saved = self.saved_adjustments()?;
-        self.engine.save(Look::saved(&self.stack, &saved), &path, save).told(words)?;
+        let look = saved_in(&self.stack, &saved, format, save);
+        self.engine.save(look, &path, save).told(words)?;
         Ok(path)
     }
 }
@@ -485,4 +525,15 @@ impl StackResult {
         let write = move || this.export_saved(&directory, &name, format, save);
         on_pool(self.engine.words(), &request, Lane::Background, Ask::Own("export"), write).await
     }
+}
+
+/// The look `stack` exports with as `format`: an adjusted camera RAW render
+/// in the space `save` names, ProPhoto only at 16 bits (ADR-133).
+pub(crate) fn saved_in<'a>(
+    stack: &'a CompletedStack,
+    saved: &'a RenderAdjustments,
+    format: ExportFormat,
+    save: SaveOptions,
+) -> Look<'a> {
+    Look::saved_in(stack, saved, save.space, format.depth(save.sixteen_bit, true))
 }

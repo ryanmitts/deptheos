@@ -306,15 +306,6 @@ fn space_id(space: ExportSpace) -> &'static str {
     }
 }
 
-fn space_label(w: &DesktopWords, space: ExportSpace) -> String {
-    match space {
-        ExportSpace::Srgb => say!(w, "export-space-srgb"),
-        ExportSpace::DisplayP3 => say!(w, "export-space-display-p3"),
-        ExportSpace::AdobeRgb => say!(w, "export-space-adobe-rgb"),
-        ExportSpace::ProPhoto => say!(w, "export-space-prophoto"),
-    }
-}
-
 /// The color line: what the pixels are; non-sRGB frames keep their space,
 /// embedded, but for a table-based profile adjusted; a DNG of an adjusted
 /// render carries only its white balance and crop.
@@ -452,16 +443,12 @@ impl ExportDialog {
 
     /// An adjusted RAW render, written developed: its space is chosen.
     pub fn offers_spaces(&self) -> bool {
-        self.info.color.is_linear() && self.info.adjusted && self.format != ExportFormat::Dng
+        ExportSpace::offered(self.format, self.info.color.is_linear(), self.info.adjusted)
     }
 
     /// The space written, as the radios show: ProPhoto only at 16 bits.
     pub fn space(&self) -> ExportSpace {
-        let sixteen = self.format.depth(true, self.has_sixteen());
-        match self.space {
-            ExportSpace::ProPhoto if !sixteen => ExportSpace::AdobeRgb,
-            space => space,
-        }
+        self.space.for_format(self.format, self.has_sixteen())
     }
 
     /// The spaces of an adjusted RAW render, ProPhoto only where 16 bits
@@ -469,7 +456,7 @@ impl ExportDialog {
     fn render_spaces(&self, cx: &mut Context<Self>) -> gpui::Div {
         let w = cx.wording().clone();
         let chosen = self.space();
-        let sixteen = self.format.depth(true, self.has_sixteen());
+        let source = self.has_sixteen();
         let mut radios = v_flex().gap_1p5();
         for space in ExportSpace::ALL {
             let id = space_id(space);
@@ -477,9 +464,9 @@ impl ExportDialog {
                 h_flex().child(
                     div().debug_selector(move || id.into()).child(
                         Radio::new(id)
-                            .label(space_label(&w, space))
+                            .label(space.label(w.shared()))
                             .checked(chosen == space)
-                            .disabled(space == ExportSpace::ProPhoto && !sixteen)
+                            .disabled(!space.is_available(self.format, source))
                             .on_click(cx.listener(move |this, _, _, cx| {
                                 this.space = space;
                                 cx.notify();
@@ -488,7 +475,7 @@ impl ExportDialog {
                 ),
             );
         }
-        radios.child(note(say!(w, "export-space-prophoto-note"), cx.theme().muted_foreground))
+        radios.child(note(ExportSpace::prophoto_note(w.shared()), cx.theme().muted_foreground))
     }
 
     /// 16 or 8 bits, fixed for JPEG (8), DNG (16) and 8-bit frames (8).

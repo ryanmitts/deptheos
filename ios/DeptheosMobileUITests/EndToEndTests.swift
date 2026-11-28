@@ -42,12 +42,12 @@ final class EndToEndTests: XCTestCase {
         XCTAssert(first.waitForExistence(timeout: long), "render #1")
 
         for export in testCase.exports {
-            try exportAs(export, in: app)
+            try exportAs(export, space: testCase.space, in: app)
         }
         guard testCase.paint else { return }
         // A retouch is checked against a plain TIFF: one made if none was asked for.
         if !testCase.exports.contains(where: { $0.hasPrefix("tiff") }) {
-            try exportAs("tiff-8", in: app)
+            try exportAs("tiff-8", space: testCase.space, in: app)
         }
         let paintedAs = testCase.exports.first { $0.hasPrefix("tiff") } ?? "tiff-8"
 
@@ -65,7 +65,7 @@ final class EndToEndTests: XCTestCase {
         // One stroke: Undo comes on.
         waitUntilEnabled(app.buttons["Undo"].firstMatch, "Undo after the stroke", timeout: 60)
 
-        try exportAs(paintedAs, in: app)
+        try exportAs(paintedAs, space: testCase.space, in: app)
     }
 
     /// The viewer's loads as a user moves through the result: frames alone,
@@ -228,13 +228,15 @@ final class EndToEndTests: XCTestCase {
     struct Case: Decodable {
         let exports: [String]
         let paint: Bool
+        /// "display-p3": a camera RAW stack's output space, when set.
+        let space: String?
     }
 
     /// Export as `export` says ("jpeg", "png-8", "tiff-16", "dng"…): the
-    /// format, 16 Bits where offered, Save to Test Folder; done when the
-    /// sheet closes.
+    /// format, the case's `space` but for DNG, 16 Bits where offered, Save
+    /// to Test Folder; done when the sheet closes.
     @MainActor
-    private func exportAs(_ export: String, in app: XCUIApplication) throws {
+    private func exportAs(_ export: String, space: String?, in app: XCUIApplication) throws {
         let parts = export.split(separator: "-")
         let labels = ["jpeg": "JPEG", "png": "PNG", "tiff": "TIFF", "dng": "DNG"]
         let format = try XCTUnwrap(labels[String(parts[0])], "export \(export)")
@@ -246,6 +248,20 @@ final class EndToEndTests: XCTestCase {
         let item = app.buttons[format].firstMatch
         XCTAssert(item.waitForExistence(timeout: 10), "\(format) in Format")
         item.tap()
+        // The space, before the bits: ProPhoto holds them at 16.
+        if let space, format != "DNG" {
+            let names = [
+                "srgb": "sRGB", "display-p3": "Display P3", "adobe-rgb": "Adobe RGB", "prophoto": "ProPhoto RGB",
+            ]
+            let name = try XCTUnwrap(names[space], "space \(space)")
+            // Shown once the sheet has read that the render is adjusted.
+            let spaces = app.buttons["export-space"].firstMatch
+            XCTAssert(spaces.waitForExistence(timeout: 30), "the Export sheet's Color")
+            spaces.tap()
+            let choice = app.buttons[name].firstMatch
+            XCTAssert(choice.waitForExistence(timeout: 10), "\(name) in Color")
+            choice.tap()
+        }
         // 16 Bits, where the format and the stack leave it to choose.
         let bits = app.switches["export-16"].firstMatch
         if bits.waitForExistence(timeout: 2), bits.isEnabled {

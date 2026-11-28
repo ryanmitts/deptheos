@@ -48,6 +48,7 @@ final class AppPreferences {
         static let jpegQuality = "ExportJpegQuality"
         static let sixteenBit = "ExportSixteenBit"
         static let tiffCompression = "ExportTiffCompression"
+        static let space = "ExportSpace"
         static let gridHorizontal = "GridHorizontalPercent"
         static let gridVertical = "GridVerticalPercent"
         static let gridRotation = "GridRotationDegrees"
@@ -70,6 +71,9 @@ final class AppPreferences {
         if let tiff = defaults.string(forKey: Key.tiffCompression).flatMap(TiffCompression.init(stored:)) {
             shared.export.tiffCompression = tiff
         }
+        if let space = defaults.string(forKey: Key.space).flatMap(ExportSpace.init(stored:)) {
+            shared.export.space = space
+        }
         if let value = number(Key.gridHorizontal) { shared.alignment.gridHorizontalPct = Float(value) }
         if let value = number(Key.gridVertical) { shared.alignment.gridVerticalPct = Float(value) }
         if let value = number(Key.gridRotation) { shared.alignment.gridRotationDeg = Float(value) }
@@ -85,6 +89,7 @@ final class AppPreferences {
         defaults.set(Double(export.jpegQuality), forKey: Key.jpegQuality)
         defaults.set(export.sixteenBit, forKey: Key.sixteenBit)
         defaults.set(export.tiffCompression.stored, forKey: Key.tiffCompression)
+        defaults.set(export.space.stored, forKey: Key.space)
         defaults.set(Double(alignment.gridHorizontalPct), forKey: Key.gridHorizontal)
         defaults.set(Double(alignment.gridVerticalPct), forKey: Key.gridVertical)
         defaults.set(Double(alignment.gridRotationDeg), forKey: Key.gridRotation)
@@ -140,6 +145,30 @@ extension TiffCompression: @retroactive CaseIterable {
         case "none": self = .none
         case "lzw": self = .lzw
         case "zip": self = .zip
+        default: return nil
+        }
+    }
+}
+
+extension ExportSpace: @retroactive CaseIterable {
+    public static var allCases: [ExportSpace] { [.srgb, .displayP3, .adobeRgb, .proPhoto] }
+
+    /// What `UserDefaults` keeps, the desktop's key: never changes.
+    nonisolated var stored: String {
+        switch self {
+        case .srgb: "srgb"
+        case .displayP3: "display_p3"
+        case .adobeRgb: "adobe_rgb"
+        case .proPhoto: "pro_photo"
+        }
+    }
+
+    nonisolated init?(stored: String) {
+        switch stored {
+        case "srgb": self = .srgb
+        case "display_p3": self = .displayP3
+        case "adobe_rgb": self = .adobeRgb
+        case "pro_photo": self = .proPhoto
         default: return nil
         }
     }

@@ -243,11 +243,8 @@ pub struct Preferences {
     pub export_place: ExportPlace,
     /// Show an export in the Finder (or file manager) once it is saved.
     pub reveal_export: bool,
-    /// The space an adjusted RAW render exports in: the Export sheet's
-    /// last choice.
-    pub export_space: deptheos_app::ExportSpace,
-    /// Shared with iOS: `file_name_pattern`, `jpeg_quality`, `sixteen_bit`
-    /// and `tiff_compression` in the file.
+    /// Shared with iOS: `file_name_pattern`, `jpeg_quality`, `sixteen_bit`,
+    /// `tiff_compression` and `export_space` in the file.
     #[serde(flatten)]
     pub export: ExportPreferences,
     /// Ask GitHub for a newer release at startup.
@@ -289,7 +286,6 @@ impl Default for Preferences {
             save_dir: None,
             export_place: ExportPlace::default(),
             reveal_export: true,
-            export_space: deptheos_app::ExportSpace::Srgb,
             export: ExportPreferences::default(),
             check_for_updates: true,
             raw_backend: RawDecoder::default(),
@@ -334,7 +330,7 @@ impl Preferences {
     }
 
     pub fn save_options(&self) -> SaveOptions {
-        SaveOptions { space: self.export_space, ..self.export.save_options() }
+        self.export.save_options()
     }
 
     /// The history's folder: the chosen one, else the default.
@@ -804,7 +800,7 @@ mod tests {
   "save_dir": "/Users/someone/Exports",
   "export_place": "last",
   "reveal_export": false,
-  "export_space": "srgb",
+  "export_space": "display_p3",
   "file_name_pattern": "{date} {stack}-{render}",
   "jpeg_quality": 92,
   "sixteen_bit": false,
@@ -834,6 +830,7 @@ mod tests {
                 jpeg_quality: 92,
                 sixteen_bit: false,
                 tiff_compression: TiffCompression::Lzw,
+                space: deptheos_app::ExportSpace::DisplayP3,
             }
         );
         assert_eq!(

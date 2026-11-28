@@ -1288,6 +1288,9 @@
     "Collapsed" : {
       "comment" : "VoiceOver value of a batch card's header: its stacks are hidden."
     },
+    "Color" : {
+      "comment" : "Export sheet: the picker of the color space an adjusted RAW render is written in."
+    },
     "Color Match" : {
       "comment" : "Compact chip in Retouch's inline brush tray for Only where colors match."
     },

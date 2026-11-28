@@ -1046,6 +1046,15 @@ setup-frame-included = Included
 setup-pair-raw = RAW
 setup-pair-jpeg = JPEG
 
+## The color spaces an adjusted camera RAW render exports in, in the
+## Export sheet of both apps (ExportSpace).
+
+export-space-srgb = sRGB
+export-space-display-p3 = Display P3
+export-space-adobe-rgb = Adobe RGB
+export-space-prophoto = ProPhoto RGB
+export-space-prophoto-note = ProPhoto RGB is written with 16 bits only.
+
 ## The preferences both apps offer (preferences.rs): each one's label and
 ## what it does, under it on the desktop and as its footer on iOS.
 

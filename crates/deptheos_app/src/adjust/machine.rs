@@ -83,6 +83,9 @@ pub enum Event {
     },
     PreviewDrawn(RequestId),
     FullDrawn(RequestId),
+    /// The histogram of `id` counted; [`Event::CountFailed`] if not.
+    Counted(RequestId),
+    CountFailed(RequestId),
     DrawFailed {
         id: RequestId,
         why: String,
@@ -115,7 +118,13 @@ pub enum Action {
         id: RequestId,
         value: RenderAdjustments,
     },
-    /// Show the picture drawn for `id`: it is current.
+    /// Count `value`'s histogram from the reduced copy, the full picture
+    /// on screen already showing it.
+    CountHistogram {
+        id: RequestId,
+        value: RenderAdjustments,
+    },
+    /// Show the picture or histogram drawn for `id`: it is current.
     Show(RequestId),
     /// Write render `key`'s adjustments, through the store thread.
     Write {
@@ -222,20 +231,25 @@ impl Open {
 
 /// The open render's draws.
 ///
-/// Lifecycle: idle, scrubbing, scrubbed, settling; changed only by
-/// [`Machine::on`].
+/// Lifecycle: idle, counting, scrubbing, scrubbed, settling; changed only
+/// by [`Machine::on`].
 ///
 /// ```text
-/// Idle, Scrubbed, Settling ──set──▶ Scrubbing (a tick sent)
+/// (opened, the full picture on screen showing the value) ──▶ Counting
+/// Counting ──its histogram lands or fails──▶ Idle
+/// Idle, Counting, Scrubbed, Settling ──set──▶ Scrubbing (a tick sent)
 /// Scrubbing ──set──▶ Scrubbing (next: Preview)   ──commit──▶ Scrubbing (next: Settle)
 /// Scrubbing ──its tick lands──▶ next None: Scrubbed; Preview: Scrubbing; Settle: Settling
-/// Idle, Scrubbed ──commit, undo, redo──▶ Settling (the full picture sent)
+/// Idle, Counting, Scrubbed ──commit, undo, redo──▶ Settling (the full picture sent)
 /// Settling ──it lands──▶ Idle
 /// ```
 #[derive(Clone, Copy, Debug, PartialEq)]
 enum Pace {
     /// The full picture on screen shows the value.
     Idle,
+    /// The full picture on screen shows the value; its histogram, `id`,
+    /// counting.
+    Counting(RequestId),
     /// Preview `tick` drawing; `next` is what follows it.
     Scrubbing { tick: RequestId, next: Next },
     /// A preview shows the value, the full picture not drawn: a drag held
@@ -259,6 +273,7 @@ impl Pace {
     fn name(&self) -> &'static str {
         match self {
             Self::Idle => "idle",
+            Self::Counting(_) => "counting",
             Self::Scrubbing { .. } => "scrubbing",
             Self::Scrubbed => "scrubbed",
             Self::Settling(_) => "settling",
@@ -529,7 +544,9 @@ impl Machine {
             Event::ReducedReady(id) => match self.take() {
                 State::Opening { open, upload } if upload == id => {
                     self.set_state(State::Ready { open, pace: Pace::Idle });
-                    if !self.state.open().is_some_and(Open::is_settled) {
+                    if self.state.open().is_some_and(Open::is_settled) {
+                        self.count(out);
+                    } else {
                         self.settle(out);
                     }
                 }
@@ -550,6 +567,8 @@ impl Machine {
             },
             Event::PreviewDrawn(id) => self.preview_drawn(id, out),
             Event::FullDrawn(id) => self.full_drawn(id, out),
+            Event::Counted(id) => self.counted(id, true, out),
+            Event::CountFailed(id) => self.counted(id, false, out),
             Event::DrawFailed { id, why } => self.draw_failed(id, why, out),
             Event::Written { key, id } => self.written(&key, id, out),
             Event::WriteFailed { key, id, why } => {
@@ -594,8 +613,27 @@ impl Machine {
             Pace::Scrubbing { tick, .. } => {
                 self.set_pace(Pace::Scrubbing { tick, next: Next::Preview })
             }
-            Pace::Idle | Pace::Scrubbed | Pace::Settling(_) => self.tick(out),
+            Pace::Idle | Pace::Counting(_) | Pace::Scrubbed | Pace::Settling(_) => self.tick(out),
         }
+    }
+
+    /// Count the histogram of the value, the full picture on screen.
+    fn count(&mut self, out: &mut Out) {
+        let Some(open) = self.state.open() else { return };
+        let value = open.value.clone();
+        let id = self.request();
+        out.push(Action::CountHistogram { id, value });
+        self.set_pace(Pace::Counting(id));
+    }
+
+    fn counted(&mut self, id: RequestId, ok: bool, out: &mut Out) {
+        if !matches!(self.state, State::Ready { pace: Pace::Counting(c), .. } if c == id) {
+            return self.drop_stale("histogram");
+        }
+        if ok {
+            out.push(Action::Show(id));
+        }
+        self.set_pace(Pace::Idle);
     }
 
     /// Send a preview tick of the value.
@@ -642,12 +680,12 @@ impl Machine {
     fn settle(&mut self, out: &mut Out) {
         let State::Ready { open, pace } = &self.state else { return };
         match *pace {
-            Pace::Idle if open.is_settled() => {}
+            Pace::Idle | Pace::Counting(_) if open.is_settled() => {}
             Pace::Settling(_) => {}
             Pace::Scrubbing { tick, .. } => {
                 self.set_pace(Pace::Scrubbing { tick, next: Next::Settle });
             }
-            Pace::Idle | Pace::Scrubbed => self.full(out),
+            Pace::Idle | Pace::Counting(_) | Pace::Scrubbed => self.full(out),
         }
     }
 
@@ -792,7 +830,7 @@ impl Machine {
 /// `open` as the screen has it under `pace`: with a preview over the full
 /// picture, what the full picture shows no longer counts.
 fn on_screen(mut open: Box<Open>, pace: Pace) -> Box<Open> {
-    if pace != Pace::Idle {
+    if !matches!(pace, Pace::Idle | Pace::Counting(_)) {
         open.settled = None;
     }
     open

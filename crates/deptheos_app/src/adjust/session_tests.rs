@@ -53,6 +53,7 @@ impl Observer for Heard {
                 }
                 line
             }
+            Update::Histogram { histogram, .. } => format!("histogram {}", histogram.pixels),
             Update::Closed { redraw, .. } => format!("closed {redraw}"),
             Update::Rewritten(_) => "rewritten".into(),
             Update::Notice(text) => format!("notice {text}"),
@@ -131,6 +132,8 @@ fn a_drag_previews_then_its_commit_settles_writes_and_undoes() {
     let (session, heard) = start(engine, &library);
     session.open(library.key.clone(), library.stack.clone());
     let at = heard.wait_for(0, "status Ready");
+    // Already on screen as opened: only its histogram is counted.
+    let at = heard.wait_for(at, "histogram");
 
     for v in [0.3, 0.6, 1.0] {
         session.set_slider(Slider::Exposure, v);

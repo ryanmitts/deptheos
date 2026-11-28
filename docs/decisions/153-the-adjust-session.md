@@ -13,7 +13,7 @@ Adjust moves a render's sliders and its reframe (ADR-136, ADR-137) over the stor
 ### One machine, events in and actions out
 
 - **`adjust::Machine`** (`crates/deptheos_app/src/adjust/machine.rs`) is one per app. The app's session feeds it each `Event` and carries out the `Action`s back, in order. It does no I/O, keeps no clock and holds no pixels, so its table tests (`machine_tests.rs`) are the behavior.
-- **Its lifecycle is one enum** (ADR-143): closed, opening (the reduced copy uploading), ready, away (open with its GPU copies freed, in the background or under memory pressure), failed (Retry makes the reduced copy again) and leaving (its last write or full picture still to come after the user left). While ready, its draws are one more: idle, scrubbing (a preview in flight), scrubbed (a preview on screen, a drag held still) and settling (the full picture drawing).
+- **Its lifecycle is one enum** (ADR-143): closed, opening (the reduced copy uploading), ready, away (open with its GPU copies freed, in the background or under memory pressure), failed (Retry makes the reduced copy again) and leaving (its last write or full picture still to come after the user left). While ready, its draws are one more: idle, counting (the full picture on screen as opened, its histogram counted from the reduced copy), scrubbing (a preview in flight), scrubbed (a preview on screen, a drag held still) and settling (the full picture drawing).
 - **Every request has an id**: the reduced copy, each preview, each full picture, each write. A result counts only while the state still holds its id; a stale one is dropped and counted in the debug log. The app shows a picture only on the machine's `Show` with its id.
 
 ### A change is a set, then a commit

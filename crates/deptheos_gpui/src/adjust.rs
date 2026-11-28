@@ -507,6 +507,12 @@ impl Adjust {
                 }
                 cx.notify();
             }
+            Update::Histogram { key, histogram } => {
+                if self.status.as_ref().is_some_and(|s| s.key == key) {
+                    self.histogram = Some(histogram);
+                    cx.notify();
+                }
+            }
             Update::Closed { key, redraw } => {
                 if self.status.as_ref().is_some_and(|s| s.key == key) {
                     self.status = None;

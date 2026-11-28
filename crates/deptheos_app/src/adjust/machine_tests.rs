@@ -56,6 +56,16 @@ fn writes(actions: &[Action]) -> Vec<(RequestId, f64)> {
         .collect()
 }
 
+fn counts(actions: &[Action]) -> Vec<RequestId> {
+    actions
+        .iter()
+        .filter_map(|a| match a {
+            Action::CountHistogram { id, .. } => Some(*id),
+            _ => None,
+        })
+        .collect()
+}
+
 fn shown(actions: &[Action]) -> Vec<RequestId> {
     actions
         .iter()
@@ -110,6 +120,29 @@ fn an_open_asks_for_the_reduced_copy_then_is_ready() {
     m.on(Event::ReducedReady(uploads(&a)[0]));
     assert_eq!(phase(&m), Some(Phase::Ready));
     assert_eq!(m.status().unwrap().value, at(0.5));
+}
+
+#[test]
+fn an_open_already_on_screen_counts_its_histogram_only() {
+    let mut m = Machine::new();
+    let upload = uploads(&m.on(Event::Open { key: key(1), value: at(0.5) }))[0];
+    let a = m.on(Event::ReducedReady(upload));
+    assert!(fulls(&a).is_empty() && previews(&a).is_empty(), "{a:?}");
+    let [count] = counts(&a)[..] else { panic!("{a:?}") };
+    assert_eq!(shown(&m.on(Event::Counted(count))), [count]);
+    // A drag before it lands makes it stale; the tick brings its own.
+    let mut m = Machine::new();
+    let upload = uploads(&m.on(Event::Open { key: key(1), value: at(0.5) }))[0];
+    let count = counts(&m.on(Event::ReducedReady(upload)))[0];
+    let tick = previews(&m.on(Event::Set(at(1.0))))[0].0;
+    assert!(shown(&m.on(Event::Counted(count))).is_empty());
+    assert_eq!(shown(&m.on(Event::PreviewDrawn(tick))), [tick]);
+    // A failed count leaves Adjust ready.
+    let mut m = Machine::new();
+    let upload = uploads(&m.on(Event::Open { key: key(1), value: at(0.5) }))[0];
+    let count = counts(&m.on(Event::ReducedReady(upload)))[0];
+    assert!(m.on(Event::CountFailed(count)).is_empty());
+    assert_eq!(phase(&m), Some(Phase::Ready));
 }
 
 #[test]

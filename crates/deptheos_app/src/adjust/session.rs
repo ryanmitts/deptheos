@@ -60,6 +60,9 @@ pub enum Update {
     /// histogram's clipping counted over every pixel: in place of the
     /// viewer's display and every preview.
     Settled { key: RenderId, picture: PresentedImage, histogram: Histogram },
+    /// The histogram of render `key` as opened, its full picture already
+    /// on screen; clipping counted on the small draw.
+    Histogram { key: RenderId, histogram: Histogram },
     /// Adjust left render `key`, its last write in. `redraw`: the screen
     /// doesn't show its saved value, so the viewer draws it again.
     Closed { key: RenderId, redraw: bool },
@@ -75,6 +78,7 @@ pub enum Update {
 enum Drawn {
     Preview { picture: FlatPicture, histogram: Histogram },
     Settled { key: RenderId, picture: PresentedImage, histogram: Histogram },
+    Histogram { key: RenderId, histogram: Histogram },
 }
 
 /// The GPU copies, of render `key`, made by the upload of `epoch`.
@@ -452,12 +456,19 @@ impl Inner {
                 let shown = core.shown;
                 self.settle(id, open, value, shown);
             }
+            Action::CountHistogram { id, value } => {
+                let Some(open) = core.current.clone() else { return };
+                self.count(id, open, value);
+            }
             Action::Show(id) => match core.drawn.remove(&id) {
                 Some(Drawn::Preview { picture, histogram }) => {
                     updates.push(Update::Preview { picture, histogram })
                 }
                 Some(Drawn::Settled { key, picture, histogram }) => {
                     updates.push(Update::Settled { key, picture, histogram })
+                }
+                Some(Drawn::Histogram { key, histogram }) => {
+                    updates.push(Update::Histogram { key, histogram })
                 }
                 None => tracing::error!("adjust: nothing drawn to show for {id:?}"),
             },
@@ -668,6 +679,51 @@ impl Inner {
                             tracing::warn!("adjust: a draw of {} failed: {e}", open.key.as_str());
                             let why = say!(inner.engine.words(), "adjust-draw-failed");
                             Event::DrawFailed { id, why }
+                        }
+                    };
+                    inner.feed(&mut core, event, &mut updates);
+                    core.drawn.remove(&id);
+                    crate::lock(&inner.outbox).queue.extend(updates);
+                }
+                inner.changed.notify_all();
+                inner.deliver();
+            })
+            .detach();
+    }
+
+    /// Count the histogram of `value` of `open` on the pool, from the
+    /// reduced copy.
+    fn count(&self, id: RequestId, open: Opened, value: RenderAdjustments) {
+        let me = self.me.clone();
+        work::pool()
+            .run(Lane::Interactive, Key::of("adjust-count", id), work::root(), move || {
+                let Some(inner) = me.upgrade() else { return };
+                let counted = {
+                    let mut held = crate::lock(&inner.copies);
+                    Self::copies_for(&mut held, &open, &value).and_then(|(copies, constants)| {
+                        copies.histogram(
+                            &inner.engine,
+                            &constants,
+                            value.reframe.crop,
+                            Draft::Settled,
+                        )
+                    })
+                };
+                let mut updates = Vec::new();
+                {
+                    let mut core = crate::lock(&inner.core);
+                    let event = match counted {
+                        Ok(histogram) => {
+                            core.drawn
+                                .insert(id, Drawn::Histogram { key: open.key.clone(), histogram });
+                            Event::Counted(id)
+                        }
+                        Err(e) => {
+                            tracing::warn!(
+                                "adjust: {}'s histogram not counted: {e}",
+                                open.key.as_str()
+                            );
+                            Event::CountFailed(id)
                         }
                     };
                     inner.feed(&mut core, event, &mut updates);

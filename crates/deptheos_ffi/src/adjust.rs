@@ -396,6 +396,9 @@ pub trait AdjustObserver: Send + Sync {
         picture: Arc<Picture>,
         histogram: AdjustHistogram,
     );
+    /// The histogram of `render_id` as opened, its whole picture already
+    /// on screen; clipping counted on the small draw.
+    fn counted(&self, render_id: String, histogram: AdjustHistogram);
     /// Adjust left `render_id`, its last write in. `redraw`: the screen
     /// doesn't show its saved value, so the viewer loads it again.
     fn closed(&self, render_id: String, redraw: bool);
@@ -433,6 +436,9 @@ impl deptheos_app::adjust::Observer for Forward {
                     let id = key.as_str().to_string();
                     self.observer.settled(id, image, Picture::of(picture), (&histogram).into());
                 }
+            }
+            Update::Histogram { key, histogram } => {
+                self.observer.counted(key.as_str().to_string(), (&histogram).into())
             }
             Update::Closed { key, redraw } => {
                 self.observer.closed(key.as_str().to_string(), redraw)

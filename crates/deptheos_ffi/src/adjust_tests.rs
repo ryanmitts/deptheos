@@ -59,6 +59,9 @@ impl AdjustObserver for Heard {
     fn settled(&self, _: String, image: DisplayImage, _: Arc<Picture>, h: AdjustHistogram) {
         self.push(format!("settled {}x{} full {}", image.width, image.height, h.counted_full));
     }
+    fn counted(&self, _: String, h: AdjustHistogram) {
+        self.push(format!("counted {}", h.pixels));
+    }
     fn closed(&self, _: String, redraw: bool) {
         self.push(format!("closed {redraw}"));
     }

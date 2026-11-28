@@ -2,22 +2,27 @@ import SwiftUI
 @preconcurrency import DeptheosEngine
 
 /// Adjust over Stacking (ADR-171): the photo with the preview over it, the
-/// toolbar, and the deck. At compact width the deck sits under the photo;
-/// at regular width it is a column beside it. A size-class change keeps
-/// the group and tool, which live here and in the engine's view.
+/// toolbar, and the deck. In a window taller than wide the deck is a strip
+/// under the photo, one slider at a time; in a wider one it is a column
+/// beside it. A change of shape keeps the heading, slider and tool, which
+/// live here and in the engine's view.
 struct AdjustSessionView: View {
     @Environment(AppModel.self) private var model
-    @Environment(\.horizontalSizeClass) private var horizontalSizeClass
-    @Environment(\.verticalSizeClass) private var verticalSizeClass
-    /// The heading whose sliders the compact deck shows.
+    /// The heading whose sliders the strip shows.
     @State private var group: DeptheosEngine.Group = .tone
+    /// The slider the strip shows; nil is its heading's first.
+    @State private var slider: DeptheosEngine.Slider?
+    /// Where the deck sits, from the window's shape.
+    @State private var place = DeckPlace.under
+    /// The strip's histogram, over the photo's corner.
+    @AppStorage("adjustHistogramShown") private var histogramShown = false
     /// A tap on the photo picks the white balance.
     @State private var eyedropping = false
     /// The crop's shape while dragging it.
     @State private var aspect = CropAspect.original
 
     private var adjust: AdjustModel { model.adjust }
-    private var column: Bool { horizontalSizeClass == .regular && verticalSizeClass == .regular }
+    private var column: Bool { place != .under }
 
     var body: some View {
         NavigationStack {
@@ -25,23 +30,30 @@ struct AdjustSessionView: View {
                 VStack(spacing: 0) {
                     // The photo fits what the deck leaves; it runs under the
                     // bars above.
-                    ZStack {
+                    ZStack(alignment: .topTrailing) {
                         Color.viewer.ignoresSafeArea()
                         photo
                             .scrollEdgeEffectHidden(true, for: .all)
                             .ignoresSafeArea(.container, edges: column ? .all : [.top, .horizontal])
+                        if !column, histogramShown, model.adjustView?.tool != .crop, let histogram = adjust.histogram {
+                            AdjustHistogramView(histogram: histogram)
+                                .frame(width: 132, height: 48)
+                                .padding(12)
+                                .allowsHitTesting(false)
+                        }
                     }
                     if !column {
-                        AdjustDeck(group: $group, eyedropping: $eyedropping, aspect: $aspect, compact: true)
+                        AdjustDeck(group: $group, slider: $slider, eyedropping: $eyedropping, aspect: $aspect, compact: true)
                             .background(Color.viewer.ignoresSafeArea())
                     }
                 }
-                if column {
-                    AdjustDeck(group: $group, eyedropping: $eyedropping, aspect: $aspect, compact: false)
-                        .frame(width: 340)
+                if case .beside(let width) = place {
+                    AdjustDeck(group: $group, slider: $slider, eyedropping: $eyedropping, aspect: $aspect, compact: false)
+                        .frame(width: width)
                         .background(.background.secondary)
                 }
             }
+            .onGeometryChange(for: DeckPlace.self) { DeckPlace(for: $0.size) } action: { place = $0 }
             #if DEBUG
             .background { if E2E.adjusting != nil { E2EAdjustHook() } }
             #endif
@@ -137,6 +149,13 @@ struct AdjustSessionView: View {
                     model.pasteAdjustments()
                 }
                 .disabled(model.copiedAdjustments == nil)
+                if !column {
+                    Toggle(isOn: $histogramShown) {
+                        Label(
+                            LocalizedStringResource("Show Histogram", comment: "Adjust menu toggle: the histogram over the photo's corner, when the sliders are under the photo."),
+                            systemImage: "chart.bar.xaxis")
+                    }
+                }
                 Divider()
                 Button(
                     LocalizedStringResource("Reset All", comment: "Adjust menu button: every slider back to its start, as one undoable change."),
@@ -169,6 +188,17 @@ struct AdjustSessionView: View {
     }
 }
 
+/// Where Adjust's deck sits: under the photo in a window taller than wide,
+/// beside it in a wider one, narrower where the window is.
+nonisolated enum DeckPlace: Equatable, Sendable {
+    case under
+    case beside(width: CGFloat)
+
+    init(for size: CGSize) {
+        self = size.width > size.height ? .beside(width: size.width >= 1000 ? 340 : 300) : .under
+    }
+}
+
 /// Copy and Paste Adjustments: the menu bar's and Adjust's menu.
 enum AdjustCommands {
     static let copy = LocalizedStringResource(
@@ -177,11 +207,13 @@ enum AdjustCommands {
         "Paste Adjustments", comment: "Menu item: sets the copied sliders on the render shown, its crop kept.")
 }
 
-/// Adjust's controls: the status, the histogram, the tool, and the sliders
-/// (the chosen heading's at compact width, every heading in a column).
+/// Adjust's controls: the status, the tool, and the sliders. Under the
+/// photo, one slider at a time, picked by heading and name; in a column,
+/// the histogram and every heading's sliders.
 struct AdjustDeck: View {
     @Environment(AppModel.self) private var model
     @Binding var group: DeptheosEngine.Group
+    @Binding var slider: DeptheosEngine.Slider?
     @Binding var eyedropping: Bool
     @Binding var aspect: CropAspect
     let compact: Bool
@@ -201,18 +233,16 @@ struct AdjustDeck: View {
             if model.adjustView?.tool == .crop {
                 AdjustCropDeck(aspect: $aspect)
             } else if let panel = adjust.panel, let value = adjust.value {
-                if let histogram = adjust.histogram {
-                    AdjustHistogramView(histogram: histogram)
-                        .frame(height: compact ? 36 : 80)
-                }
                 if compact {
-                    groupPicker(panel)
-                    ScrollView {
-                        sliders(of: panel.groups.first { $0.group == group } ?? panel.groups.first, value: value)
+                    let info = panel.groups.first { $0.group == group } ?? panel.groups.first
+                    sliderPicker(panel, info: info, value: value)
+                    if let shown = info?.sliders.first(where: { $0.slider == slider }) ?? info?.sliders.first {
+                        AdjustSliderRow(info: shown, value: value)
                     }
-                    .frame(maxHeight: 156)
-                    .scrollBounceBehavior(.basedOnSize)
                 } else {
+                    if let histogram = adjust.histogram {
+                        AdjustHistogramView(histogram: histogram).frame(height: 80)
+                    }
                     ScrollView {
                         VStack(alignment: .leading, spacing: 18) {
                             ForEach(panel.groups, id: \.group) { info in
@@ -303,22 +333,52 @@ struct AdjustDeck: View {
         }
     }
 
-    private func groupPicker(_ panel: AdjustPanel) -> some View {
-        ScrollView(.horizontal) {
-            HStack(spacing: 6) {
-                ForEach(panel.groups, id: \.group) { info in
-                    Button(info.label) { group = info.group }
-                        .buttonStyle(.bordered)
-                        .tint(info.group == group ? .accentFill : .secondary)
-                        .controlSize(.small)
-                        .accessibilityAddTraits(info.group == group ? .isSelected : [])
+    /// The heading as a menu, its sliders by name (a dot on each moved from
+    /// its start), and the eyedropper.
+    private func sliderPicker(_ panel: AdjustPanel, info: AdjustGroupInfo?, value: AdjustValue) -> some View {
+        let shown = info?.sliders.first { $0.slider == slider }?.slider ?? info?.sliders.first?.slider
+        return HStack(spacing: 6) {
+            Menu {
+                Picker(selection: Binding(get: { info?.group ?? group }, set: { group = $0; slider = nil })) {
+                    ForEach(panel.groups, id: \.group) { Text($0.label).tag($0.group) }
+                } label: {
+                    EmptyView()
                 }
-                if panel.groups.contains(where: { $0.group == .whiteBalance }) {
-                    eyedropperButton
+            } label: {
+                HStack(spacing: 4) {
+                    Text(info?.label ?? "")
+                    Image(systemName: "chevron.up.chevron.down").imageScale(.small)
                 }
             }
+            .buttonStyle(.bordered)
+            .tint(.accentFill)
+            .controlSize(.small)
+            .accessibilityLabel(Text(LocalizedStringResource("Heading", comment: "VoiceOver label of Adjust's menu of slider headings, such as Tone or Color.")))
+            .accessibilityValue(Text(info?.label ?? ""))
+            .accessibilityIdentifier("adjust-heading")
+            ScrollView(.horizontal) {
+                HStack(spacing: 6) {
+                    ForEach(info?.sliders ?? [], id: \.slider) { each in
+                        Button { slider = each.slider } label: {
+                            HStack(spacing: 4) {
+                                Text(each.label)
+                                if !value.isDefault(slider: each.slider) {
+                                    Circle().frame(width: 5, height: 5).accessibilityHidden(true)
+                                }
+                            }
+                        }
+                        .buttonStyle(.bordered)
+                        .tint(each.slider == shown ? .accentFill : .secondary)
+                        .controlSize(.small)
+                        .accessibilityAddTraits(each.slider == shown ? .isSelected : [])
+                    }
+                }
+            }
+            .scrollIndicators(.hidden)
+            if panel.groups.contains(where: { $0.group == .whiteBalance }) {
+                eyedropperButton
+            }
         }
-        .scrollIndicators(.hidden)
     }
 
     private var eyedropperButton: some View {
@@ -347,7 +407,6 @@ struct AdjustDeck: View {
                 ForEach(info.sliders, id: \.slider) { slider in
                     AdjustSliderRow(info: slider, value: value)
                 }
-                if info.group == .whiteBalance, !compact { EmptyView() }
             }
             if info.group == .whiteBalance, !compact {
                 HStack { eyedropperButton; Spacer() }

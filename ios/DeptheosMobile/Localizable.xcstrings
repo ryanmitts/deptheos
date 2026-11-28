@@ -4,107 +4,6 @@
     " · " : {
       "comment" : "The separator between the items of a line of compact metadata, such as 'Pyramid · 24 of 30 frames'. Spaces included."
     },
-    "%u:%u" : {
-      "comment" : "Adjust's Crop tool: a crop shape. The placeholders are its sides, as in 4:5.",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "new",
-            "value" : "%1$u:%2$u"
-          }
-        }
-      }
-    },
-    "Adjust" : {
-      "comment" : "Adjust's tool picker: the sliders."
-    },
-    "Adjust picks up where it was when you're back" : {
-      "comment" : "Over Adjust's sliders while the app is away and Adjust has let go of the GPU."
-    },
-    "Adjust the result's light, color, crop and turn" : {
-      "comment" : "Pointer tooltip of the Adjust button."
-    },
-    "Adjusting" : {
-      "comment" : "The title in Adjust, when the render's number isn't known."
-    },
-    "Adjusting #%u" : {
-      "comment" : "The title in Adjust. The placeholder is the number of the render being adjusted."
-    },
-    "Before" : {
-      "comment" : "Adjust: held, the photo shows without its adjustments."
-    },
-    "Copy Adjustments" : {
-      "comment" : "Menu item: copies the adjustments of the render shown, to paste onto another."
-    },
-    "Crop" : {
-      "comment" : "Adjust's tool picker: crop, turn and flip."
-    },
-    "Done Adjusting" : {
-      "comment" : "Menu bar item in Adjust: leaves it (key A)."
-    },
-    "Flip Horizontal" : {
-      "comment" : "Adjust's Crop tool: mirrors the photo left to right."
-    },
-    "Flip Vertical" : {
-      "comment" : "Adjust's Crop tool: mirrors the photo top to bottom."
-    },
-    "Free" : {
-      "comment" : "Adjust's Crop tool: the crop takes any shape."
-    },
-    "Highlights clipped" : {
-      "comment" : "VoiceOver value of Adjust's histogram."
-    },
-    "Histogram" : {
-      "comment" : "VoiceOver label of Adjust's histogram."
-    },
-    "Hold to see the render without its adjustments" : {
-      "comment" : "Pointer tooltip of Adjust's Before button."
-    },
-    "Nothing clipped" : {
-      "comment" : "VoiceOver value of Adjust's histogram."
-    },
-    "Opening the render…" : {
-      "comment" : "Over Adjust's sliders while the render opens."
-    },
-    "Paste Adjustments" : {
-      "comment" : "Menu item: sets the copied sliders on the render shown, its crop kept."
-    },
-    "Reset All" : {
-      "comment" : "Adjust menu button: every slider back to its start, as one undoable change."
-    },
-    "Reset Crop" : {
-      "comment" : "Adjust's Crop tool: the whole photo, unturned and unflipped."
-    },
-    "Shadows and highlights clipped" : {
-      "comment" : "VoiceOver value of Adjust's histogram."
-    },
-    "Shadows clipped" : {
-      "comment" : "VoiceOver value of Adjust's histogram."
-    },
-    "Swap Width and Height" : {
-      "comment" : "Adjust's Crop tool: turns the crop's shape, 4:5 to 5:4."
-    },
-    "Tool" : {
-      "comment" : "Adjust: picks between the sliders and Crop."
-    },
-    "Touch and hold to see the photo without its adjustments" : {
-      "comment" : "VoiceOver hint on Adjust's Before button."
-    },
-    "Try Again" : {
-      "comment" : "Adjust: opens the render again after a failure."
-    },
-    "Turn Left" : {
-      "comment" : "Adjust's Crop tool: a quarter turn counterclockwise."
-    },
-    "Turn Right" : {
-      "comment" : "Adjust's Crop tool: a quarter turn clockwise."
-    },
-    "White Balance Eyedropper" : {
-      "comment" : "Adjust: a tap on something neutral gray in the photo then sets the white balance."
-    },
-    "White balance eyedropper: tap something neutral gray in the photo" : {
-      "comment" : "Pointer tooltip of Adjust's eyedropper."
-    },
     "–/%lld" : {
       "comment" : "Beside the focus rail while no frame is shown (the result is). The placeholder is how many frames the stack has."
     },
@@ -1056,6 +955,17 @@
         }
       }
     },
+    "%u:%u" : {
+      "comment" : "Adjust's Crop tool: a crop shape. The placeholders are its sides, as in 4:5.",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "%1$u:%2$u"
+          }
+        }
+      }
+    },
     "1×" : {
       "comment" : "The lens in the camera screen's status pill before the camera is set up: the main wide lens."
     },
@@ -1118,6 +1028,21 @@
     },
     "Add the folders to stack" : {
       "comment" : "New Batch: the summary line before any folder is added."
+    },
+    "Adjust" : {
+      "comment" : "Adjust's tool picker: the sliders.\nMenu bar item: opens Adjust on the result (key A).\nToolbar button: opens Adjust on the result, its sliders and crop."
+    },
+    "Adjust picks up where it was when you're back" : {
+      "comment" : "Over Adjust's sliders while the app is away and Adjust has let go of the GPU."
+    },
+    "Adjust the result's light, color, crop and turn" : {
+      "comment" : "Pointer tooltip of the Adjust button."
+    },
+    "Adjusting" : {
+      "comment" : "The title in Adjust, when the render's number isn't known."
+    },
+    "Adjusting #%u" : {
+      "comment" : "The title in Adjust. The placeholder is the number of the render being adjusted."
     },
     "Advanced" : {
       "comment" : "Settings, for Depth: the row that opens its Radius and Blend Range sliders.\nTitle of the page with Depth's Radius and Blend Range sliders."
@@ -1192,6 +1117,9 @@
     },
     "Batch options" : {
       "comment" : "VoiceOver label of a batch card's ••• menu."
+    },
+    "Before" : {
+      "comment" : "Adjust: held, the photo shows without its adjustments."
     },
     "Benchmark" : {
       "comment" : "Settings: the page that times focus stacking on this device, its row and title."
@@ -1468,6 +1396,9 @@
     "Copied Summary" : {
 
     },
+    "Copy Adjustments" : {
+      "comment" : "Menu item: copies the adjustments of the render shown, to paste onto another."
+    },
     "Copy Frames into Deptheos" : {
       "comment" : "Menu item (the Frames head's place, or the Frames list's other commands): copies the frames used where they are in Files into the app."
     },
@@ -1493,6 +1424,9 @@
     },
     "Crisp, more noise" : {
       "comment" : "Settings: under the Smoothness slider's low end."
+    },
+    "Crop" : {
+      "comment" : "Adjust's tool picker: crop, turn and flip."
     },
     "Crop to the area every frame covers" : {
       "comment" : "Settings switch: crop the result to the area all the aligned frames cover."
@@ -1689,7 +1623,10 @@
       "comment" : "Export sheet: the note shown when DNG is the format."
     },
     "Done" : {
-      "comment" : "Bar while selecting frames: stops selecting.\nCloses the Settings sheet.\nRecently Deleted's bar while selecting: stops selecting.\nRetouch: the button on the card over a canvas that couldn't be opened; leaves paint mode.\nToolbar button in paint mode: leaves paint mode.\niPhone Frames list head: stops selecting frames."
+      "comment" : "Bar while selecting frames: stops selecting.\nCloses the Settings sheet.\nRecently Deleted's bar while selecting: stops selecting.\nRetouch: the button on the card over a canvas that couldn't be opened; leaves paint mode.\nToolbar button in Adjust: leaves Adjust, its adjustments kept.\nToolbar button in paint mode: leaves paint mode.\niPhone Frames list head: stops selecting frames."
+    },
+    "Done Adjusting" : {
+      "comment" : "Menu bar item in Adjust: leaves it (key A)."
     },
     "Downloading %lld of %lld" : {
       "comment" : "Progress in the Add sheet: frames picked in Files are downloaded where they are. The placeholders are the file's number and how many.",
@@ -1830,6 +1767,12 @@
     },
     "Flip" : {
       "comment" : "Button beside the view menu in Flicker: switches between the result and what it is compared with."
+    },
+    "Flip Horizontal" : {
+      "comment" : "Adjust's Crop tool: mirrors the photo left to right."
+    },
+    "Flip Vertical" : {
+      "comment" : "Adjust's Crop tool: mirrors the photo top to bottom."
     },
     "Flow" : {
       "comment" : "Brush slider, a name: how much each dab of a stroke paints."
@@ -2036,6 +1979,9 @@
     "Frames picked one by one are copied. To use these where they are, choose their folder, \"%@\": Deptheos then reads them from it each time." : {
       "comment" : "Add Frames sheet: the footer under the line about single frames picked in Files, all from one folder, and the Use Them Where They Are… button. The placeholder is the folder's name."
     },
+    "Free" : {
+      "comment" : "Adjust's Crop tool: the crop takes any shape."
+    },
     "Give this render a short label to tell it apart in Renders and Search. Leave empty to clear." : {
       "comment" : "Rename Render alert's text."
     },
@@ -2044,6 +1990,9 @@
     },
     "Hardness" : {
       "comment" : "Brush slider, a name: how sharp the brush's edge is."
+    },
+    "Heading" : {
+      "comment" : "VoiceOver label of Adjust's menu of slider headings, such as Tone or Color."
     },
     "HEIC" : {
       "comment" : "A photo format in the camera's Format menu: Apple's processed photo. A file format's name."
@@ -2054,6 +2003,12 @@
     "Hides this notice" : {
       "comment" : "VoiceOver hint of the notice over the photo: a tap hides it."
     },
+    "Highlights clipped" : {
+      "comment" : "VoiceOver value of Adjust's histogram."
+    },
+    "Histogram" : {
+      "comment" : "VoiceOver label of Adjust's histogram."
+    },
     "Hold still" : {
       "comment" : "Camera status pill while a bracket's delay counts down before its first frame."
     },
@@ -2062,6 +2017,9 @@
     },
     "Hold the shutter and move slowly toward the subject." : {
       "comment" : "Hint on the camera screen in Sweep mode."
+    },
+    "Hold to see the render without its adjustments" : {
+      "comment" : "Pointer tooltip of Adjust's Before button."
     },
     "Hornet" : {
       "comment" : "Item of the Try a Sample Stack menu: the sample stack of a hornet. Its stack is named Hornet, untranslated, as a folder is."
@@ -2157,7 +2115,7 @@
 
     },
     "More" : {
-      "comment" : "Retouch toolbar menu for Zoom to Fit, Export, Pencil options and Reset Retouching.\nThe Frames list's menu of its other commands (Select, Include All, Exclude All, Remove All Frames, New Stack), before iOS 27."
+      "comment" : "Adjust toolbar menu for Zoom to Fit, Export, Copy and Paste Adjustments and Reset All.\nRetouch toolbar menu for Zoom to Fit, Export, Pencil options and Reset Retouching.\nThe Frames list's menu of its other commands (Select, Include All, Exclude All, Remove All Frames, New Stack), before iOS 27."
     },
     "Name" : {
       "comment" : "Rename Render alert: placeholder of the name field.\nRename Stack alert: placeholder of the name field."
@@ -2290,6 +2248,9 @@
     "Not Stacked Yet" : {
       "comment" : "Library heading over the stacks that have frames and no render yet."
     },
+    "Nothing clipped" : {
+      "comment" : "VoiceOver value of Adjust's histogram."
+    },
     "Nothing to stack: %@" : {
       "comment" : "Notice after Start in the Batch sheet when the plan has no stacks. The placeholder is the engine's summary of the plan."
     },
@@ -2359,6 +2320,9 @@
     "Opening for Retouch…" : {
       "comment" : "Retouch: the label at the top of the photo while the render opens for painting, which can't start until it has."
     },
+    "Opening the render…" : {
+      "comment" : "Over Adjust's sliders while the render opens."
+    },
     "Opening to export" : {
       "comment" : "VoiceOver label of the spinner on a tile while its render loads for Export."
     },
@@ -2369,7 +2333,7 @@
       "comment" : "VoiceOver hint of a failed Library tile."
     },
     "Original" : {
-      "comment" : "What the brush paints from: the render as stacked, which the eraser and Original in the Paint From menu under the photo paint back. After 'Source · ' over the source's picture."
+      "comment" : "Adjust's Crop tool: the crop keeps the photo's own shape.\nWhat the brush paints from: the render as stacked, which the eraser and Original in the Paint From menu under the photo paint back. After 'Source · ' over the source's picture."
     },
     "Paint From" : {
       "comment" : "Title of the iPad column in paint mode: the frames and renders the brush can paint from.\nVoiceOver label and pointer tooltip of the Paint From menu under the photo in Retouch: the frames, the renders and the original the brush can paint from. Its value is what is painted from."
@@ -2385,6 +2349,9 @@
     },
     "Paints the render back as stacked" : {
       "comment" : "Under Original, the last item of the Paint From menu under the photo in Retouch."
+    },
+    "Paste Adjustments" : {
+      "comment" : "Menu item: sets the copied sliders on the render shown, its crop kept."
     },
     "Pencil Only" : {
       "comment" : "Status pill in Retouch on iPad when Only Pencil paints is enabled; tapping allows finger painting."
@@ -2438,7 +2405,7 @@
       "comment" : "The Library's row (iPad: its sidebar's) that opens the list of stacks and renders deleted in the last 30 days, and that list's title."
     },
     "Redo" : {
-      "comment" : "Paint mode toolbar: does the stroke taken back again."
+      "comment" : "Adjust toolbar: puts back the adjustment taken back.\nPaint mode toolbar: does the stroke taken back again."
     },
     "Remove" : {
       "comment" : "New Batch: the swipe action that takes a folder out of the batch.\nSwipe action on a frame: takes it out of the list."
@@ -2486,7 +2453,13 @@
       "comment" : "Header of the menu section listing the stack's other renders, and the VoiceOver label and pointer tooltip of the menu of the stack's renders under the photo."
     },
     "Reset" : {
-      "comment" : "Destructive button of the Reset the retouching? dialog."
+      "comment" : "Destructive button of the Reset the retouching? dialog.\nVoiceOver action on an Adjust slider: back to its start."
+    },
+    "Reset All" : {
+      "comment" : "Adjust menu button: every slider back to its start, as one undoable change."
+    },
+    "Reset Crop" : {
+      "comment" : "Adjust's Crop tool: the whole photo, unturned and unflipped."
     },
     "Reset Retouching…" : {
       "comment" : "Retouch menu button: asks, then takes the result back to as stacked."
@@ -2626,6 +2599,12 @@
     "Settings" : {
       "comment" : "The Library's gear button, and the title of the sheet it opens: the app's options."
     },
+    "Shadows and highlights clipped" : {
+      "comment" : "VoiceOver value of Adjust's histogram."
+    },
+    "Shadows clipped" : {
+      "comment" : "VoiceOver value of Adjust's histogram."
+    },
     "Share JSON…" : {
 
     },
@@ -2640,6 +2619,9 @@
     },
     "Show Controls" : {
       "comment" : "Menu bar View item while the controls over the photo are hidden: shows them again."
+    },
+    "Show Histogram" : {
+      "comment" : "Adjust menu toggle: the histogram over the photo's corner, when the sliders are under the photo."
     },
     "Show or hide the frames and renders" : {
       "comment" : "Pointer tooltip of the iPhone's Frames button: opens or closes the sheet on the frames and renders."
@@ -2786,6 +2768,9 @@
     },
     "Storage" : {
       "comment" : "Settings: the page on the folders read where they are, the copies Deptheos keeps and Delete Library…, its row and title."
+    },
+    "Swap Width and Height" : {
+      "comment" : "Adjust's Crop tool: turns the crop's shape, 4:5 to 5:4."
     },
     "Sweep" : {
       "comment" : "A camera mode: hold the shutter while moving toward the subject. A name, capitalized."
@@ -2986,11 +2971,17 @@
     "Today" : {
       "comment" : "Library, the heading over the stacks made today."
     },
+    "Tool" : {
+      "comment" : "Adjust: picks between the sliders and Crop."
+    },
     "Top and Bottom" : {
       "comment" : "Compare layout: the result below what it is compared with. In the view menu under the photo and the View menu."
     },
     "Touch and hold the eye to see the source" : {
       "comment" : "Retouch: the hint shown for a moment over the deck under the photo, and the eye's help, when a finger paints too."
+    },
+    "Touch and hold to see the photo without its adjustments" : {
+      "comment" : "VoiceOver hint on Adjust's Before button."
     },
     "Touch and hold to see the source" : {
       "comment" : "Paint mode hint, when only Apple Pencil paints: a finger's touch and hold shows the source."
@@ -3001,11 +2992,20 @@
     "Try a Sample Stack" : {
       "comment" : "Button of the empty Library and item of the Library's + menu: opens a menu of the focus brackets that come with the app. The one picked is copied into Deptheos and opened as a new stack, ready to stack."
     },
+    "Try Again" : {
+      "comment" : "Adjust: opens the render again after a failure."
+    },
+    "Turn Left" : {
+      "comment" : "Adjust's Crop tool: a quarter turn counterclockwise."
+    },
+    "Turn Right" : {
+      "comment" : "Adjust's Crop tool: a quarter turn clockwise."
+    },
     "uncropped" : {
       "comment" : "New Batch: in the line of settings every stack uses ('Pyramid · S4 · aligned · uncropped'). Lowercase.\niPhone Settings, beside Alignment, after the aligner's name: the result isn't cropped."
     },
     "Undo" : {
-      "comment" : "Button of the notice after a delete: puts back what was just deleted.\nPaint mode toolbar: takes back the last stroke."
+      "comment" : "Adjust toolbar: takes back the last adjustment.\nButton of the notice after a delete: puts back what was just deleted.\nPaint mode toolbar: takes back the last stroke."
     },
     "Unstar" : {
       "comment" : "Library tile menu item: takes the star off the stack's one render.\nRender menu item: takes the star off the render."
@@ -3045,6 +3045,12 @@
     },
     "Wavelet" : {
       "comment" : "The name of a stacking method, Wavelet."
+    },
+    "White Balance Eyedropper" : {
+      "comment" : "Adjust: a tap on something neutral gray in the photo then sets the white balance."
+    },
+    "White balance eyedropper: tap something neutral gray in the photo" : {
+      "comment" : "Pointer tooltip of Adjust's eyedropper."
     },
     "Within" : {
       "comment" : "Brush slider, a name, under Only where colors match: how close the colors must be."
